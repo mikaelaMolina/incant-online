@@ -7,7 +7,7 @@ Every third-party component, asset and AI service used in Incant Online. Only MI
 | Component | Role | Provider | Licence / terms |
 | --- | --- | --- | --- |
 | Claude Code | AI coding assistant used to write this codebase | Anthropic | Anthropic Commercial Terms of Service |
-| Anthropic API (Claude, model set by `LLM_MODEL`) | Runtime LLM: turns player input into Incantation / floor JSON and Arbiter replies (planned) | Anthropic | Anthropic Commercial Terms of Service |
+| Anthropic Messages API (Claude, default `claude-haiku-5-5`, set by `LLM_MODEL`) | Runtime LLM in llm mode: turns player input into Incantation / floor JSON and in-character replies. Called over raw HTTP; not used in mock mode | Anthropic | Anthropic Commercial Terms of Service |
 
 ## Speech and platform services
 
@@ -28,6 +28,7 @@ Every third-party component, asset and AI service used in Incant Online. Only MI
 | @dimforge/rapier3d-compat | 0.21.0 | Physics, character controller, collisions | Apache-2.0 | https://github.com/dimforge/rapier |
 | zod | 4.6.7 | Schemas and validation (FloorSpec, EnemySpec, asset manifest) | MIT | https://github.com/colinhacks/zod |
 | vitest | 5.1.0 | Unit tests (dev only) | MIT | https://github.com/vitest-dev/vitest |
+| @types/node | 24.19.2 | Node types for the dev API middleware in vite.config.ts (dev only) | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped |
 | vite | 7.3.7 | Dev server and bundler (dev only) | MIT | https://github.com/vitejs/vite |
 | typescript | 7.0.2 | Type checking (dev only) | Apache-2.0 | https://github.com/microsoft/typescript-go |
 | @types/three | 0.187.0 | Three.js type definitions (dev only) | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped |
@@ -66,9 +67,12 @@ Every third-party component, asset and AI service used in Incant Online. Only MI
 | tinybench 6.2.3 | MIT |
 | tinyexec 1.3.1 | MIT |
 | tinyglobby 0.2.17 | MIT |
+| undici-types 7.24.6 (via @types/node) | MIT |
 | why-is-node-running 3.2.1 | MIT |
 
 `GLTFLoader`, `FBXLoader` (with its bundled fflate) and `SkeletonUtils` are part of the three package (`three/addons`, MIT).
+
+Not used: `@anthropic-ai/sdk` (Apache-2.0) was evaluated and removed because it depends on `fast-sha256` (Unlicense), which is outside the allowed licences; the Messages API is called over plain HTTP instead.
 
 Platform-specific binaries (esbuild, rollup, typescript) share their parent package's licence on every OS.
 

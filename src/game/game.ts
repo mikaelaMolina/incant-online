@@ -12,6 +12,7 @@ import { ProjectileSystem } from '../combat/projectiles';
 import { BasicAttack } from '../combat/basicAttack';
 import { spawnEnemies } from '../enemies/spawner';
 import type { Enemy } from '../enemies/enemy';
+import type { FloorSpec } from '../schemas/floorSpec';
 
 /** Longest frame we simulate; avoids a "spiral of death" after a tab switch or hitch. */
 const MAX_FRAME = 0.1;
@@ -22,6 +23,10 @@ const CLEARED_BANNER_TIME = 3;
 export interface GameController {
   /** While paused the world renders but nothing simulates (start screen). */
   setPaused(paused: boolean): void;
+  /** Replace the current floor (props, lighting, enemies) and respawn the Incanter. */
+  loadFloor(spec: FloorSpec): Promise<void>;
+  /** The floor currently loaded, e.g. as context for "make it night". */
+  currentFloor(): FloorSpec;
 }
 
 /** Load the first floor and start rendering. Resolves once the floor is playable (paused). */
@@ -36,7 +41,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
-  const floor: Floor = await buildFloor(STARTING_ARENA, { scene, world, models });
+  let floor: Floor = await buildFloor(STARTING_ARENA, { scene, world, models });
 
   const input = new Input(canvas);
   const cam = new FollowCamera(window.innerWidth / window.innerHeight);
@@ -53,15 +58,27 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   // Enemy models (FBX) take a moment to parse: start playing now, enemies join when ready.
   let enemies: Enemy[] = [];
   let hadEnemies = false;
-  spawnEnemies(floor, models, { world, scene, player: incanter, projectiles })
-    .then((spawned) => {
-      enemies = spawned;
-      hadEnemies = spawned.length > 0;
-    })
-    .catch((err: unknown) => console.warn('Enemies failed to spawn.', err))
-    .finally(() => {
-      if (floor.warnings.length) console.info(`Floor "${floor.spec.name}":`, floor.warnings);
-    });
+  let clearedShown = false;
+  /** Bumped on every floor change, so late spawns from an old floor are discarded. */
+  let generation = 0;
+  const spawnFor = (f: Floor): void => {
+    const gen = ++generation;
+    spawnEnemies(f, models, { world, scene, player: incanter, projectiles })
+      .then((spawned) => {
+        if (gen !== generation) {
+          for (const e of spawned) e.dispose();
+          return;
+        }
+        enemies = spawned;
+        hadEnemies = spawned.length > 0;
+        clearedShown = false;
+      })
+      .catch((err: unknown) => console.warn('Enemies failed to spawn.', err))
+      .finally(() => {
+        if (f.warnings.length) console.info(`Floor "${f.spec.name}":`, f.warnings);
+      });
+  };
+  spawnFor(floor);
 
   const basicAttack = new BasicAttack(scene);
   incanter.onBasicAttack = (e) => basicAttack.resolve(e, enemies);
@@ -99,22 +116,24 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  const sunOffset = floor.sun.position.clone();
+  let sunOffset = floor.sun.position.clone();
   const timer = new THREE.Timer();
   timer.connect(document); // pause-aware: no huge delta after returning to the tab
   let accumulator = 0;
   let paused = true;
+  /** True while a floor is being swapped: render, but don't simulate. */
+  let loading = false;
   let reviveTimer = 0;
   let clearedTimer = 0;
-  let clearedShown = false;
 
   renderer.setAnimationLoop((time) => {
     timer.update(time);
-    const dt = paused ? 0 : Math.min(timer.getDelta(), MAX_FRAME);
-    if (paused) timer.getDelta(); // keep the clock moving so unpausing doesn't jump
+    const frozen = paused || loading;
+    const dt = frozen ? 0 : Math.min(timer.getDelta(), MAX_FRAME);
+    if (frozen) timer.getDelta(); // keep the clock moving so unpausing doesn't jump
     accumulator += dt;
 
-    if (!paused) incanter.frameInput();
+    if (!frozen) incanter.frameInput();
 
     let steps = 0;
     while (accumulator >= FIXED_DT && steps < MAX_STEPS) {
@@ -190,5 +209,29 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       paused = p;
       input.clear();
     },
+    async loadFloor(spec) {
+      loading = true;
+      try {
+        generation++; // drop any spawn still in flight for the old floor
+        for (const e of enemies) e.dispose();
+        enemies = [];
+        hadEnemies = false;
+        clearedTimer = 0;
+        healthBars.showBanner(null);
+        projectiles.clear();
+        floor.dispose();
+        floor = await buildFloor(spec, { scene, world, models });
+        sunOffset = floor.sun.position.clone();
+        incanter.revive();
+        incanter.setSpawn(floor.spawn);
+        world.step(); // update the query pipeline before spawn checks
+        cam.snapTo(incanter.position);
+        spawnFor(floor);
+      } finally {
+        loading = false;
+        input.clear();
+      }
+    },
+    currentFloor: () => floor.spec,
   };
 }

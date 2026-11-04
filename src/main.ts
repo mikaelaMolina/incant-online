@@ -8,6 +8,10 @@ import { StartScreen } from './ui/startScreen';
 import { CommandBar } from './ui/commandBar';
 import { Transcript } from './ui/transcript';
 import { NO_VOICE_MESSAGE, voiceErrorMessage } from './ui/voiceMessages';
+import { ModeLabel } from './ui/modeLabel';
+import { fetchBackendMode } from './voice/interpretClient';
+import { CommandRouter } from './voice/commandRouter';
+import { Grimoire } from './combat/grimoire';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const hud = document.querySelector<HTMLElement>('#hud');
@@ -48,6 +52,8 @@ if (canvas && hud) {
   });
 
   transcript = new Transcript(hud);
+  const modeLabel = new ModeLabel(hud);
+  void fetchBackendMode().then((m) => modeLabel.set(m));
   commandBar = new CommandBar(hud, speech.supported);
   startScreen = new StartScreen(hud, speech.mode);
   const ptt = new PushToTalk(speech);
@@ -66,12 +72,26 @@ if (canvas && hud) {
   });
 
   let game: GameController | undefined;
+  const grimoire = new Grimoire();
   startScreen.onEnter = () => {
     commandBar?.show();
     if (!speech.supported) transcript?.add('spire', NO_VOICE_MESSAGE);
     game?.setPaused(false);
-    // In the game: everything said or typed goes to the transcript. The intent router plugs in here.
-    pipeline.setHandler((u) => transcript?.add('you', u.text));
+    const g = game;
+    if (!g) return;
+    // In the game: everything said or typed is shown, then routed (forge / build / reply).
+    const router = new CommandRouter({
+      grimoire,
+      currentFloor: () => g.currentFloor(),
+      loadFloor: (spec) => g.loadFloor(spec),
+      say: (text) => transcript?.add('spire', text),
+      thinking: (on) => transcript?.setInterim(on ? 'The Spire weighs your words…' : null),
+      onMode: (r) => modeLabel.set(r.offline ? 'offline' : (r.mode ?? 'offline')),
+    });
+    pipeline.setHandler((u) => {
+      transcript?.add('you', u.text);
+      void router.handle(u);
+    });
   };
 
   startGame(canvas, hud)

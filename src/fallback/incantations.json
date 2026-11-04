@@ -1,0 +1,72 @@
+[
+  {
+    "name": "Blazing Cyclone",
+    "flavor": "Three spinning cuts wreathed in fire.",
+    "type": "melee_combo", "shape": "spin", "hits": 3, "radius": 3.5, "damage_per_hit": 18, "element": "fire",
+    "status_effect": { "kind": "burn", "dps": 4, "duration": 3 }, "chain_targets": 0, "cooldown": 8, "mana_cost": 0,
+    "vfx": { "color": "#ff6a1a", "trail": true, "particles": "embers" }
+  },
+  {
+    "name": "Frostbite Lance",
+    "flavor": "A spear of winter that pins its target in place.",
+    "type": "projectile", "shape": "thrust", "hits": 1, "radius": 1, "damage_per_hit": 30, "element": "ice",
+    "status_effect": { "kind": "freeze", "dps": 0, "duration": 1.5 }, "chain_targets": 0, "cooldown": 6, "mana_cost": 0,
+    "vfx": { "color": "#8fdcff", "trail": true, "particles": "frost" }
+  },
+  {
+    "name": "Thunder Chain",
+    "flavor": "Lightning that leaps from foe to foe.",
+    "type": "chain", "shape": "orb", "hits": 1, "radius": 1, "damage_per_hit": 16, "element": "lightning",
+    "status_effect": { "kind": "stun", "dps": 0, "duration": 0.5 }, "chain_targets": 3, "cooldown": 7, "mana_cost": 0,
+    "vfx": { "color": "#f4f06a", "trail": false, "particles": "sparks" }
+  },
+  {
+    "name": "Gale Crescent",
+    "flavor": "A sweeping arc of wind that throws enemies back.",
+    "type": "melee_combo", "shape": "slash", "hits": 2, "radius": 2.5, "damage_per_hit": 14, "element": "wind",
+    "status_effect": { "kind": "knockback", "dps": 0, "duration": 0 }, "chain_targets": 0, "cooldown": 4, "mana_cost": 0,
+    "vfx": { "color": "#bff5d0", "trail": true, "particles": "leaves" }
+  },
+  {
+    "name": "Radiant Nova",
+    "flavor": "A ring of light bursts outward from the Incanter.",
+    "type": "area", "shape": "circle", "hits": 1, "radius": 4, "damage_per_hit": 22, "element": "light",
+    "status_effect": { "kind": "slow", "dps": 0, "duration": 2 }, "chain_targets": 0, "cooldown": 10, "mana_cost": 0,
+    "vfx": { "color": "#fff3b0", "trail": false, "particles": "motes" }
+  },
+  {
+    "name": "Umbral Beam",
+    "flavor": "A line of shadow that drains the warmth from everything it touches.",
+    "type": "beam", "shape": "line", "hits": 4, "radius": 1, "damage_per_hit": 9, "element": "shadow",
+    "status_effect": { "kind": "slow", "dps": 0, "duration": 2 }, "chain_targets": 0, "cooldown": 9, "mana_cost": 0,
+    "vfx": { "color": "#9a6bff", "trail": false, "particles": "smoke" }
+  },
+  {
+    "name": "Ember Breath",
+    "flavor": "A cone of sparks and heat.",
+    "type": "area", "shape": "cone", "hits": 2, "radius": 3, "damage_per_hit": 12, "element": "fire",
+    "status_effect": { "kind": "burn", "dps": 3, "duration": 2 }, "chain_targets": 0, "cooldown": 6, "mana_cost": 0,
+    "vfx": { "color": "#ff8c3a", "trail": false, "particles": "embers" }
+  },
+  {
+    "name": "Iron Rush",
+    "flavor": "A shoulder-first charge that bowls enemies over.",
+    "type": "dash", "shape": "thrust", "hits": 1, "radius": 1.5, "damage_per_hit": 20, "element": "physical",
+    "status_effect": { "kind": "knockback", "dps": 0, "duration": 0 }, "chain_targets": 0, "cooldown": 5, "mana_cost": 0,
+    "vfx": { "color": "#d8d8e0", "trail": true, "particles": "sparks" }
+  },
+  {
+    "name": "Mending Light",
+    "flavor": "Warm light knits the Incanter's wounds.",
+    "type": "buff", "shape": "circle", "hits": 1, "radius": 1, "damage_per_hit": 5, "element": "light",
+    "status_effect": { "kind": "heal", "dps": 6, "duration": 5 }, "chain_targets": 0, "cooldown": 15, "mana_cost": 0,
+    "vfx": { "color": "#b8ffcf", "trail": false, "particles": "motes" }
+  },
+  {
+    "name": "Hailstone Orb",
+    "flavor": "A tumbling ball of ice that shatters on impact.",
+    "type": "projectile", "shape": "orb", "hits": 1, "radius": 2, "damage_per_hit": 24, "element": "ice",
+    "status_effect": { "kind": "slow", "dps": 0, "duration": 2 }, "chain_targets": 0, "cooldown": 5, "mana_cost": 0,
+    "vfx": { "color": "#cdeeff", "trail": true, "particles": "frost" }
+  }
+]

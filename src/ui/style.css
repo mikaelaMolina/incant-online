@@ -381,3 +381,24 @@ kbd {
   border-radius: 4px;
   font: 12px ui-monospace, monospace;
 }
+
+/* --- Mode label ----------------------------------------------------------------------------- */
+.mode-label {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  right: 8px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font: 11px/1.4 ui-monospace, monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #1a1200;
+  background: #ffcf4a;
+  pointer-events: auto;
+  cursor: help;
+  z-index: 20;
+}
+
+.mode-label[data-mode='offline'] {
+  background: #ff8a7a;
+}

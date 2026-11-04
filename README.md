@@ -19,6 +19,19 @@ npm test               # unit tests (schemas, manifest)
 npm run manifest       # regenerate public/assets/manifest.json after changing asset packs
 ```
 
+`npm run dev` also serves the backend (`/api/*`) from the same Vercel function files.
+
+### Mock mode (no API key needed)
+
+Without `ANTHROPIC_API_KEY` the game runs in **mock mode**: `/api/interpret` uses a local keyword parser instead of an LLM, and a "Mock mode" label shows in the top-right corner. Try typing (Enter) or saying (hold V):
+
+- `a spinning fire attack that hits three times` → forges *Blazing Cyclone*, balanced by the Arbiter
+- `make it ice` → refines the last Incantation
+- `build a misty forest at night with archers` → raises a new floor
+- anything else → an in-character reply
+
+Put a key in `.env` (or the Vercel environment) and the same requests go to Claude instead. `LLM_MODE=mock` forces mock mode even with a key.
+
 ## Controls
 
 | Input | Action |
@@ -39,7 +52,7 @@ _TODO_: turning plain spoken language into both playable 3D spaces and working, 
 
 ## How AI is used
 
-_TODO_. In short: an LLM (Anthropic API) turns what the player says into JSON that matches fixed schemas. It never writes code. Deterministic code (the Arbiter) then validates and balances that JSON before anything runs. See [CREDITS.md](CREDITS.md).
+An LLM (Claude, via the Anthropic Messages API) turns what the player says into JSON that matches fixed schemas (IncantationSpec, FloorSpec). It never writes code. Every response is validated with zod (numbers clamped, unknown values mapped to the nearest allowed one) and every Incantation is then balanced by the Arbiter, deterministic code that sets cooldown and mana from a power score. Without an API key, a keyword parser produces the same JSON shape (mock mode). If anything fails, the game answers from cached Incantations and floors, never with an error. See [CREDITS.md](CREDITS.md).
 
 ## Voice
 

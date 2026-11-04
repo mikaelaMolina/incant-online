@@ -1,0 +1,324 @@
+{
+  "name": "The Crimson Ramparts",
+  "biome": "castle",
+  "lighting": {
+    "time_of_day": "night",
+    "fog_density": 0.3,
+    "ambient_color": "#a0a8c8"
+  },
+  "size": "medium",
+  "props": [
+    {
+      "model": "castle.wall",
+      "x": -10.7,
+      "z": -15.7,
+      "rotation": 64,
+      "scale": 0.96
+    },
+    {
+      "model": "castle.wall_corner",
+      "x": 12.3,
+      "z": 3.6,
+      "rotation": 39,
+      "scale": 0.9
+    },
+    {
+      "model": "castle.siege_catapult",
+      "x": -17.6,
+      "z": -4.5,
+      "rotation": 65,
+      "scale": 0.74
+    },
+    {
+      "model": "castle.rocks_small",
+      "x": -11.4,
+      "z": -8.8,
+      "rotation": 43,
+      "scale": 0.86
+    },
+    {
+      "model": "castle.tree_large",
+      "x": 12.9,
+      "z": -6.6,
+      "rotation": 111,
+      "scale": 0.98
+    },
+    {
+      "model": "castle.wall",
+      "x": 6.9,
+      "z": -11.6,
+      "rotation": 345,
+      "scale": 0.97
+    },
+    {
+      "model": "castle.flag",
+      "x": -6.1,
+      "z": -13.2,
+      "rotation": 308,
+      "scale": 0.91
+    },
+    {
+      "model": "castle.wall",
+      "x": -8.1,
+      "z": 14.1,
+      "rotation": 30,
+      "scale": 0.89
+    },
+    {
+      "model": "castle.rocks_small",
+      "x": 17.7,
+      "z": 7.7,
+      "rotation": 98,
+      "scale": 0.9
+    },
+    {
+      "model": "castle.flag",
+      "x": 15.6,
+      "z": -2.1,
+      "rotation": 347,
+      "scale": 0.81
+    },
+    {
+      "model": "castle.wall",
+      "x": -13.8,
+      "z": 13.3,
+      "rotation": 225,
+      "scale": 0.91
+    },
+    {
+      "model": "castle.rocks_small",
+      "x": -14.7,
+      "z": -0.9,
+      "rotation": 140,
+      "scale": 0.66
+    },
+    {
+      "model": "castle.wall",
+      "x": 13.7,
+      "z": -10.3,
+      "rotation": 175,
+      "scale": 0.81
+    },
+    {
+      "model": "castle.wall",
+      "x": 5.1,
+      "z": -11.9,
+      "rotation": 338,
+      "scale": 0.91
+    },
+    {
+      "model": "castle.wall_corner",
+      "x": 19,
+      "z": 4.3,
+      "rotation": 47,
+      "scale": 0.85
+    },
+    {
+      "model": "castle.siege_catapult",
+      "x": -3.3,
+      "z": 15.4,
+      "rotation": 69,
+      "scale": 0.71
+    },
+    {
+      "model": "castle.rocks_small",
+      "x": 12.6,
+      "z": 6.8,
+      "rotation": 202,
+      "scale": 0.93
+    },
+    {
+      "model": "castle.tree_large",
+      "x": -12.9,
+      "z": 2.3,
+      "rotation": 221,
+      "scale": 0.99
+    },
+    {
+      "model": "castle.tower_square",
+      "x": 12.9,
+      "z": -0.8,
+      "rotation": 148,
+      "scale": 0.98
+    },
+    {
+      "model": "castle.tower_square",
+      "x": 6,
+      "z": -15.4,
+      "rotation": 230,
+      "scale": 0.93
+    },
+    {
+      "model": "castle.wall_corner",
+      "x": -16.4,
+      "z": -11.2,
+      "rotation": 355,
+      "scale": 0.82
+    },
+    {
+      "model": "castle.tree_large",
+      "x": 4.4,
+      "z": 7,
+      "rotation": 236,
+      "scale": 0.88
+    },
+    {
+      "model": "castle.tower_square",
+      "x": -4.3,
+      "z": -6.8,
+      "rotation": 141,
+      "scale": 0.86
+    },
+    {
+      "model": "castle.wall",
+      "x": 2.8,
+      "z": -9.6,
+      "rotation": 24,
+      "scale": 0.89
+    },
+    {
+      "model": "castle.siege_catapult",
+      "x": 9,
+      "z": -3.7,
+      "rotation": 297,
+      "scale": 0.78
+    },
+    {
+      "model": "castle.tower_square",
+      "x": 1.7,
+      "z": -19.6,
+      "rotation": 265,
+      "scale": 0.98
+    },
+    {
+      "model": "castle.tree_large",
+      "x": 1.1,
+      "z": -16.8,
+      "rotation": 38,
+      "scale": 0.82
+    },
+    {
+      "model": "castle.siege_catapult",
+      "x": 16.9,
+      "z": -4.3,
+      "rotation": 314,
+      "scale": 0.8
+    },
+    {
+      "model": "castle.rocks_small",
+      "x": -3,
+      "z": 17.1,
+      "rotation": 326,
+      "scale": 0.8
+    },
+    {
+      "model": "castle.tower_hexagon_base",
+      "x": 0.4,
+      "z": 14.5,
+      "rotation": 248,
+      "scale": 0.98
+    },
+    {
+      "model": "castle.wall",
+      "x": -18.3,
+      "z": -3.2,
+      "rotation": 253,
+      "scale": 0.94
+    },
+    {
+      "model": "castle.flag",
+      "x": 17.6,
+      "z": 2.3,
+      "rotation": 107,
+      "scale": 0.92
+    },
+    {
+      "model": "castle.rocks_small",
+      "x": 1.6,
+      "z": 19.3,
+      "rotation": 74,
+      "scale": 0.79
+    },
+    {
+      "model": "castle.tower_square",
+      "x": -10.9,
+      "z": -14.2,
+      "rotation": 86,
+      "scale": 0.89
+    },
+    {
+      "model": "castle.tree_large",
+      "x": 5.8,
+      "z": 11.7,
+      "rotation": 226,
+      "scale": 0.97
+    },
+    {
+      "model": "castle.siege_catapult",
+      "x": 11.5,
+      "z": 12.5,
+      "rotation": 236,
+      "scale": 0.77
+    },
+    {
+      "model": "castle.flag",
+      "x": 9.8,
+      "z": 4.4,
+      "rotation": 130,
+      "scale": 0.97
+    },
+    {
+      "model": "castle.rocks_small",
+      "x": -4.8,
+      "z": -9,
+      "rotation": 316,
+      "scale": 0.81
+    },
+    {
+      "model": "castle.wall_corner",
+      "x": 15.6,
+      "z": 1.4,
+      "rotation": 172,
+      "scale": 0.8
+    },
+    {
+      "model": "castle.wall_corner",
+      "x": 11.1,
+      "z": -9.7,
+      "rotation": 276,
+      "scale": 0.84
+    }
+  ],
+  "spawns": [
+    {
+      "enemy": {
+        "id": "oathless_sentinel",
+        "archetype": "melee",
+        "model": "rpg.rogue",
+        "hp": 60,
+        "speed": 3.6,
+        "damage": 8,
+        "aggro_range": 11,
+        "flee_threshold": 0.2,
+        "attack_pattern": "slash",
+        "phases": []
+      },
+      "count": 2
+    },
+    {
+      "enemy": {
+        "id": "oathless_warden",
+        "archetype": "tank",
+        "model": "rpg.warrior",
+        "hp": 160,
+        "speed": 2,
+        "damage": 18,
+        "aggro_range": 9,
+        "flee_threshold": 0,
+        "attack_pattern": "slam",
+        "phases": []
+      },
+      "count": 1
+    }
+  ]
+}

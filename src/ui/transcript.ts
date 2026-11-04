@@ -29,7 +29,7 @@ export class Transcript {
     line.className = `transcript-line transcript-${kind}`;
     const who = document.createElement('span');
     who.className = 'transcript-who';
-    who.textContent = kind === 'you' ? 'You' : 'The Spire';
+    who.textContent = kind === 'you' ? 'You' : 'The Arbiter';
     const body = document.createElement('span');
     body.textContent = text; // never innerHTML: this is player / model text
     line.append(who, body);

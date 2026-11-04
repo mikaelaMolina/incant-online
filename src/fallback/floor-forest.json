@@ -1,0 +1,324 @@
+{
+  "name": "The Whispering Wilds",
+  "biome": "forest",
+  "lighting": {
+    "time_of_day": "dawn",
+    "fog_density": 0.75,
+    "ambient_color": "#9cc7a0"
+  },
+  "size": "medium",
+  "props": [
+    {
+      "model": "nature.flower_reda",
+      "x": -15,
+      "z": 6.4,
+      "rotation": 20,
+      "scale": 0.7
+    },
+    {
+      "model": "nature.tree_pinetalla",
+      "x": 9,
+      "z": -11.7,
+      "rotation": 80,
+      "scale": 0.9
+    },
+    {
+      "model": "nature.tree_pinetalla",
+      "x": -14.6,
+      "z": -9.8,
+      "rotation": 358,
+      "scale": 0.91
+    },
+    {
+      "model": "nature.tree_detailed",
+      "x": -10.5,
+      "z": 14.4,
+      "rotation": 179,
+      "scale": 1.13
+    },
+    {
+      "model": "nature.flower_reda",
+      "x": 6.4,
+      "z": -7.6,
+      "rotation": 199,
+      "scale": 0.84
+    },
+    {
+      "model": "nature.tree_pinetalla",
+      "x": -16.6,
+      "z": 7.5,
+      "rotation": 80,
+      "scale": 1.01
+    },
+    {
+      "model": "nature.tree_oak",
+      "x": 13.3,
+      "z": 9.8,
+      "rotation": 214,
+      "scale": 1.14
+    },
+    {
+      "model": "nature.grass_large",
+      "x": -8.6,
+      "z": 6.2,
+      "rotation": 320,
+      "scale": 0.88
+    },
+    {
+      "model": "nature.grass_large",
+      "x": -4.1,
+      "z": 19.3,
+      "rotation": 94,
+      "scale": 0.81
+    },
+    {
+      "model": "nature.grass_large",
+      "x": -1.2,
+      "z": 15.4,
+      "rotation": 294,
+      "scale": 1.07
+    },
+    {
+      "model": "nature.plant_bush",
+      "x": -11.1,
+      "z": 5,
+      "rotation": 7,
+      "scale": 0.94
+    },
+    {
+      "model": "nature.grass_large",
+      "x": 19.9,
+      "z": -0.5,
+      "rotation": 247,
+      "scale": 0.92
+    },
+    {
+      "model": "nature.tree_pinetalla",
+      "x": 12.8,
+      "z": 8.3,
+      "rotation": 76,
+      "scale": 0.9
+    },
+    {
+      "model": "nature.rock_largea",
+      "x": 15.5,
+      "z": -9.8,
+      "rotation": 12,
+      "scale": 0.89
+    },
+    {
+      "model": "nature.tree_default",
+      "x": 13.8,
+      "z": -6.3,
+      "rotation": 259,
+      "scale": 1.23
+    },
+    {
+      "model": "nature.tree_default",
+      "x": -10.3,
+      "z": -5.3,
+      "rotation": 262,
+      "scale": 1.05
+    },
+    {
+      "model": "nature.flower_yellowa",
+      "x": 9.5,
+      "z": 10.3,
+      "rotation": 227,
+      "scale": 0.91
+    },
+    {
+      "model": "nature.tree_detailed",
+      "x": 11.9,
+      "z": -7.2,
+      "rotation": 277,
+      "scale": 1.06
+    },
+    {
+      "model": "nature.tree_oak",
+      "x": -14,
+      "z": -9.5,
+      "rotation": 69,
+      "scale": 1.09
+    },
+    {
+      "model": "nature.tree_oak",
+      "x": -15.1,
+      "z": 1.4,
+      "rotation": 47,
+      "scale": 0.99
+    },
+    {
+      "model": "nature.tree_detailed",
+      "x": 12.9,
+      "z": 4.3,
+      "rotation": 185,
+      "scale": 1.09
+    },
+    {
+      "model": "nature.tree_oak",
+      "x": 7.1,
+      "z": -16,
+      "rotation": 337,
+      "scale": 0.99
+    },
+    {
+      "model": "nature.tree_pinetalla",
+      "x": 17.2,
+      "z": 7.3,
+      "rotation": 266,
+      "scale": 1.2
+    },
+    {
+      "model": "nature.rock_largea",
+      "x": 5.4,
+      "z": -13.2,
+      "rotation": 356,
+      "scale": 0.74
+    },
+    {
+      "model": "nature.tree_pinetalla",
+      "x": 7.8,
+      "z": 16.8,
+      "rotation": 297,
+      "scale": 1.18
+    },
+    {
+      "model": "nature.flower_reda",
+      "x": 14.6,
+      "z": -3.4,
+      "rotation": 295,
+      "scale": 0.86
+    },
+    {
+      "model": "nature.flower_yellowa",
+      "x": -2.5,
+      "z": 15.5,
+      "rotation": 102,
+      "scale": 0.9
+    },
+    {
+      "model": "nature.plant_bush",
+      "x": -8.7,
+      "z": 13.3,
+      "rotation": 266,
+      "scale": 1.1
+    },
+    {
+      "model": "nature.tree_oak",
+      "x": 0.1,
+      "z": -13,
+      "rotation": 101,
+      "scale": 1.1
+    },
+    {
+      "model": "nature.stump_old",
+      "x": 12.4,
+      "z": 8.5,
+      "rotation": 111,
+      "scale": 0.88
+    },
+    {
+      "model": "nature.rock_largea",
+      "x": 4,
+      "z": 19.4,
+      "rotation": 306,
+      "scale": 0.91
+    },
+    {
+      "model": "nature.grass_large",
+      "x": 3,
+      "z": -13.2,
+      "rotation": 323,
+      "scale": 1.07
+    },
+    {
+      "model": "nature.tree_pinetalla",
+      "x": -13.6,
+      "z": -4.5,
+      "rotation": 328,
+      "scale": 1.03
+    },
+    {
+      "model": "nature.rock_largea",
+      "x": 7.6,
+      "z": -0.9,
+      "rotation": 305,
+      "scale": 0.99
+    },
+    {
+      "model": "nature.grass_large",
+      "x": -19.8,
+      "z": -1,
+      "rotation": 187,
+      "scale": 1.18
+    },
+    {
+      "model": "nature.tree_pinetalla",
+      "x": -10.1,
+      "z": -13.4,
+      "rotation": 82,
+      "scale": 0.97
+    },
+    {
+      "model": "nature.tree_default",
+      "x": -9.2,
+      "z": 13,
+      "rotation": 311,
+      "scale": 1.02
+    },
+    {
+      "model": "nature.grass_large",
+      "x": -7.3,
+      "z": -7.7,
+      "rotation": 107,
+      "scale": 0.97
+    },
+    {
+      "model": "nature.tree_detailed",
+      "x": -2.1,
+      "z": -15.2,
+      "rotation": 334,
+      "scale": 0.94
+    },
+    {
+      "model": "nature.tree_default",
+      "x": -8.2,
+      "z": 6.7,
+      "rotation": 203,
+      "scale": 1.18
+    }
+  ],
+  "spawns": [
+    {
+      "enemy": {
+        "id": "mossbound_sentinel",
+        "archetype": "melee",
+        "model": "rpg.rogue",
+        "hp": 60,
+        "speed": 3.6,
+        "damage": 8,
+        "aggro_range": 11,
+        "flee_threshold": 0.2,
+        "attack_pattern": "slash",
+        "phases": []
+      },
+      "count": 2
+    },
+    {
+      "enemy": {
+        "id": "mossbound_archer",
+        "archetype": "ranged",
+        "model": "rpg.ranger",
+        "hp": 40,
+        "speed": 3,
+        "damage": 7,
+        "aggro_range": 14,
+        "flee_threshold": 0.3,
+        "attack_pattern": "bolt",
+        "phases": []
+      },
+      "count": 1
+    }
+  ]
+}

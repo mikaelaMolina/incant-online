@@ -29,7 +29,8 @@ Submission deadline: 11 Nov 2026, 16:30 CEST (UTC+2) = 22:30 Philippine time. Th
 - `fuse.js` for fuzzy name matching; `zod` for all schemas (shared by client and backend)
 - HTML/CSS overlay for the HUD (no 3D UI)
 - Backend: Vercel serverless functions (Node) in `/api`
-- LLM: Anthropic API via env vars `ANTHROPIC_API_KEY` and `LLM_MODEL` (default to a fast model for low latency). Request JSON only.
+- LLM: Anthropic Messages API via env vars `ANTHROPIC_API_KEY`, `LLM_MODEL` (default `claude-haiku-5-5`, a fast model for low latency) and `LLM_MODE` (see "LLM modes"). Request JSON only, via structured outputs (`output_config.format`).
+  Call it over raw HTTP (`fetch`), not `@anthropic-ai/sdk`: the SDK's dependency tree includes `fast-sha256` (Unlicense), which is not on the allowed licence list. Decided with the owner on 2026-11-04.
 - Speech in: Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`); fallback: MediaRecorder audio → `/api/stt`
 - Speech out: `window.speechSynthesis`
 - Assets: CC0 low-poly packs from Kenney and Quaternius in `public/assets/`, listed in `public/assets/manifest.json`
@@ -49,7 +50,8 @@ src/
   ui/        HUD, judgement card, Grimoire bar, transcript, start screen
   schemas/   zod: IncantationSpec, EnemySpec, FloorSpec, InterpretResponse
   fallback/  cached Incantations and floors used when the API fails
-api/         interpret.ts, talk.ts, stt.ts
+api/         interpret.ts, talk.ts, stt.ts (Vercel functions); api/_lib/ holds shared backend code (not deployed as functions)
+  _lib/mock/ the MOCK-mode keyword parser
 public/assets/
 README.md  CREDITS.md  LICENSE
 ```
@@ -145,11 +147,23 @@ Order of checks:
 4. Talk — player near the guide NPC → /api/talk.
 5. Everything else → /api/interpret → forge, build or reply.
 
+## LLM modes (`LLM_MODE`)
+
+There is no Anthropic API key yet, so the game must be fully playable without one.
+
+- `LLM_MODE=mock`, or `ANTHROPIC_API_KEY` missing (the default) → **mock mode**. `/api/interpret` never calls an LLM. A local keyword parser (`api/_lib/mock/`) maps words to fields: fire/ice/lightning/… → element, slash/spin/beam/… → shape, "three hits" → hits, forest/castle/desert/cave/… → floor biome, "make it ice" refines the last Incantation or floor. Anything unrecognised → an in-character Arbiter reply, or a cached item from `src/fallback/` when the player clearly asked for something to be made.
+- `ANTHROPIC_API_KEY` set (and `LLM_MODE` not `mock`) → **llm mode**: the Messages API with the same response schema.
+- `LLM_MODE=llm` without a key falls back to mock (never an error).
+- Both modes return the same `InterpretResponse` and go through the same path: `InterpretResponse` zod validation on the server and again on the client, then the Arbiter on every Incantation. Switching to the real LLM must only mean setting the key.
+- The client shows a small "Mock mode" label (top right) whenever the backend is in mock mode, and "Offline: cached Incantations" when `/api` can't be reached.
+- `GET /api/interpret` returns `{ mode }`; responses also carry `mode` and `source` (`mock` | `llm` | `cache`).
+
 ## Backend rules (/api)
 
 - Input cap 300 characters; per-IP rate limit (20 requests / 10 min); 8 s timeout.
 - On any failure or limit: return a cached item from `src/fallback/` (10 Incantations, 3 floors), never an error page.
-- System prompt includes the schema, allowed values and 4–6 example pairs. Temperature 0.3–0.5.
+- System prompt includes the schema, allowed values and 4–6 example pairs (generated from the mock parser so both modes agree).
+- Don't send `temperature`/`top_p`/`top_k`: current Claude models reject them (400). Use `output_config.effort: "low"` for latency instead. (Replaces the earlier "temperature 0.3–0.5" rule.)
 
 ## Performance targets
 
@@ -159,6 +173,25 @@ First load < 8 s, total download < 25 MB. < 150 draw calls (instance props). < 3
 ## Controls
 
 WASD move, mouse aim, left click basic attack, Space dodge, V push-to-talk, Enter text input.
+
+## Plan
+
+Done (see git log):
+1. Scaffold: Vite 7 + strict TypeScript + Three.js, folder layout, MIT, CREDITS.
+2. Third-person Incanter: WASD, mouse aim, dodge, follow camera, Rapier character controller.
+3. Asset manifest (`npm run manifest`), FloorSpec + floor loader with instancing, starting arena.
+4. Enemies (melee / ranged / tank) with idle → chase → attack → flee, health bars, basic attack.
+5. Assets pruned to what the manifest uses; raw packs in git-ignored `assets-src/`.
+6. Voice: push-to-talk (Web Speech + MediaRecorder → `/api/stt`), transcript, text box, start screen.
+7. LLM modes: mock keyword parser, raw-HTTP LLM path (untested until a key exists), IncantationSpec / InterpretResponse schemas, the Arbiter (+ required test), 10 cached Incantations + 3 floors, client router (forge → Arbiter → Grimoire, build → load floor, reply → transcript), "Mock mode" label.
+
+Next:
+8. Incantation runner: cast forged Incantations (shapes, hits, status effects, VFX presets, bloom), mana, cooldowns.
+9. Grimoire bar (6 slots) + judgement card UI; reciting by name with Fuse.js (local, < 500 ms); system commands ("open Grimoire", "next floor").
+10. Arbiter narrator voice (`speechSynthesis`), guide NPC + `/api/talk`.
+11. `/api/stt` (needs a speech-to-text provider; until then the client answers in character).
+12. Deploy to Vercel: verify `/api` runs there (relative ESM imports may need explicit `.js` extensions or a bundling step; JSON imports may need import attributes). Set `ANTHROPIC_API_KEY` there to switch on llm mode, then test the real LLM path end to end.
+13. Polish: performance pass (60 fps, < 150 draw calls), README, demo video.
 
 ## How to work in this repo
 

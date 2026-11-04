@@ -19,7 +19,13 @@ const MAX_STEPS = 5;
 const REVIVE_DELAY = 2.5;
 const CLEARED_BANNER_TIME = 3;
 
-export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Promise<void> {
+export interface GameController {
+  /** While paused the world renders but nothing simulates (start screen). */
+  setPaused(paused: boolean): void;
+}
+
+/** Load the first floor and start rendering. Resolves once the floor is playable (paused). */
+export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Promise<GameController> {
   const [world, manifest] = await Promise.all([createPhysicsWorld(), loadManifest()]);
   const models = new ModelIndex(manifest);
 
@@ -97,16 +103,18 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   const timer = new THREE.Timer();
   timer.connect(document); // pause-aware: no huge delta after returning to the tab
   let accumulator = 0;
+  let paused = true;
   let reviveTimer = 0;
   let clearedTimer = 0;
   let clearedShown = false;
 
   renderer.setAnimationLoop((time) => {
     timer.update(time);
-    const dt = Math.min(timer.getDelta(), MAX_FRAME);
+    const dt = paused ? 0 : Math.min(timer.getDelta(), MAX_FRAME);
+    if (paused) timer.getDelta(); // keep the clock moving so unpausing doesn't jump
     accumulator += dt;
 
-    incanter.frameInput();
+    if (!paused) incanter.frameInput();
 
     let steps = 0;
     while (accumulator >= FIXED_DT && steps < MAX_STEPS) {
@@ -176,4 +184,11 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         `enemies ${alive.length}: ${alive.map((e) => `${e.profile.label}:${e.state}`).join(' ')}`,
     );
   });
+
+  return {
+    setPaused(p) {
+      paused = p;
+      input.clear();
+    },
+  };
 }

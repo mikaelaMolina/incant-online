@@ -13,6 +13,15 @@ export class Input {
     canvas.addEventListener('pointerdown', this.onPointerDown);
     window.addEventListener('pointerup', this.onPointerUp);
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    // Keys held when the text box gains focus would otherwise stay "held" until released.
+    window.addEventListener('focusin', (e) => {
+      if (isTypingTarget(e.target)) this.clear();
+    });
+  }
+
+  clear(): void {
+    this.held.clear();
+    this.pressed.clear();
   }
 
   isHeld(code: string): boolean {
@@ -46,10 +55,7 @@ export class Input {
     this.held.delete(e.code);
   };
 
-  private readonly onBlur = (): void => {
-    this.held.clear();
-    this.pressed.clear();
-  };
+  private readonly onBlur = (): void => this.clear();
 
   /** Mouse buttons are reported as "Mouse0" (left), "Mouse2" (right). */
   private readonly onPointerDown = (e: PointerEvent): void => {

@@ -13,7 +13,8 @@ Every third-party component, asset and AI service used in Incant Online. Only MI
 
 | Component | Role | Provider | Licence / terms |
 | --- | --- | --- | --- |
-| Web Speech API (`SpeechRecognition`) | Speech to text in the browser (planned) | Browser vendor (e.g. Google Chrome, Microsoft Edge) | Browser vendor's terms |
+| Web Speech API (`SpeechRecognition`) | Speech to text in the browser | Browser vendor (e.g. Google Chrome, Microsoft Edge) | Browser vendor's terms |
+| MediaRecorder + `getUserMedia` | Records push-to-talk audio for `/api/stt` in browsers without speech recognition | Browser vendor | Browser vendor's terms |
 | `window.speechSynthesis` | Text to speech for the Arbiter voice (planned) | Browser vendor / OS voices | Browser vendor's terms |
 | Vercel | Static hosting and serverless functions (planned) | Vercel Inc. | Vercel Terms of Service |
 

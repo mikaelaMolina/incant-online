@@ -18,7 +18,6 @@ const DODGE_COOLDOWN = 0.6; // s, counted from dodge start
 /** Invulnerable during this part of the dodge (for combat later). */
 const DODGE_IFRAMES = 0.18;
 
-const SPAWN = new THREE.Vector3(0, CENTER_Y + 0.5, 0);
 const KILL_Y = -20;
 
 /** The Incanter: kinematic capsule driven by Rapier's character controller. */
@@ -32,6 +31,8 @@ export class Incanter {
   private readonly collider: RAPIER.Collider;
   private readonly controller: RAPIER.KinematicCharacterController;
 
+  /** Capsule-centre position to respawn at (set by the floor). */
+  private readonly spawn = new THREE.Vector3(0, CENTER_Y + 0.5, 0);
   private readonly prevPos = new THREE.Vector3();
   private readonly currPos = new THREE.Vector3();
   private readonly velocity = new THREE.Vector3();
@@ -57,7 +58,7 @@ export class Incanter {
     private readonly cam: FollowCamera,
   ) {
     this.body = world.createRigidBody(
-      RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(SPAWN.x, SPAWN.y, SPAWN.z),
+      RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(this.spawn.x, this.spawn.y, this.spawn.z),
     );
     this.collider = world.createCollider(RAPIER.ColliderDesc.capsule(HALF_HEIGHT, RADIUS), this.body);
 
@@ -68,9 +69,9 @@ export class Incanter {
     this.controller.enableAutostep(0.35, 0.2, false);
     this.controller.enableSnapToGround(0.3);
 
-    this.prevPos.copy(SPAWN);
-    this.currPos.copy(SPAWN);
-    this.position.copy(SPAWN);
+    this.prevPos.copy(this.spawn);
+    this.currPos.copy(this.spawn);
+    this.position.copy(this.spawn);
 
     // Placeholder model: robed capsule, glowing visor on the front (+Z), staff on the right.
     this.bodyMaterial = new THREE.MeshStandardMaterial({ color: '#5a6bd8', roughness: 0.6 });
@@ -189,10 +190,19 @@ export class Incanter {
     this.bodyMaterial.emissive.set(this.isInvulnerable ? '#3a4cff' : '#000000');
   }
 
-  private respawn(): void {
-    this.body.setTranslation({ x: SPAWN.x, y: SPAWN.y, z: SPAWN.z }, true);
-    this.prevPos.copy(SPAWN);
-    this.currPos.copy(SPAWN);
+  /** Set the spawn point (feet position on the ground) and move there. */
+  setSpawn(feet: THREE.Vector3): void {
+    this.spawn.set(feet.x, feet.y + CENTER_Y + 0.05, feet.z);
+    this.respawn();
+  }
+
+  respawn(): void {
+    const s = this.spawn;
+    this.body.setTranslation({ x: s.x, y: s.y, z: s.z }, true);
+    this.body.setNextKinematicTranslation({ x: s.x, y: s.y, z: s.z });
+    this.prevPos.copy(s);
+    this.currPos.copy(s);
+    this.position.copy(s);
     this.velocity.set(0, 0, 0);
     this.dodgeTimer = 0;
   }

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RAPIER } from './physics';
 import type { Input } from './input';
 import type { FollowCamera } from './camera';
+import { Health } from '../combat/health';
 
 const RADIUS = 0.35;
 const HALF_HEIGHT = 0.5; // cylindrical half-height; total height = 2 * (HALF_HEIGHT + RADIUS) = 1.7 m
@@ -20,6 +21,26 @@ const DODGE_IFRAMES = 0.18;
 
 const KILL_Y = -20;
 
+export const INCANTER_RADIUS = RADIUS;
+const MAX_HP = 100;
+/** Basic staff strike (left click). */
+export const BASIC_ATTACK = {
+  damage: 12,
+  reach: 2.4,
+  halfAngle: (55 * Math.PI) / 180,
+  cooldown: 0.4,
+  swingTime: 0.18,
+  knockback: 3,
+  moveSlow: 0.5,
+} as const;
+const KNOCKBACK_DECAY = 8;
+const HIT_FLASH = 0.15;
+
+export interface BasicAttackEvent {
+  origin: THREE.Vector3;
+  direction: THREE.Vector3;
+}
+
 /** The Incanter: kinematic capsule driven by Rapier's character controller. */
 export class Incanter {
   readonly object = new THREE.Group();
@@ -27,8 +48,12 @@ export class Incanter {
   readonly position = new THREE.Vector3();
   readonly aimPoint = new THREE.Vector3();
 
+  readonly health = new Health(MAX_HP);
+  /** Called when a basic attack swing starts; the game resolves hits. */
+  onBasicAttack: ((e: BasicAttackEvent) => void) | undefined;
+
   private readonly body: RAPIER.RigidBody;
-  private readonly collider: RAPIER.Collider;
+  readonly collider: RAPIER.Collider;
   private readonly controller: RAPIER.KinematicCharacterController;
 
   /** Capsule-centre position to respawn at (set by the floor). */
@@ -45,6 +70,13 @@ export class Incanter {
   private readonly dodgeDir = new THREE.Vector3();
   private dodgeQueued = false;
   private readonly wish = new THREE.Vector3();
+
+  private attackQueued = false;
+  private attackCooldown = 0;
+  private attackTimer = 0;
+  private readonly knock = new THREE.Vector3();
+  private hitFlash = 0;
+  private readonly staff: THREE.Mesh;
 
   private readonly bodyMaterial: THREE.MeshStandardMaterial;
   private readonly visual = new THREE.Group();
@@ -88,6 +120,7 @@ export class Incanter {
     );
     staff.position.set(RADIUS + 0.12, 0, 0.15);
     staff.castShadow = true;
+    this.staff = staff;
     this.visual.add(torso, visor, staff);
     this.object.add(this.visual);
   }
@@ -109,17 +142,51 @@ export class Incanter {
     return this.dodgeCooldown <= 0;
   }
 
+  get alive(): boolean {
+    return !this.health.dead;
+  }
+
+  /** Ground-plane position (capsule centre x/z) from the latest physics step. */
+  get physicsPosition(): THREE.Vector3 {
+    return this.currPos;
+  }
+
+  /**
+   * Apply an enemy hit. Returns false if it was avoided (dodge i-frames, already dead).
+   * `from` is the attacker's position, used for knockback direction.
+   */
+  takeHit(amount: number, from: THREE.Vector3, knockback: number): boolean {
+    if (!this.alive || this.isInvulnerable) return false;
+    this.health.damage(amount);
+    const away = new THREE.Vector3(this.currPos.x - from.x, 0, this.currPos.z - from.z);
+    if (away.lengthSq() < 1e-6) away.copy(this.facing).negate();
+    this.knock.copy(away.normalize().multiplyScalar(knockback));
+    this.hitFlash = HIT_FLASH;
+    return true;
+  }
+
   /** Per render frame: read edge-triggered input and update aim, before fixed steps run. */
   frameInput(): void {
+    if (!this.alive) return;
     if (this.input.wasPressed('Space')) this.dodgeQueued = true;
+    if (this.input.wasPressed('Mouse0')) this.attackQueued = true;
     this.updateAimPoint();
   }
 
   fixedUpdate(dt: number): void {
     this.dodgeCooldown = Math.max(0, this.dodgeCooldown - dt);
     this.dodgeTimer = Math.max(0, this.dodgeTimer - dt);
+    this.attackCooldown = Math.max(0, this.attackCooldown - dt);
+    this.attackTimer = Math.max(0, this.attackTimer - dt);
+    this.hitFlash = Math.max(0, this.hitFlash - dt);
+    this.knock.multiplyScalar(Math.exp(-KNOCKBACK_DECAY * dt));
 
-    const wish = this.wishDirection();
+    const wish = this.alive ? this.wishDirection() : this.wish.set(0, 0, 0);
+
+    if (this.attackQueued) {
+      this.attackQueued = false;
+      if (this.alive && this.attackCooldown <= 0 && !this.isDodging) this.startBasicAttack();
+    }
 
     if (this.dodgeQueued) {
       this.dodgeQueued = false;
@@ -135,24 +202,25 @@ export class Incanter {
       this.velocity.z = this.dodgeDir.z * DODGE_SPEED;
     } else {
       const maxDelta = ACCEL * dt;
-      this.velocity.x = approach(this.velocity.x, wish.x * MOVE_SPEED, maxDelta);
-      this.velocity.z = approach(this.velocity.z, wish.z * MOVE_SPEED, maxDelta);
+      const speed = MOVE_SPEED * (this.attackTimer > 0 ? BASIC_ATTACK.moveSlow : 1);
+      this.velocity.x = approach(this.velocity.x, wish.x * speed, maxDelta);
+      this.velocity.z = approach(this.velocity.z, wish.z * speed, maxDelta);
     }
 
     this.velocity.y = this.grounded ? -1 : this.velocity.y + GRAVITY * dt;
 
     this.controller.computeColliderMovement(this.collider, {
-      x: this.velocity.x * dt,
+      x: (this.velocity.x + this.knock.x) * dt,
       y: this.velocity.y * dt,
-      z: this.velocity.z * dt,
+      z: (this.velocity.z + this.knock.z) * dt,
     });
     const move = this.controller.computedMovement();
     this.grounded = this.controller.computedGrounded();
 
     // If a wall stopped us, drop the blocked part of the velocity so we don't "stick" at speed.
     if (dt > 0) {
-      this.velocity.x = move.x / dt;
-      this.velocity.z = move.z / dt;
+      [this.velocity.x, this.knock.x] = splitBlocked(move.x / dt, this.velocity.x, this.knock.x);
+      [this.velocity.z, this.knock.z] = splitBlocked(move.z / dt, this.velocity.z, this.knock.z);
     }
 
     const t = this.body.translation();
@@ -173,21 +241,47 @@ export class Incanter {
     this.position.lerpVectors(this.prevPos, this.currPos, alpha);
     this.object.position.copy(this.position);
 
-    // Face the aim point.
+    // Face the aim point (not while swinging: the swing locked the direction).
     const dx = this.aimPoint.x - this.position.x;
     const dz = this.aimPoint.z - this.position.z;
-    if (dx * dx + dz * dz > 0.04) {
+    if (this.alive && this.attackTimer <= 0 && dx * dx + dz * dz > 0.04) {
       const target = Math.atan2(dx, dz);
       this.yaw = dampAngle(this.yaw, target, TURN_RATE, dt);
     }
     this.object.rotation.y = this.yaw;
     this.facing.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
 
-    // Dodge feedback: lean into the roll and glow.
+    // Dodge feedback: lean into the roll and glow. Hit: red flash. Dead: fallen over.
     const dodging = this.isDodging;
     this.visual.scale.set(1, dodging ? 0.75 : 1, 1);
     this.visual.position.y = dodging ? -0.2 : 0;
-    this.bodyMaterial.emissive.set(this.isInvulnerable ? '#3a4cff' : '#000000');
+    this.visual.rotation.x = this.alive ? 0 : -Math.PI / 2.2;
+    if (!this.alive) this.visual.position.y = -CENTER_Y + RADIUS;
+    this.bodyMaterial.emissive.set(this.hitFlash > 0 ? '#ff2a2a' : this.isInvulnerable ? '#3a4cff' : '#000000');
+
+    // Staff swings forward during the basic attack.
+    const swing = this.attackTimer > 0 ? Math.sin((1 - this.attackTimer / BASIC_ATTACK.swingTime) * Math.PI) : 0;
+    this.staff.rotation.x = swing * 1.4;
+  }
+
+  /** Bring the Incanter back at the spawn point with full health. */
+  revive(): void {
+    this.health.reset();
+    this.knock.set(0, 0, 0);
+    this.attackTimer = 0;
+    this.respawn();
+  }
+
+  private startBasicAttack(): void {
+    const dir = new THREE.Vector3(this.aimPoint.x - this.currPos.x, 0, this.aimPoint.z - this.currPos.z);
+    if (dir.lengthSq() < 1e-4) dir.copy(this.facing);
+    dir.normalize();
+    // Snap to the aim so the swing goes where the player clicked.
+    this.yaw = Math.atan2(dir.x, dir.z);
+    this.facing.copy(dir);
+    this.attackCooldown = BASIC_ATTACK.cooldown;
+    this.attackTimer = BASIC_ATTACK.swingTime;
+    this.onBasicAttack?.({ origin: this.currPos.clone(), direction: dir });
   }
 
   /** Set the spawn point (feet position on the ground) and move there. */
@@ -229,6 +323,16 @@ export class Incanter {
       this.aimPoint.copy(this.position).addScaledVector(this.facing, 3);
     }
   }
+}
+
+/**
+ * After a blocked move, share the speed actually achieved between knockback and own velocity
+ * so neither keeps pushing into a wall (and blocked knockback never turns into a pull).
+ */
+export function splitBlocked(actual: number, velocity: number, knock: number): [number, number] {
+  const k = Math.sign(knock) === Math.sign(actual) ? Math.sign(knock) * Math.min(Math.abs(knock), Math.abs(actual)) : 0;
+  const v = actual - k;
+  return [Math.sign(v) === -Math.sign(velocity) ? 0 : v, k];
 }
 
 function approach(current: number, target: number, maxDelta: number): number {

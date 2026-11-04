@@ -10,6 +10,9 @@ export class Input {
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.onBlur);
     window.addEventListener('pointermove', this.onPointerMove);
+    canvas.addEventListener('pointerdown', this.onPointerDown);
+    window.addEventListener('pointerup', this.onPointerUp);
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
   isHeld(code: string): boolean {
@@ -46,6 +49,18 @@ export class Input {
   private readonly onBlur = (): void => {
     this.held.clear();
     this.pressed.clear();
+  };
+
+  /** Mouse buttons are reported as "Mouse0" (left), "Mouse2" (right). */
+  private readonly onPointerDown = (e: PointerEvent): void => {
+    this.onPointerMove(e);
+    const code = `Mouse${e.button}`;
+    this.pressed.add(code);
+    this.held.add(code);
+  };
+
+  private readonly onPointerUp = (e: PointerEvent): void => {
+    this.held.delete(`Mouse${e.button}`);
   };
 
   private readonly onPointerMove = (e: PointerEvent): void => {

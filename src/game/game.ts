@@ -7,10 +7,17 @@ import { loadManifest, ModelIndex } from './assets';
 import { buildFloor, type Floor } from './floorLoader';
 import { STARTING_ARENA } from '../fallback/floors';
 import { DebugOverlay } from '../ui/debugOverlay';
+import { HealthBars } from '../ui/healthBars';
+import { ProjectileSystem } from '../combat/projectiles';
+import { BasicAttack } from '../combat/basicAttack';
+import { spawnEnemies } from '../enemies/spawner';
+import type { Enemy } from '../enemies/enemy';
 
 /** Longest frame we simulate; avoids a "spiral of death" after a tab switch or hitch. */
 const MAX_FRAME = 0.1;
 const MAX_STEPS = 5;
+const REVIVE_DELAY = 2.5;
+const CLEARED_BANNER_TIME = 3;
 
 export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Promise<void> {
   const [world, manifest] = await Promise.all([createPhysicsWorld(), loadManifest()]);
@@ -24,7 +31,6 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
 
   const scene = new THREE.Scene();
   const floor: Floor = await buildFloor(STARTING_ARENA, { scene, world, models });
-  if (floor.warnings.length) console.info(`Floor "${floor.spec.name}":`, floor.warnings);
 
   const input = new Input(canvas);
   const cam = new FollowCamera(window.innerWidth / window.innerHeight);
@@ -33,6 +39,27 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   incanter.setSpawn(floor.spawn);
   cam.snapTo(incanter.position);
 
+  // Colliders were just added; update the query pipeline before spawn checks and the first move.
+  world.step();
+
+  const projectiles = new ProjectileSystem(world, incanter);
+  scene.add(projectiles.mesh);
+  // Enemy models (FBX) take a moment to parse: start playing now, enemies join when ready.
+  let enemies: Enemy[] = [];
+  let hadEnemies = false;
+  spawnEnemies(floor, models, { world, scene, player: incanter, projectiles })
+    .then((spawned) => {
+      enemies = spawned;
+      hadEnemies = spawned.length > 0;
+    })
+    .catch((err: unknown) => console.warn('Enemies failed to spawn.', err))
+    .finally(() => {
+      if (floor.warnings.length) console.info(`Floor "${floor.spec.name}":`, floor.warnings);
+    });
+
+  const basicAttack = new BasicAttack(scene);
+  incanter.onBasicAttack = (e) => basicAttack.resolve(e, enemies);
+
   const aimMarker = new THREE.Mesh(
     new THREE.RingGeometry(0.25, 0.35, 24),
     new THREE.MeshBasicMaterial({ color: '#7cd6ff', transparent: true, opacity: 0.8, depthWrite: false }),
@@ -40,6 +67,25 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   aimMarker.rotation.x = -Math.PI / 2;
   scene.add(aimMarker);
 
+  // Dev-only hook for automated browser checks; stripped from production builds.
+  if (import.meta.env.DEV) {
+    Object.assign(window, {
+      __incant: {
+        player: () => ({ ...incanter.physicsPosition, hp: incanter.health.current }),
+        enemies: () =>
+          enemies.map((e) => ({
+            id: e.spec.id,
+            archetype: e.profile.label,
+            state: e.state,
+            hp: e.health.current,
+            x: e.physicsPosition.x,
+            z: e.physicsPosition.z,
+          })),
+      },
+    });
+  }
+
+  const healthBars = new HealthBars(hud);
   const debug = new DebugOverlay(hud);
 
   window.addEventListener('resize', () => {
@@ -47,13 +93,13 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  // Colliders were just added; update the query pipeline before the first character move.
-  world.step();
-
   const sunOffset = floor.sun.position.clone();
   const timer = new THREE.Timer();
   timer.connect(document); // pause-aware: no huge delta after returning to the tab
   let accumulator = 0;
+  let reviveTimer = 0;
+  let clearedTimer = 0;
+  let clearedShown = false;
 
   renderer.setAnimationLoop((time) => {
     timer.update(time);
@@ -65,14 +111,51 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     let steps = 0;
     while (accumulator >= FIXED_DT && steps < MAX_STEPS) {
       incanter.fixedUpdate(FIXED_DT);
+      for (const e of enemies) e.fixedUpdate(FIXED_DT);
+      projectiles.fixedUpdate(FIXED_DT);
       world.step();
       incanter.postStep();
+      for (const e of enemies) e.postStep();
       accumulator -= FIXED_DT;
       steps++;
     }
     if (steps === MAX_STEPS) accumulator = 0;
 
-    incanter.render(accumulator / FIXED_DT, dt);
+    // Remove corpses that have finished sinking.
+    if (enemies.some((e) => e.gone)) {
+      for (const e of enemies) if (e.gone) e.dispose();
+      enemies = enemies.filter((e) => !e.gone);
+    }
+
+    // The Incanter falls → short pause → back at the spawn, enemies reset.
+    if (!incanter.alive) {
+      if (reviveTimer === 0) {
+        reviveTimer = REVIVE_DELAY;
+        projectiles.clear();
+        healthBars.showBanner('You fall. The Spire draws you back…');
+      }
+      reviveTimer = Math.max(0, reviveTimer - dt);
+      if (reviveTimer === 0) {
+        incanter.revive();
+        for (const e of enemies) e.reset();
+        healthBars.showBanner(null);
+        cam.snapTo(incanter.position);
+      }
+    } else if (hadEnemies && !clearedShown && enemies.every((e) => !e.alive)) {
+      clearedShown = true;
+      clearedTimer = CLEARED_BANNER_TIME;
+      healthBars.showBanner('Floor cleared');
+    }
+    if (clearedTimer > 0) {
+      clearedTimer -= dt;
+      if (clearedTimer <= 0) healthBars.showBanner(null);
+    }
+
+    const alpha = accumulator / FIXED_DT;
+    incanter.render(alpha, dt);
+    for (const e of enemies) e.render(alpha, dt);
+    projectiles.render(alpha);
+    basicAttack.update(dt);
     cam.update(incanter.position, dt);
 
     aimMarker.position.set(incanter.aimPoint.x, incanter.aimPoint.y + 0.02, incanter.aimPoint.z);
@@ -84,10 +167,13 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     renderer.render(scene, cam.camera);
     input.endFrame();
 
+    healthBars.update(enemies, incanter.health, cam.camera, incanter.position);
+    const alive = enemies.filter((e) => e.alive);
     debug.update(
       dt,
       renderer,
-      `${floor.spec.name} · ${incanter.isGrounded ? 'grounded' : 'airborne'} · dodge ${incanter.dodgeReady ? 'ready' : 'cooling'}`,
+      `${floor.spec.name} · ${incanter.isGrounded ? 'grounded' : 'airborne'} · dodge ${incanter.dodgeReady ? 'ready' : 'cooling'}\n` +
+        `enemies ${alive.length}: ${alive.map((e) => `${e.profile.label}:${e.state}`).join(' ')}`,
     );
   });
 }

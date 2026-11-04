@@ -6696,7 +6696,11 @@
    "pack": "rpg",
    "format": "fbx",
    "baseScale": 1,
-   "collider": "none"
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/Textures/Cleric_Staff_Texture.png",
+    "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/Textures/Cleric_Texture.png"
+   ]
   },
   {
    "id": "rpg.monk",
@@ -6706,7 +6710,10 @@
    "pack": "rpg",
    "format": "fbx",
    "baseScale": 1,
-   "collider": "none"
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/Textures/Monk_Texture.png"
+   ]
   },
   {
    "id": "rpg.ranger",
@@ -6716,7 +6723,11 @@
    "pack": "rpg",
    "format": "fbx",
    "baseScale": 1,
-   "collider": "none"
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/Textures/Ranger_Bow_Texture.png",
+    "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/Textures/Ranger_Texture.png"
+   ]
   },
   {
    "id": "rpg.rogue",
@@ -6726,7 +6737,11 @@
    "pack": "rpg",
    "format": "fbx",
    "baseScale": 1,
-   "collider": "none"
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/Textures/Rogue_Dagger_Texture.png",
+    "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/Textures/Rogue_Texture.png"
+   ]
   },
   {
    "id": "rpg.warrior",
@@ -6736,7 +6751,11 @@
    "pack": "rpg",
    "format": "fbx",
    "baseScale": 1,
-   "collider": "none"
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/Textures/Warrior_Sword_Texture.png",
+    "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/Textures/Warrior_Texture.png"
+   ]
   },
   {
    "id": "rpg.wizard",
@@ -6746,7 +6765,11 @@
    "pack": "rpg",
    "format": "fbx",
    "baseScale": 1,
-   "collider": "none"
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/Textures/Wizard_Staff_Texture.png",
+    "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/Textures/Wizard_Texture.png"
+   ]
   }
  ]
 }

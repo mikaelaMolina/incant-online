@@ -72,16 +72,46 @@
       "enemy": {
         "id": "hollow_sentinel",
         "archetype": "melee",
-        "model": "rpg.warrior",
+        "model": "rpg.rogue",
         "hp": 60,
-        "speed": 3,
+        "speed": 3.6,
         "damage": 8,
-        "aggro_range": 10,
-        "flee_threshold": 0.15,
-        "attack_pattern": "slash_combo",
+        "aggro_range": 11,
+        "flee_threshold": 0.2,
+        "attack_pattern": "slash",
         "phases": []
       },
       "count": 2
+    },
+    {
+      "enemy": {
+        "id": "ashen_archer",
+        "archetype": "ranged",
+        "model": "rpg.ranger",
+        "hp": 40,
+        "speed": 3,
+        "damage": 7,
+        "aggro_range": 14,
+        "flee_threshold": 0.3,
+        "attack_pattern": "bolt",
+        "phases": []
+      },
+      "count": 2
+    },
+    {
+      "enemy": {
+        "id": "stone_warden",
+        "archetype": "tank",
+        "model": "rpg.warrior",
+        "hp": 160,
+        "speed": 2,
+        "damage": 18,
+        "aggro_range": 9,
+        "flee_threshold": 0,
+        "attack_pattern": "slam",
+        "phases": []
+      },
+      "count": 1
     }
   ]
 }

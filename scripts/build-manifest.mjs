@@ -8,7 +8,7 @@
 // - baseScale converts each pack's units to metres (Incanter = 1.7 m tall).
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { basename, join, relative } from 'node:path';
 import { Box3, Matrix4, Quaternion, Vector3 } from 'three';
 
 const ROOT = new URL('..', import.meta.url).pathname;
@@ -160,6 +160,18 @@ for (const pack of PACKS) {
       baseScale: pack.baseScale,
       collider: pack.collider(name),
     };
+    if (pack.format === 'fbx') {
+      // FBX materials carry names but no file references; list the matching PNGs so the
+      // loader can attach them by material name (e.g. "Bow_Texture" → Ranger_Bow_Texture.png).
+      const texDir = join(dir, '..', 'Textures');
+      const prefix = basename(f, '.fbx').toLowerCase();
+      if (existsSync(texDir)) {
+        entry.textures = readdirSync(texDir)
+          .filter((t) => t.toLowerCase().endsWith('.png') && t.toLowerCase().startsWith(prefix))
+          .sort()
+          .map((t) => relative(join(ROOT, 'public'), join(texDir, t)));
+      }
+    }
     if (pack.format === 'glb') {
       const b = glbBounds(join(dir, f));
       const size = b.getSize(new Vector3()).multiplyScalar(pack.baseScale);

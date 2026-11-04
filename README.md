@@ -4,7 +4,7 @@
 
 Incant Online is a browser-based, voice-first action RPG. As an Incanter you climb the Spire, speaking new abilities (Incantations) and new floors into existence, then casting those Incantations by saying their names.
 
-> Status: early prototype. Movement and the first floor (built from a FloorSpec) work; combat, voice input and the backend are not built yet.
+> Status: early prototype. Movement, the first floor (built from a FloorSpec) and basic combat against three enemy types work; Incantations, voice input and the backend are not built yet.
 
 ## Run it locally
 
@@ -25,7 +25,8 @@ npm run manifest       # regenerate public/assets/manifest.json after changing a
 | --- | --- |
 | W A S D | Move (relative to the camera) |
 | Mouse | Aim (the Incanter faces the cursor) |
-| Space | Dodge |
+| Left click | Staff strike (short arc in front of you) |
+| Space | Dodge (brief invulnerability: roll through arrows and slams) |
 | F3 | Toggle the performance overlay (shown by default in `npm run dev`) |
 
 **Best in Chrome or Edge** (they have the most complete Web Speech API support).

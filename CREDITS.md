@@ -67,7 +67,7 @@ Every third-party component, asset and AI service used in Incant Online. Only MI
 | tinyglobby 0.2.17 | MIT |
 | why-is-node-running 3.2.1 | MIT |
 
-`GLTFLoader` is part of the three package (`three/addons`, MIT).
+`GLTFLoader`, `FBXLoader` (with its bundled fflate) and `SkeletonUtils` are part of the three package (`three/addons`, MIT).
 
 Platform-specific binaries (esbuild, rollup, typescript) share their parent package's licence on every OS.
 

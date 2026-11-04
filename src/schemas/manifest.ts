@@ -20,6 +20,8 @@ export const ManifestModel = z.object({
   collider: z.enum(COLLIDER_KINDS),
   /** Bounding size in metres after baseScale [x, y, z]. GLB only. */
   size: z.tuple([z.number(), z.number(), z.number()]).optional(),
+  /** FBX only: texture PNGs to attach by material name. */
+  textures: z.array(z.string()).optional(),
 });
 export type ManifestModel = z.infer<typeof ManifestModel>;
 

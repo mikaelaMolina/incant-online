@@ -24,6 +24,7 @@ Every third-party component, asset and AI service used in Incant Online. Only MI
 | Package | Version | Use | Licence | Source |
 | --- | --- | --- | --- | --- |
 | three | 0.187.0 | 3D rendering | MIT | https://github.com/mrdoob/three.js |
+| @dimforge/rapier3d-compat | 0.21.0 | Physics, character controller, collisions | Apache-2.0 | https://github.com/dimforge/rapier |
 | vite | 7.3.7 | Dev server and bundler (dev only) | MIT | https://github.com/vitejs/vite |
 | typescript | 7.0.2 | Type checking (dev only) | Apache-2.0 | https://github.com/microsoft/typescript-go |
 | @types/three | 0.187.0 | Three.js type definitions (dev only) | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped |
@@ -32,7 +33,7 @@ Every third-party component, asset and AI service used in Incant Online. Only MI
 
 | Package | Licence |
 | --- | --- |
-| @dimforge/rapier3d-compat 0.12.0 (types only, via @types/three) | Apache-2.0 |
+| @dimforge/rapier3d-compat 0.12.0 (nested copy pulled in by @types/three for its type definitions) | Apache-2.0 |
 | @esbuild/linux-x64, esbuild 0.28.2 | MIT |
 | @rollup/rollup-linux-x64-gnu, rollup 4.67.5 | MIT |
 | @tweenjs/tween.js 23.1.3 | MIT |

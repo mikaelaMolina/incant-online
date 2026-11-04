@@ -4,11 +4,12 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: true,
-    // three.js alone is ~520 kB minified; warn only if a chunk grows well past that.
-    chunkSizeWarningLimit: 700,
+    // Known large vendor chunks: three (~530 kB) and rapier3d-compat (~4.3 MB, WASM inlined
+    // as base64, ~1.6 MB gzipped). Warn only if something grows past those.
+    chunkSizeWarningLimit: 4500,
     rollupOptions: {
       output: {
-        manualChunks: { three: ['three'] },
+        manualChunks: { three: ['three'], rapier: ['@dimforge/rapier3d-compat'] },
       },
     },
   },

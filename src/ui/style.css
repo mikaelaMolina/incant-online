@@ -19,3 +19,14 @@ body {
   inset: 0;
   pointer-events: none;
 }
+
+.debug-overlay {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 6px 8px;
+  background: rgb(0 0 0 / 0.55);
+  border-radius: 4px;
+  font: 12px/1.4 ui-monospace, monospace;
+  white-space: pre;
+}

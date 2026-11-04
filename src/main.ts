@@ -1,7 +1,12 @@
 import './ui/style.css';
-import { createScene } from './game/scene';
+import { startGame } from './game/game';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
-if (!canvas) throw new Error('Missing #game canvas');
+const hud = document.querySelector<HTMLElement>('#hud');
 
-createScene(canvas).start();
+if (canvas && hud) {
+  startGame(canvas, hud).catch((err: unknown) => {
+    console.error(err);
+    hud.textContent = 'The Spire could not awaken. Please reload the page.';
+  });
+}

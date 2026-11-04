@@ -10,6 +10,10 @@ dist/
 .env.*
 !.env.example
 
+# Original asset packs (source formats, previews); public/assets keeps only what the manifest uses
+# (see scripts/build-manifest.mjs). Move a pack back into public/assets to add models from it.
+assets-src/
+
 # Logs and editor/OS clutter
 *.log
 .DS_Store

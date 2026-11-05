@@ -1,7 +1,7 @@
 import { IncantationSpec } from '../../../src/schemas/incantationSpec';
 import { FloorSpec } from '../../../src/schemas/floorSpec';
 import { cachedFloor, cachedIncantation } from '../../../src/fallback/cache';
-import { ABILITY_NOUNS, hasIncantationSignals, incantationFromWords, readIncantationSignals, refineIncantation } from './incantation';
+import { ABILITY_NOUNS, boundImpossible, hasIncantationSignals, incantationFromWords, isImpossibleAbility, readIncantationSignals, refineIncantation } from './incantation';
 import { floorFromWords, readFloorSignals, refineFloor, type RawFloor } from './floor';
 import { hasAny, pick, seededRandom, tokens } from './words';
 
@@ -22,7 +22,13 @@ const CREATE_VERBS = ['make', 'create', 'give', 'forge', 'build', 'summon', 'con
 const REFINE_START = /^(make it|make that|now make it|add|remove|more|less|give it|change it|turn it)\b/i;
 
 const GREETINGS = ['hello', 'hi', 'hey', 'greetings', 'yo', 'hiya'];
+/** Questions about the game itself get a real answer (how to play), not a deflection. */
+const META = ['game', 'play*', 'control*', 'help', 'tutorial', 'rules', 'goal', 'spire', 'incanter', 'arbiter', 'grimoire'];
 const REPLIES = {
+  meta: [
+    'This is the Spire, Incanter. Describe an Incantation and it is forged; say its name and it is cast. Describe a place and a new floor rises. Clear a floor and a gate opens to the next.',
+    'You stand in the Spire, where words become power. Speak an Incantation to forge it, recite its name to cast it, and describe the floors you wish to climb.',
+  ],
   greeting: [
     'Greetings, Incanter. Speak an Incantation into being: name an element, a shape, a number of strikes.',
     'The Spire hears you, Incanter. Tell it what to forge, or what place to raise.',
@@ -48,7 +54,7 @@ export function mockInterpret(text: string, context: MockContext = {}): RawInter
   const rand = seededRandom(text.toLowerCase());
   const inc = readIncantationSignals(words);
   const floorSig = readFloorSignals(words);
-  const abilityWords = hasIncantationSignals(inc) || hasAny(words, ABILITY_NOUNS);
+  const abilityWords = hasIncantationSignals(inc) || hasAny(words, ABILITY_NOUNS) || isImpossibleAbility(words);
   const createWords = hasAny(words, CREATE_VERBS);
 
   // 1. Refine the previous Incantation or floor.
@@ -71,7 +77,12 @@ export function mockInterpret(text: string, context: MockContext = {}): RawInter
   if (isPlace) return { intent: 'build', floor: floorFromWords(text, words) };
 
   // 3. An ability.
-  if (abilityWords) return { intent: 'forge', incantation: incantationFromWords(text, words) };
+  if (abilityWords) {
+    const incantation = incantationFromWords(text, words);
+    // Impossible asks become the closest allowed Incantation, with a line saying so.
+    const reply = boundImpossible(words, incantation);
+    return { intent: 'forge', incantation, ...(reply ? { reply } : {}) };
+  }
 
   // 4. Asked to create something, but no keywords: hand back a cached item.
   if (createWords) {
@@ -81,6 +92,7 @@ export function mockInterpret(text: string, context: MockContext = {}): RawInter
   }
 
   // 5. Anything else: an in-character reply.
-  const kind = hasAny(words, GREETINGS) ? 'greeting' : /\?\s*$/.test(text) || hasAny(words, ['who', 'what', 'why', 'how', 'where']) ? 'question' : 'unknown';
+  const asking = /\?\s*$/.test(text) || hasAny(words, ['who', 'what', 'why', 'how', 'where']);
+  const kind = hasAny(words, GREETINGS) ? 'greeting' : asking && hasAny(words, META) ? 'meta' : asking ? 'question' : 'unknown';
   return { intent: 'reply', reply: pick(REPLIES[kind], rand) };
 }

@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "manifest": "node scripts/build-manifest.mjs"
+    "manifest": "node scripts/build-manifest.mjs",
+    "judge-test": "node scripts/judge-test.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",

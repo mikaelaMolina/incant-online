@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mockInterpret } from './interpreter';
-import { PALETTES } from './floor';
+import { PALETTES, SETTLEMENT_PALETTE } from './floor';
 import { parseInterpretResponse, type InterpretResponse } from '../../../src/schemas/interpret';
 import { parseFloorSpec } from '../../../src/schemas/floorSpec';
 import { IncantationSpec } from '../../../src/schemas/incantationSpec';
@@ -139,7 +139,7 @@ describe('fallback data', () => {
   const enemies = new Set(manifest.models.filter((m) => m.type === 'enemy').map((m) => m.id));
 
   it('every mock palette prop exists in the manifest', () => {
-    for (const rules of Object.values(PALETTES)) for (const r of rules) expect(props.has(r.model), r.model).toBe(true);
+    for (const rules of [...Object.values(PALETTES), SETTLEMENT_PALETTE]) for (const r of rules) expect(props.has(r.model), r.model).toBe(true);
   });
 
   it('10 cached Incantations, all valid and accepted by the Arbiter', () => {
@@ -160,5 +160,71 @@ describe('fallback data', () => {
       for (const p of r.value.props) expect(props.has(p.model), p.model).toBe(true);
       for (const s of r.value.spawns) expect(enemies.has(s.enemy.model), s.enemy.model).toBe(true);
     }
+  });
+});
+
+/** The prompts in scripts/judge-test.ts: what a judge might type. Mock mode must handle all of them well. */
+describe('mock interpreter: judge prompts', () => {
+  it('build a desert temple → a desert floor', () => {
+    const r = run('build a desert temple');
+    expect(r.intent).toBe('build');
+    expect(r.floor?.biome).toBe('desert');
+  });
+
+  it('put a dragon on a castle → a castle floor with a dragon boss', () => {
+    const r = run('put a dragon on a castle');
+    expect(r.floor?.biome).toBe('castle');
+    const boss = r.floor?.spawns.find((s) => s.enemy.archetype === 'boss');
+    expect(boss?.enemy.id).toMatch(/dragon/);
+  });
+
+  it('a cozy village at night → a small, warm, night-time settlement floor', () => {
+    const r = run('a cozy village at night');
+    expect(r.intent).toBe('build');
+    expect(r.floor?.lighting.time_of_day).toBe('night');
+    expect(r.floor?.props.some((p) => p.model.includes('tent'))).toBe(true);
+  });
+
+  it('make me a sword that freezes time → a freezing blade, with the Spire noting time will not bend', () => {
+    const r = run('make me a sword that freezes time');
+    expect(r.incantation?.shape).toBe('slash');
+    expect(r.incantation?.status_effect.kind).toBe('freeze');
+    expect(r.reply).toMatch(/time/i);
+  });
+
+  it('heal me → a light healing ward', () => {
+    const r = run('heal me');
+    expect(r.incantation?.type).toBe('buff');
+    expect(r.incantation?.status_effect.kind).toBe('heal');
+    expect(r.incantation?.element).toBe('light');
+  });
+
+  it('kill everything instantly → the strongest blast the Arbiter allows, never an instant kill', () => {
+    const r = run('kill everything instantly');
+    expect(r.intent).toBe('forge');
+    const j = judge(r.incantation);
+    expect(j.incantation.damage_per_hit * j.incantation.hits).toBeLessThanOrEqual(200);
+    expect(j.incantation.cooldown).toBeGreaterThanOrEqual(13);
+    expect(r.reply).toMatch(/instant/i);
+  });
+
+  it('a spell that turns enemies into frogs → the nearest allowed effect (stun), explained', () => {
+    const r = run('a spell that turns enemies into frogs');
+    expect(r.incantation?.status_effect.kind).toBe('stun');
+    expect(r.reply).toMatch(/flesh|stun/i);
+  });
+
+  it('hello / what is this game / asdf → in-character replies; the game question is answered', () => {
+    expect(run('hello').intent).toBe('reply');
+    expect(run('what is this game').reply).toMatch(/Incantation/);
+    expect(run('what is this game').reply).toMatch(/floor/);
+    expect(run('asdf').intent).toBe('reply');
+  });
+
+  it('no false alarms: elements, "godly" and ordinary kills stay ordinary', () => {
+    expect(run('a spell that turns enemies into ice').incantation?.name).not.toMatch(/Hex/);
+    expect(run('a godly fire slash').incantation?.type).not.toBe('buff');
+    expect(run('a fire slash that kills').reply).toBeUndefined();
+    expect(run('a stone fist').incantation?.status_effect.kind).not.toBe('freeze');
   });
 });

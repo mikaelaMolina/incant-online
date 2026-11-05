@@ -1,19 +1,26 @@
 import { RANGES } from '../../../src/schemas/incantationSpec';
 import { FLOOR_HALF_EXTENT } from '../../../src/schemas/floorSpec';
 import { mockInterpret } from '../mock/interpreter';
-import { PALETTES } from '../mock/floor';
+import { PALETTES, SETTLEMENT_PALETTE } from '../mock/floor';
 
 const ENEMY_MODELS = ['rpg.rogue', 'rpg.ranger', 'rpg.warrior', 'rpg.monk', 'rpg.cleric'];
 
-/** Example pairs (CLAUDE.md asks for 4-6), produced by the mock parser so both modes agree. */
+/**
+ * Example pairs (CLAUDE.md asks for 4-6), produced by the mock parser so both modes agree.
+ * Chosen to cover the cases a judge tries first: a normal ability, a place, a creature with no
+ * model, an impossible ability (nearest allowed + a sentence) and a question about the game.
+ */
+const EXAMPLE_PROMPTS = [
+  'a spinning fire attack that hits three times',
+  'a holy shield that heals me',
+  'build a misty forest at dawn with archers',
+  'put a dragon on a castle',
+  'a spell that turns enemies into frogs',
+  'what is this game',
+] as const;
+
 function examples(): string {
-  const pairs: [string, ReturnType<typeof mockInterpret>][] = [
-    ['a spinning fire attack that hits three times', mockInterpret('a spinning fire attack that hits three times')],
-    ['a chain of thunder that bounces to four enemies', mockInterpret('a chain of thunder that bounces to four enemies')],
-    ['a holy shield that heals me', mockInterpret('a holy shield that heals me')],
-    ['build a misty forest at dawn with archers', mockInterpret('build a misty forest at dawn with archers')],
-    ['what is the capital of France?', { intent: 'reply', reply: 'The Spire knows nothing of distant kingdoms. Speak an Incantation, or name a place to raise.' }],
-  ];
+  const pairs: [string, ReturnType<typeof mockInterpret>][] = EXAMPLE_PROMPTS.map((t) => [t, mockInterpret(t)]);
   return pairs
     .map(([text, out]) => {
       const trimmed = structuredClone(out) as { floor?: { props?: unknown[] } };
@@ -27,6 +34,7 @@ function examples(): string {
 function palettes(): string {
   return Object.entries(PALETTES)
     .map(([biome, rules]) => `${biome}: ${rules.map((r) => r.model).join(', ')}`)
+    .concat(`settlements (village, town, camp; any biome): ${SETTLEMENT_PALETTE.map((r) => r.model).join(', ')}`)
     .join('\n');
 }
 
@@ -34,9 +42,13 @@ function palettes(): string {
 export const SYSTEM_PROMPT = `You are the Spire, the world-engine of a voice-driven action RPG. The player (an Incanter) speaks, and you turn their words into game data. You never write code. Reply with JSON only, matching the response schema.
 
 Decide the intent:
-- "forge": the player describes an ability. Fill "incantation".
-- "build": the player describes a place to go. Fill "floor".
-- "reply": anything else (questions, chat, off-topic, unsafe or impossible requests). Fill "reply" with one or two in-character sentences as the Spire, steering them back to forging or building. Never break character, never mention being an AI.
+- "forge": the player describes an ability, even a vague one ("heal me"). Fill "incantation".
+- "build": the player describes a place to go, even without saying "build" ("a cozy village at night"). Fill "floor".
+- "reply": greetings, questions, chat, off-topic or unsafe requests, and words with no meaning. Fill "reply" with one or two in-character sentences as the Spire. Never break character, never mention being an AI, never output an error.
+  If they ask about the game itself ("what is this game", "how do I play"), explain it in character: describe an Incantation to forge it, say its name to cast it, describe a place to raise a new floor, clear a floor to open the gate to the next.
+  Otherwise steer them back to forging or building.
+Impossible abilities still get an Incantation: build the closest one the rules allow and put one in-character sentence in "reply" saying what changed. Turning foes into animals becomes a stun; turning them to stone, a short freeze; stopping time, a freeze; killing everything instantly, one strong wide blast (the Arbiter will add a long cooldown); invulnerability, a ward of at most 3 seconds.
+Places with no biome of their own map to the nearest biome (a village or town is a forest floor with settlement props; a temple is ruins or desert; a volcano is a cavern). Creatures with no model of their own (dragons, demons, giants) become one "boss" enemy named after them (id like "ember_dragon") using one of the enemy models.
 Set the fields you don't use to null. If the context contains a previous incantation or floor and the player says "make it…", "add…" or "remove…", change only what they asked for and keep the rest.
 
 Incantation fields (stay within these ranges; the game clamps anything outside):

@@ -22,6 +22,19 @@ export const BIOME_WORDS: ReadonlyArray<readonly [string, Biome]> = [
   ['ruin*', 'ruins'], ['temple*', 'ruins'], ['shrine', 'ruins'], ['graveyard', 'ruins'], ['colosseum', 'ruins'], ['arena', 'ruins'],
   ['tundra', 'ice'], ['glacier*', 'ice'], ['icefield*', 'ice'],
   ['abyss', 'void'], ['nowhere', 'void'], ['astral', 'void'], ['cosmos', 'void'], ['space', 'void'],
+  // Settlements have no biome of their own: a forest floor with tents, fences and campfires.
+  ['village*', 'forest'], ['town*', 'forest'], ['hamlet*', 'forest'], ['settlement*', 'forest'], ['farm*', 'forest'], ['camp', 'forest'], ['campsite', 'forest'],
+];
+/** Words that turn a floor into a settlement (palette + names), whatever the biome. */
+export const SETTLEMENT_WORDS = ['village*', 'town*', 'hamlet*', 'settlement*', 'farm*', 'camp', 'campsite', 'outpost*'];
+/**
+ * Creatures we have no model for become a boss (a large, hard-hitting enemy) named after them,
+ * so "put a dragon on a castle" puts something dragon-sized there.
+ */
+export const BOSS_WORDS: ReadonlyArray<readonly [string, string]> = [
+  ['dragon*', 'Dragon'], ['wyrm*', 'Wyrm'], ['drake*', 'Drake'], ['wyvern*', 'Wyvern'], ['hydra*', 'Hydra'], ['demon*', 'Demon'],
+  ['lich*', 'Lich'], ['titan*', 'Titan'], ['behemoth*', 'Behemoth'], ['colossus', 'Colossus'], ['kraken*', 'Kraken'], ['boss*', 'Overlord'],
+  ['king', 'King'], ['queen', 'Queen'], ['lord', 'Lord'], ['beast*', 'Beast'], ['monstrosity', 'Monstrosity'],
 ];
 export const SOFT_BIOME_WORDS: ReadonlyArray<readonly [string, Biome]> = [
   ['ice', 'ice'], ['icy', 'ice'], ['snow*', 'ice'], ['frozen', 'ice'], ['frost*', 'ice'], ['winter', 'ice'],
@@ -115,6 +128,25 @@ export const PALETTES: Record<Biome, PropRule[]> = {
   ],
 };
 
+/** Settlement props (all in the manifest; tested with the other palettes). */
+export const SETTLEMENT_PALETTE: PropRule[] = [
+  { model: 'nature.tent_detailedopen', weight: 3, scale: [0.9, 1.1] },
+  { model: 'nature.tent_detailedclosed', weight: 3, scale: [0.9, 1.1] },
+  { model: 'nature.tent_smallopen', weight: 2, scale: [0.9, 1.1] },
+  { model: 'nature.campfire_stones', weight: 2, scale: [0.8, 1] },
+  { model: 'nature.fence_simple', weight: 3, scale: [0.9, 1.1] },
+  { model: 'nature.fence_planks', weight: 2, scale: [0.9, 1.1] },
+  { model: 'nature.tree_oak', weight: 3, scale: [0.9, 1.2] },
+  { model: 'nature.tree_default', weight: 2, scale: [0.9, 1.2] },
+  { model: 'nature.flower_reda', weight: 2, scale: [0.7, 1] },
+  { model: 'nature.flower_yellowa', weight: 2, scale: [0.7, 1] },
+  { model: 'nature.grass_large', weight: 3, scale: [0.7, 1.1] },
+];
+const SETTLEMENT_NAMES: [string[], string[]] = [
+  ['Lantern', 'Hearthlit', 'Quiet', 'Ember', 'Willow'],
+  ['Hamlet', 'Hollow', 'Crossing', 'Rest', 'Commons'],
+];
+
 const DEFAULT_TIME: Record<Biome, TimeOfDay> = {
   forest: 'day', ruins: 'dusk', ice: 'day', desert: 'day', cavern: 'night', castle: 'dusk', void: 'night',
 };
@@ -174,21 +206,23 @@ export function floorFromWords(text: string, words: readonly string[], forcedBio
         ? 0.5
         : 0.3;
 
-  const [adjs, nouns] = NAMES[biome];
+  const settlement = hasAny(words, SETTLEMENT_WORDS);
+  const [adjs, nouns] = settlement ? SETTLEMENT_NAMES : NAMES[biome];
   const name = `The ${pick(adjs, rand)} ${pick(nouns, rand)}`;
+  // "cozy", "warm": a warmer ambient light.
+  const ambient = hasAny(words, ['cozy', 'cosy', 'warm*', 'homely']) ? '#ffc890' : AMBIENT[biome];
 
   return {
     name,
     biome,
-    lighting: { time_of_day: time, fog_density: fog, ambient_color: AMBIENT[biome] },
+    lighting: { time_of_day: time, fog_density: fog, ambient_color: ambient },
     size,
-    props: layoutProps(biome, size, rand),
+    props: layoutProps(settlement ? SETTLEMENT_PALETTE : PALETTES[biome], size, rand),
     spawns: spawnsFromWords(words, biome),
   };
 }
 
-function layoutProps(biome: Biome, size: FloorSize, rand: () => number): RawFloor['props'] {
-  const palette = PALETTES[biome];
+function layoutProps(palette: readonly PropRule[], size: FloorSize, rand: () => number): RawFloor['props'] {
   const total = palette.reduce((a, r) => a + r.weight, 0);
   const half = FLOOR_HALF_EXTENT[size] - 2;
   const count = PROP_COUNT[size];
@@ -245,6 +279,8 @@ function spawnsFromWords(words: readonly string[], biome: Biome): RawFloor['spaw
   if (wantsTank || many) {
     spawns.push({ enemy: enemy('tank', 'Warden', 'rpg.warrior', 160, 2, 18, 9, 0), count: tanks ?? 1 });
   }
+  const boss = findKeyword(words, BOSS_WORDS);
+  if (boss) spawns.push({ enemy: enemy('boss', boss, 'rpg.warrior', 420, 2.2, 24, 14, 0), count: 1 });
   return spawns;
 }
 

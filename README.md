@@ -32,6 +32,8 @@ Without `ANTHROPIC_API_KEY` the game runs in **mock mode**: `/api/interpret` use
 
 Put a key in `.env` (or the Vercel environment) and the same requests go to Claude instead. `LLM_MODE=mock` forces mock mode even with a key.
 
+`npm run judge-test` sends ten prompts a judge might type ("build a desert temple", "kill everything instantly", "asdf", …) to `/api/interpret` and checks that each one ends in a valid floor, Incantation or in-character reply. Add `-- --url https://your-deployment` to test a deployed backend, or pass your own prompts as arguments.
+
 ## Controls
 
 | Input | Action |

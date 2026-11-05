@@ -133,7 +133,8 @@ export function explicitName(text: string): string | undefined {
 /** Build an Incantation from keywords. */
 export function incantationFromWords(text: string, words: readonly string[]): RawIncantation {
   const s = readIncantationSignals(words);
-  const element: Element = s.element ?? 'physical';
+  // Healing with no element named reads best as light.
+  const element: Element = s.element ?? (s.status === 'heal' ? 'light' : 'physical');
   const shape: Shape = s.shape ?? (s.type ? TYPE_SHAPE[s.type] : 'orb');
   const type: IncantationType = s.type && s.type !== 'melee_combo' ? s.type : s.type === 'melee_combo' ? 'melee_combo' : SHAPE_TYPE[shape];
   const hits = s.hits ?? (hasAny(words, ['combo', 'flurry']) ? 3 : 1);
@@ -245,4 +246,71 @@ function flavorFor(hits: number, shape: Shape, element: Element): string {
   const h = Math.min(Math.max(Math.round(hits), 1), 5);
   const [one, many] = SHAPE_NOUN[shape];
   return `${COUNT_WORDS[h - 1]} ${h === 1 ? one : many} ${ELEMENT_LOOK[element].phrase}.`;
+}
+
+/**
+ * Requests the Spire cannot grant as said. Each maps to the closest allowed Incantation
+ * (CLAUDE.md: map unknown values to the nearest valid one; the Arbiter bans instant kills)
+ * plus one in-character sentence explaining the change.
+ */
+/** Turning foes into creatures (or stone). Elements ("turns enemies into ice") are not transformations. */
+const TRANSFORM = ['frog*', 'toad*', 'sheep', 'chicken*', 'pig', 'pigs', 'newt*', 'rabbit*', 'mouse', 'mice', 'polymorph*', 'transmut*', 'petrif*'];
+const PETRIFY = ['petrif*', 'statue*', 'stone'];
+const KILL = ['kill*', 'slay*', 'destroy*', 'annihilat*', 'obliterat*', 'erase*', 'wipe*', 'death', 'die'];
+const INSTANT = ['instant*', 'everything', 'everyone', 'all', 'oneshot', 'immediately'];
+const TIME_STOP = ['time'];
+const INVULNERABLE = ['invincib*', 'invulnerab*', 'immortal*', 'unkillable', 'godmode'];
+
+/** True for requests like "kill everything instantly" that carry no element/shape words. */
+export function isImpossibleAbility(words: readonly string[]): boolean {
+  return (hasAny(words, KILL) && hasAny(words, INSTANT)) || hasAny(words, TRANSFORM) || hasAny(words, INVULNERABLE);
+}
+
+/** Adjust an Incantation built from impossible words; returns the Arbiter's sentence, if any. */
+export function boundImpossible(words: readonly string[], inc: RawIncantation): string | undefined {
+  if (hasAny(words, KILL) && hasAny(words, INSTANT)) {
+    // The strongest wide blast the Arbiter permits: it will set a long cooldown.
+    Object.assign(inc, {
+      type: 'area',
+      shape: 'circle',
+      hits: 1,
+      radius: 8,
+      damage_per_hit: 60,
+      status_effect: { kind: 'none', dps: 0, duration: 0 },
+      cooldown: 30,
+    });
+    if (inc.element === 'physical') {
+      inc.element = 'light';
+      inc.vfx.color = ELEMENT_LOOK.light.color;
+      inc.vfx.particles = ELEMENT_LOOK.light.particles;
+    }
+    inc.name = `${ELEMENT_LOOK[inc.element].adjective} Judgement`;
+    inc.flavor = 'One vast ring of power. Mighty, but nothing in the Spire dies in an instant.';
+    return 'No Incantation may end a life in an instant, Incanter. The Arbiter grants you a mighty blast instead.';
+  }
+  if (hasAny(words, TRANSFORM)) {
+    const petrify = hasAny(words, PETRIFY);
+    inc.status_effect = petrify ? { kind: 'freeze', dps: 0, duration: 2.5 } : { kind: 'stun', dps: 0, duration: 2 };
+    if (inc.element === 'physical') {
+      inc.element = 'shadow';
+      inc.vfx.color = '#7dd36b';
+      inc.vfx.particles = 'smoke';
+    }
+    inc.name = petrify ? 'Gorgon’s Glance' : 'Hex of the Mire';
+    inc.flavor = petrify ? 'A curse that locks foes in stone for a moment.' : 'A croaking curse that leaves foes stunned and witless.';
+    return petrify
+      ? 'The Spire will not turn flesh to stone for good; your foes are frozen a moment instead.'
+      : 'The Spire cannot remake flesh, Incanter; your foes are stunned as if they had forgotten their shape.';
+  }
+  if (hasAny(words, TIME_STOP) && inc.status_effect.kind === 'freeze') {
+    inc.status_effect = { kind: 'freeze', dps: 0, duration: 3 };
+    return 'Time itself will not bend, Incanter, but whatever your blade touches will.';
+  }
+  if (hasAny(words, INVULNERABLE)) {
+    Object.assign(inc, { type: 'buff', shape: 'circle', status_effect: { kind: 'stun', dps: 0, duration: 3 }, damage_per_hit: 5, hits: 1 });
+    inc.name = 'Fleeting Aegis';
+    inc.flavor = 'A ward that holds for three heartbeats, no longer.';
+    return 'No one is untouchable in the Spire for long. The Arbiter grants you three seconds.';
+  }
+  return undefined;
 }

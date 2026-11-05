@@ -3,6 +3,9 @@ import { RAPIER } from '../game/physics';
 import { Health } from '../combat/health';
 import { inArc, inRadius } from '../combat/hitDetection';
 import { STATIC_ONLY, type ProjectileSystem } from '../combat/projectiles';
+import { StatusSet, type LastingStatus } from '../combat/statusEffects';
+import { STATUS_TINT } from '../vfx/palette';
+import type { StatusEffect } from '../schemas/incantationSpec';
 import { INCANTER_RADIUS, type Incanter } from '../game/player';
 import type { EnemySpec } from '../schemas/enemySpec';
 import type { ArchetypeProfile } from './archetypes';
@@ -32,6 +35,8 @@ let nextId = 1;
 export class Enemy {
   readonly uid = nextId++;
   readonly health: Health;
+  /** Burn / freeze / stun / slow from Incantations. */
+  readonly status = new StatusSet();
   readonly root = new THREE.Group();
   /** Interpolated render position (feet). */
   readonly position = new THREE.Vector3();
@@ -162,10 +167,19 @@ export class Enemy {
     if (this.state !== 'attack' && !this.health.dead) this.visual.play('hit', { once: true });
   }
 
+  /** Apply an Incantation's status effect. Freeze / stun interrupt an attack wind-up. */
+  applyStatus(effect: StatusEffect): LastingStatus | undefined {
+    if (!this.alive) return undefined;
+    const applied = this.status.apply(effect);
+    if (this.status.immobile && this.state === 'attack' && !this.attackFired) this.setState('chase');
+    return applied;
+  }
+
   /** Back to the spawn point at full health (used when the Incanter falls). */
   reset(): void {
     if (!this.alive || !this.body) return;
     this.health.reset();
+    this.status.clear();
     this.mem.hasFled = false;
     this.knock.set(0, 0, 0);
     this.body.setTranslation({ x: this.home.x, y: this.home.y, z: this.home.z }, true);
@@ -184,6 +198,22 @@ export class Enemy {
     if (this.state === 'dead') {
       this.deadTime += dt;
       if (this.deadTime > CORPSE_GONE_AFTER) this.gone = true;
+      return;
+    }
+
+    const burn = this.status.tick(dt);
+    if (burn > 0) {
+      this.health.damage(burn);
+      this.provoked = true;
+    }
+
+    // Frozen / stunned: no thinking, no attacking; only knockback and gravity move the body.
+    if (this.status.immobile) {
+      if (this.health.dead) {
+        this.setState('dead');
+        return;
+      }
+      this.moveBy(0, 0, 0, dt);
       return;
     }
 
@@ -270,24 +300,27 @@ export class Enemy {
     }
     this.facing.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
 
-    // --- Move through the character controller ---
-    this.knock.multiplyScalar(Math.exp(-KNOCK_DECAY * dt));
-    this.vy = this.grounded ? -1 : this.vy + GRAVITY * dt;
-    const desired = {
-      x: (move.x * speed + this.knock.x) * dt,
-      y: this.vy * dt,
-      z: (move.z * speed + this.knock.z) * dt,
-    };
-    if (this.controller && this.collider && this.body) {
-      this.controller.computeColliderMovement(this.collider, desired);
-      const m = this.controller.computedMovement();
-      this.grounded = this.controller.computedGrounded();
-      const t = this.body.translation();
-      this.body.setNextKinematicTranslation({ x: t.x + m.x, y: t.y + m.y, z: t.z + m.z });
-    }
+    speed *= this.status.speedMultiplier; // slowed
+    this.moveBy(move.x, move.z, speed, dt);
 
     // Looping animation by movement (attack / hit / death are one-shots started elsewhere).
     if (this.state !== 'attack') this.visual.play(speed > 0 ? 'move' : 'idle');
+  }
+
+  /** Move through the character controller: own movement + knockback + gravity. */
+  private moveBy(dirX: number, dirZ: number, speed: number, dt: number): void {
+    this.knock.multiplyScalar(Math.exp(-KNOCK_DECAY * dt));
+    this.vy = this.grounded ? -1 : this.vy + GRAVITY * dt;
+    if (!this.controller || !this.collider || !this.body) return;
+    this.controller.computeColliderMovement(this.collider, {
+      x: (dirX * speed + this.knock.x) * dt,
+      y: this.vy * dt,
+      z: (dirZ * speed + this.knock.z) * dt,
+    });
+    const m = this.controller.computedMovement();
+    this.grounded = this.controller.computedGrounded();
+    const t = this.body.translation();
+    this.body.setNextKinematicTranslation({ x: t.x + m.x, y: t.y + m.y, z: t.z + m.z });
   }
 
   postStep(): void {
@@ -299,11 +332,20 @@ export class Enemy {
 
   render(alpha: number, dt: number): void {
     this.syncRender(alpha);
-    this.visual.update(dt);
+    const status = this.alive ? this.status.dominant : 'none';
+    this.visual.update(status === 'freeze' ? 0 : dt); // frozen solid: animation stops
 
-    // Hit flash.
-    const flash = this.hitFlash > 0 ? 0.6 : 0;
-    for (const m of this.visual.materials) m.emissive.setRGB(flash, flash, flash);
+    // Hit flash, else a status tint (burn flickers, stun pulses).
+    if (this.hitFlash > 0) {
+      for (const m of this.visual.materials) m.emissive.setRGB(0.6, 0.6, 0.6);
+    } else if (status !== 'none' && status !== 'heal' && status !== 'knockback') {
+      const tint = STATUS_TINT[status];
+      const now = performance.now() / 1000;
+      const k = status === 'burn' ? 0.75 + 0.25 * Math.sin(now * 30) : status === 'stun' ? 0.6 + 0.4 * Math.sin(now * 18) : 1;
+      for (const m of this.visual.materials) m.emissive.setRGB(tint.r * k, tint.g * k, tint.b * k);
+    } else {
+      for (const m of this.visual.materials) m.emissive.setRGB(0, 0, 0);
+    }
 
     // Telegraph fades in over the wind-up.
     if (this.state === 'attack' && !this.attackFired) {

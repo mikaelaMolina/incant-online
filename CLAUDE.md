@@ -184,9 +184,9 @@ Done (see git log):
 5. Assets pruned to what the manifest uses; raw packs in git-ignored `assets-src/`.
 6. Voice: push-to-talk (Web Speech + MediaRecorder → `/api/stt`), transcript, text box, start screen.
 7. LLM modes: mock keyword parser, raw-HTTP LLM path (untested until a key exists), IncantationSpec / InterpretResponse schemas, the Arbiter (+ required test), 10 cached Incantations + 3 floors, client router (forge → Arbiter → Grimoire, build → load floor, reply → transcript), "Mock mode" label.
+8. Incantation runner (`src/combat`): every type × shape (`castPlan.ts`, pure + tested), chain_targets, status effects on enemies, heal/ward/dash on the Incanter, mana + cooldowns; VFX presets per shape/element + bloom (`src/vfx`); test Incantations on keys 1–3; `GameController.castIncantation(spec)` for the Grimoire to call.
 
 Next:
-8. Incantation runner: cast forged Incantations (shapes, hits, status effects, VFX presets, bloom), mana, cooldowns.
 9. Grimoire bar (6 slots) + judgement card UI; reciting by name with Fuse.js (local, < 500 ms); system commands ("open Grimoire", "next floor").
 10. Arbiter narrator voice (`speechSynthesis`), guide NPC + `/api/talk`.
 11. `/api/stt` (needs a speech-to-text provider; until then the client answers in character).

@@ -27,6 +27,7 @@ Every third-party component, asset and AI service used in Incant Online. Only MI
 | three | 0.187.0 | 3D rendering | MIT | https://github.com/mrdoob/three.js |
 | @dimforge/rapier3d-compat | 0.21.0 | Physics, character controller, collisions | Apache-2.0 | https://github.com/dimforge/rapier |
 | zod | 4.6.7 | Schemas and validation (FloorSpec, EnemySpec, asset manifest) | MIT | https://github.com/colinhacks/zod |
+| postprocessing | 6.39.6 | Bloom pass for glowing Incantation VFX (no dependencies of its own) | Zlib | https://github.com/pmndrs/postprocessing |
 | vitest | 5.1.0 | Unit tests (dev only) | MIT | https://github.com/vitest-dev/vitest |
 | @types/node | 24.19.2 | Node types for the dev API middleware in vite.config.ts (dev only) | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped |
 | vite | 7.3.7 | Dev server and bundler (dev only) | MIT | https://github.com/vitejs/vite |

@@ -40,6 +40,7 @@ Put a key in `.env` (or the Vercel environment) and the same requests go to Clau
 | Mouse | Aim (the Incanter faces the cursor) |
 | Left click | Staff strike (short arc in front of you) |
 | Space | Dodge (brief invulnerability: roll through arrows and slams) |
+| 1 / 2 / 3 | Test Incantations: Blazing Cyclone (fire spin, burn), Thunder Chain (lightning that leaps, stun), Frost Comet (ice bolts that burst and freeze). Temporary until the Grimoire bar arrives |
 | Hold V (or the mic button) | Push-to-talk: speak, then let go |
 | Enter | Type instead of speaking (Enter again sends, Esc cancels) |
 | F3 | Toggle the performance overlay (shown by default in `npm run dev`) |

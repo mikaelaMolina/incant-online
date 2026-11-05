@@ -22,6 +22,8 @@ const DODGE_IFRAMES = 0.18;
 const KILL_Y = -20;
 
 export const INCANTER_RADIUS = RADIUS;
+/** Capsule centre height above the feet. */
+export const INCANTER_CENTER_Y = CENTER_Y;
 const MAX_HP = 100;
 /** Basic staff strike (left click). */
 export const BASIC_ATTACK = {
@@ -70,6 +72,12 @@ export class Incanter {
   private readonly dodgeDir = new THREE.Vector3();
   private dodgeQueued = false;
   private readonly wish = new THREE.Vector3();
+
+  /** Incantation dash (type "dash"): forced movement with i-frames. */
+  private castDashTimer = 0;
+  private readonly castDashVel = new THREE.Vector3();
+  /** Incantation ward (freeze / stun self-buff): can't be hurt. */
+  private wardTimer = 0;
 
   private attackQueued = false;
   private attackCooldown = 0;
@@ -133,9 +141,51 @@ export class Incanter {
     return this.dodgeTimer > 0;
   }
 
-  /** True during the dodge's invulnerability window. */
+  /** True during the dodge's invulnerability window, an Incantation dash or a ward. */
   get isInvulnerable(): boolean {
-    return this.dodgeTimer > DODGE_TIME - DODGE_IFRAMES;
+    return this.dodgeTimer > DODGE_TIME - DODGE_IFRAMES || this.castDashTimer > 0 || this.wardTimer > 0;
+  }
+
+  get isWarded(): boolean {
+    return this.wardTimer > 0;
+  }
+
+  get isCastDashing(): boolean {
+    return this.castDashTimer > 0;
+  }
+
+  /** Feet height from the latest physics step. */
+  get feetY(): number {
+    return this.currPos.y - CENTER_Y;
+  }
+
+  /** Unit ground direction from the Incanter to the aim point (facing if the aim is on top of us). */
+  aimDirection(out = new THREE.Vector3()): THREE.Vector3 {
+    out.set(this.aimPoint.x - this.currPos.x, 0, this.aimPoint.z - this.currPos.z);
+    if (out.lengthSq() < 1e-4) out.copy(this.facing);
+    return out.normalize();
+  }
+
+  /** Snap to face a direction (casting toward the aim). */
+  faceDirection(dir: THREE.Vector3): void {
+    if (dir.lengthSq() < 1e-6) return;
+    this.yaw = Math.atan2(dir.x, dir.z);
+    this.facing.set(dir.x, 0, dir.z).normalize();
+  }
+
+  /** Incantation dash: move `distance` along `dir` over `duration` seconds, untouchable meanwhile. */
+  dash(dir: THREE.Vector3, distance: number, duration: number): void {
+    if (!this.alive || duration <= 0) return;
+    this.faceDirection(dir);
+    this.castDashVel.set(dir.x, 0, dir.z).normalize().multiplyScalar(distance / duration);
+    this.castDashTimer = duration;
+    this.dodgeTimer = 0;
+    this.knock.set(0, 0, 0);
+  }
+
+  /** Can't be hurt for `seconds` (longest ward wins). */
+  ward(seconds: number): void {
+    this.wardTimer = Math.max(this.wardTimer, seconds);
   }
 
   get dodgeReady(): boolean {
@@ -179,6 +229,9 @@ export class Incanter {
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
     this.attackTimer = Math.max(0, this.attackTimer - dt);
     this.hitFlash = Math.max(0, this.hitFlash - dt);
+    this.wardTimer = Math.max(0, this.wardTimer - dt);
+    const castDashing = this.castDashTimer > 0;
+    this.castDashTimer = Math.max(0, this.castDashTimer - dt);
     this.knock.multiplyScalar(Math.exp(-KNOCKBACK_DECAY * dt));
 
     const wish = this.alive ? this.wishDirection() : this.wish.set(0, 0, 0);
@@ -190,14 +243,17 @@ export class Incanter {
 
     if (this.dodgeQueued) {
       this.dodgeQueued = false;
-      if (this.dodgeReady && this.grounded) {
+      if (this.dodgeReady && this.grounded && !castDashing) {
         this.dodgeDir.copy(wish.lengthSq() > 0 ? wish : this.facing);
         this.dodgeTimer = DODGE_TIME;
         this.dodgeCooldown = DODGE_COOLDOWN;
       }
     }
 
-    if (this.isDodging) {
+    if (castDashing) {
+      this.velocity.x = this.castDashVel.x;
+      this.velocity.z = this.castDashVel.z;
+    } else if (this.isDodging) {
       this.velocity.x = this.dodgeDir.x * DODGE_SPEED;
       this.velocity.z = this.dodgeDir.z * DODGE_SPEED;
     } else {
@@ -221,6 +277,12 @@ export class Incanter {
     if (dt > 0) {
       [this.velocity.x, this.knock.x] = splitBlocked(move.x / dt, this.velocity.x, this.knock.x);
       [this.velocity.z, this.knock.z] = splitBlocked(move.z / dt, this.velocity.z, this.knock.z);
+    }
+
+    // Don't carry the dash speed out of it.
+    if (castDashing && this.castDashTimer === 0) {
+      this.velocity.x *= 0.15;
+      this.velocity.z *= 0.15;
     }
 
     const t = this.body.translation();
@@ -252,12 +314,14 @@ export class Incanter {
     this.facing.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
 
     // Dodge feedback: lean into the roll and glow. Hit: red flash. Dead: fallen over.
-    const dodging = this.isDodging;
+    const dodging = this.isDodging || this.isCastDashing;
     this.visual.scale.set(1, dodging ? 0.75 : 1, 1);
     this.visual.position.y = dodging ? -0.2 : 0;
     this.visual.rotation.x = this.alive ? 0 : -Math.PI / 2.2;
     if (!this.alive) this.visual.position.y = -CENTER_Y + RADIUS;
-    this.bodyMaterial.emissive.set(this.hitFlash > 0 ? '#ff2a2a' : this.isInvulnerable ? '#3a4cff' : '#000000');
+    this.bodyMaterial.emissive.set(
+      this.hitFlash > 0 ? '#ff2a2a' : this.isWarded ? '#a07a10' : this.isInvulnerable ? '#3a4cff' : '#000000',
+    );
 
     // Staff swings forward during the basic attack.
     const swing = this.attackTimer > 0 ? Math.sin((1 - this.attackTimer / BASIC_ATTACK.swingTime) * Math.PI) : 0;
@@ -269,6 +333,8 @@ export class Incanter {
     this.health.reset();
     this.knock.set(0, 0, 0);
     this.attackTimer = 0;
+    this.wardTimer = 0;
+    this.castDashTimer = 0;
     this.respawn();
   }
 

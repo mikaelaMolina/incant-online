@@ -3,8 +3,8 @@ import type { Grimoire } from '../combat/grimoire';
 import type { CastOutcome } from '../combat/incantationRunner';
 import type { IncantationSpec } from '../schemas/incantationSpec';
 import { parseFloorSpec, type FloorSpec } from '../schemas/floorSpec';
-import type { InterpretResponse } from '../schemas/interpret';
-import { CACHED_FLOORS } from '../fallback/cache';
+import { parseInterpretResponse, type InterpretResponse } from '../schemas/interpret';
+import { CACHED_FLOORS, cachedFloor, cachedIncantation } from '../fallback/cache';
 import { offlineFallback, requestInterpretation, type InterpretContext } from './interpretClient';
 import { classify, INTERIM_RECITE_THRESHOLD, ReciteIndex, words, type Route, type SystemCommand } from './intentRouter';
 import type { Utterance } from './pipeline';
@@ -12,7 +12,7 @@ import type { Utterance } from './pipeline';
 /** A final transcript repeating what an interim already cast is ignored within this window. */
 const INTERIM_DEDUPE_MS = 4000;
 /** Floor build target is < 10 s end to end; the request gets most of it, the build the rest. */
-const GATE_REQUEST_BUDGET_MS = 7500;
+const GATE_REQUEST_BUDGET_MS = 6000;
 /** At the gate, a second, explicit "build" request is only tried if the first came back this fast. */
 const GATE_REPHRASE_IF_UNDER_MS = 3500;
 /** Questions get an answer even at the gate ("what is this place?"). */
@@ -163,9 +163,9 @@ export class CommandRouter {
     return this.withBusy(async () => {
       const base = refine ? this.deps.grimoire.last : undefined;
       const context: InterpretContext | undefined = refine ? { ...(base ? { incantation: base } : {}), floor: this.deps.currentFloor() } : undefined;
-      const r = await requestInterpretation(text, context);
+      const r = await requestInterpretation(text, context, this.avoid());
       this.deps.onMode?.(r);
-      await this.apply(r, base, startedAt);
+      await this.apply(r, base, startedAt, text);
     });
   }
 
@@ -177,7 +177,7 @@ export class CommandRouter {
   private gateBuild(text: string, startedAt: number): Promise<void> {
     return this.withBusy(async () => {
       void this.deps.reshape?.(true, 'The Spire listens…');
-      let r = await requestInterpretation(text, undefined, { want: 'floor', budgetMs: GATE_REQUEST_BUDGET_MS });
+      let r = await requestInterpretation(text, undefined, { ...this.avoid(), want: 'floor', budgetMs: GATE_REQUEST_BUDGET_MS });
       this.deps.onMode?.(r);
       if (r.intent !== 'build' || !r.floor) {
         if (r.intent === 'reply' && r.reply && QUESTION.test(text.trim())) {
@@ -188,11 +188,12 @@ export class CommandRouter {
         const elapsed = performance.now() - startedAt;
         if (elapsed < GATE_REPHRASE_IF_UNDER_MS) {
           r = await requestInterpretation(`Build the next floor of the Spire: ${text}`, undefined, {
+            ...this.avoid(),
             want: 'floor',
             budgetMs: GATE_REQUEST_BUDGET_MS - elapsed,
           });
         }
-        if (r.intent !== 'build' || !r.floor) r = offlineFallback(text, 'floor');
+        if (r.intent !== 'build' || !r.floor) r = offlineFallback(text, undefined, { ...this.avoid(), want: 'floor', reason: 'llm-error' });
       }
       if (r.reply && r.intent === 'build') this.deps.say(r.reply);
       if (r.floor) await this.buildFloor(r.floor, startedAt);
@@ -236,7 +237,35 @@ export class CommandRouter {
     }
   }
 
-  private async apply(r: InterpretResponse, refined: IncantationSpec | undefined, startedAt: number): Promise<void> {
+  /** What a fallback must not hand out: Incantations already in the Grimoire, the floor we're on. */
+  private avoid(): { avoidIncantations: string[]; avoidFloors: string[] } {
+    return {
+      avoidIncantations: this.deps.grimoire.all.map((j) => j.incantation.name),
+      avoidFloors: [this.deps.currentFloor().name],
+    };
+  }
+
+  /**
+   * A cached answer from the server doesn't know the Grimoire or the current floor: if it repeats
+   * one, pick a different pre-forged Incantation / pre-built floor from the same cache.
+   */
+  private freshen(r: InterpretResponse, refined: IncantationSpec | undefined, text: string): InterpretResponse {
+    if (r.source !== 'cache' || refined) return r;
+    const { avoidIncantations, avoidFloors } = this.avoid();
+    if (r.intent === 'forge' && r.incantation && this.deps.grimoire.find(r.incantation.name)) {
+      const { element, type, shape } = r.incantation;
+      const swap = parseInterpretResponse({ ...r, incantation: cachedIncantation(text, avoidIncantations, { element, type, shape }) });
+      if (swap.ok) return swap.value;
+    }
+    if (r.intent === 'build' && r.floor && avoidFloors.includes(r.floor.name)) {
+      const swap = parseInterpretResponse({ ...r, floor: cachedFloor(text, avoidFloors, { biome: r.floor.biome }) });
+      if (swap.ok) return swap.value;
+    }
+    return r;
+  }
+
+  private async apply(response: InterpretResponse, refined: IncantationSpec | undefined, startedAt: number, text = ''): Promise<void> {
+    const r = this.freshen(response, refined, text);
     if (r.intent === 'forge' && r.incantation) {
       const judged = judge(r.incantation);
       const j = refined ? this.deps.grimoire.replace(refined.name, judged) : this.deps.grimoire.add(judged);

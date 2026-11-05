@@ -254,3 +254,25 @@ describe('reply intent', () => {
     expect(said.at(-1)).toBe(spoken[0]);
   });
 });
+
+describe('cached answers from the server', () => {
+  it('a cached Incantation already in the Grimoire is swapped for a new one', async () => {
+    const { requestInterpretation } = await import('./interpretClient');
+    const blazing = TEST_INCANTATIONS[0]!.incantation;
+    vi.mocked(requestInterpretation).mockResolvedValueOnce({ intent: 'forge', incantation: blazing, reply: 'The Spire grows weary…', mode: 'llm', source: 'cache' });
+    const { router, grimoire } = setup();
+    await router.handle(say('a fire whirlwind'));
+    expect(grimoire.all).toHaveLength(4); // a new one, not Blazing Cyclone again
+    expect(grimoire.bar[3]?.incantation.name).not.toBe('Blazing Cyclone');
+  });
+
+  it('a cached floor that is the current floor is swapped for another', async () => {
+    const { requestInterpretation } = await import('./interpretClient');
+    const { router, floor } = setup();
+    await router.handle(say('build a misty forest at dawn'));
+    const here = floor();
+    vi.mocked(requestInterpretation).mockResolvedValueOnce({ intent: 'build', floor: here, mode: 'llm', source: 'cache' });
+    await router.handle(say('a forest'));
+    expect(floor().name).not.toBe(here.name);
+  });
+});

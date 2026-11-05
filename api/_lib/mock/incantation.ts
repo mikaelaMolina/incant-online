@@ -1,5 +1,5 @@
-import type { Element, IncantationSpec, IncantationType, Particles, Shape, StatusKind } from '../../../src/schemas/incantationSpec';
-import { countFor, findKeyword, hasAny, titleCase } from './words';
+import type { Element, IncantationSpec, IncantationType, Particles, Shape, StatusKind } from '../../../src/schemas/incantationSpec.js';
+import { countFor, findKeyword, hasAny, titleCase } from './words.js';
 
 /** Raw Incantation fields as the mock "LLM" would emit them (validated + balanced later). */
 export type RawIncantation = Omit<IncantationSpec, 'mana_cost'> & { mana_cost: number };

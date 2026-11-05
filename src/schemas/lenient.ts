@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { closest } from './fuzzy';
+import { closest } from './fuzzy.js';
 
 /**
  * Lenient field builders. The LLM's output is never trusted to be in range:

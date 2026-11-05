@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fuzzyEnum, int, lenientArray, num, objectOrEmpty, text } from './lenient';
+import { fuzzyEnum, int, lenientArray, num, objectOrEmpty, text } from './lenient.js';
 
 export const ENEMY_ARCHETYPES = ['melee', 'ranged', 'tank', 'boss'] as const;
 

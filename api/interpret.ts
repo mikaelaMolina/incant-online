@@ -1,5 +1,5 @@
-import { interpret } from './_lib/interpret';
-import { resolveMode, serverEnv } from './_lib/env';
+import { interpret } from './_lib/interpret.js';
+import { resolveMode, serverEnv } from './_lib/env.js';
 
 /**
  * Vercel serverless function (Web handler signature).

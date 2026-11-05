@@ -1,7 +1,7 @@
-import incantations from './incantations.json';
-import startingArena from './starting-arena.json';
-import forestFloor from './floor-forest.json';
-import castleFloor from './floor-castle.json';
+import incantations from './incantations.json' with { type: 'json' };
+import startingArena from './starting-arena.json' with { type: 'json' };
+import forestFloor from './floor-forest.json' with { type: 'json' };
+import castleFloor from './floor-castle.json' with { type: 'json' };
 
 /** Cached items used when the API fails, is rate-limited, or the mock parser finds nothing. */
 export const CACHED_INCANTATIONS: readonly unknown[] = incantations;

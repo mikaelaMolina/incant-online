@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EnemySpec } from './enemySpec';
+import { EnemySpec } from './enemySpec.js';
 import {
   clamp,
   degrees,
@@ -11,7 +11,7 @@ import {
   objectOrEmpty,
   optionalHexColor,
   text,
-} from './lenient';
+} from './lenient.js';
 
 export const FLOOR_BIOMES = ['forest', 'ruins', 'ice', 'desert', 'cavern', 'castle', 'void'] as const;
 export type Biome = (typeof FLOOR_BIOMES)[number];

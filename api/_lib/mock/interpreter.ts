@@ -1,9 +1,9 @@
-import { IncantationSpec } from '../../../src/schemas/incantationSpec';
-import { FloorSpec } from '../../../src/schemas/floorSpec';
-import { cachedFloor, cachedIncantation } from '../../../src/fallback/cache';
-import { ABILITY_NOUNS, boundImpossible, hasIncantationSignals, incantationFromWords, isImpossibleAbility, readIncantationSignals, refineIncantation } from './incantation';
-import { floorFromWords, readFloorSignals, refineFloor, type RawFloor } from './floor';
-import { hasAny, pick, seededRandom, tokens } from './words';
+import { IncantationSpec } from '../../../src/schemas/incantationSpec.js';
+import { FloorSpec } from '../../../src/schemas/floorSpec.js';
+import { cachedFloor, cachedIncantation } from '../../../src/fallback/cache.js';
+import { ABILITY_NOUNS, boundImpossible, hasIncantationSignals, incantationFromWords, isImpossibleAbility, readIncantationSignals, refineIncantation } from './incantation.js';
+import { floorFromWords, readFloorSignals, refineFloor, type RawFloor } from './floor.js';
+import { hasAny, pick, seededRandom, tokens } from './words.js';
 
 export interface MockContext {
   incantation?: unknown;

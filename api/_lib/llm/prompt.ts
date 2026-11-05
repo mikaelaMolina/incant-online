@@ -1,7 +1,7 @@
-import { RANGES } from '../../../src/schemas/incantationSpec';
-import { FLOOR_HALF_EXTENT } from '../../../src/schemas/floorSpec';
-import { mockInterpret } from '../mock/interpreter';
-import { PALETTES, SETTLEMENT_PALETTE } from '../mock/floor';
+import { RANGES } from '../../../src/schemas/incantationSpec.js';
+import { FLOOR_HALF_EXTENT } from '../../../src/schemas/floorSpec.js';
+import { mockInterpret } from '../mock/interpreter.js';
+import { PALETTES, SETTLEMENT_PALETTE } from '../mock/floor.js';
 
 const ENEMY_MODELS = ['rpg.rogue', 'rpg.ranger', 'rpg.warrior', 'rpg.monk', 'rpg.cleric'];
 

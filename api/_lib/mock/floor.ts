@@ -1,7 +1,7 @@
-import type { Biome, FloorSize, TimeOfDay } from '../../../src/schemas/floorSpec';
-import { FLOOR_HALF_EXTENT } from '../../../src/schemas/floorSpec';
-import type { EnemySpec } from '../../../src/schemas/enemySpec';
-import { countFor, findKeyword, hasAny, pick, seededRandom } from './words';
+import type { Biome, FloorSize, TimeOfDay } from '../../../src/schemas/floorSpec.js';
+import { FLOOR_HALF_EXTENT } from '../../../src/schemas/floorSpec.js';
+import type { EnemySpec } from '../../../src/schemas/enemySpec.js';
+import { countFor, findKeyword, hasAny, pick, seededRandom } from './words.js';
 
 /** Raw FloorSpec as the mock "LLM" would emit it (validated by FloorSpec later). */
 export interface RawFloor {

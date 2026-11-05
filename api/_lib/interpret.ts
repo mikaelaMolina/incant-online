@@ -1,9 +1,9 @@
-import { InterpretRequest, InterpretResponse, MAX_INPUT_LENGTH, type ResponseSource } from '../../src/schemas/interpret';
-import { cachedFloor, cachedIncantation } from '../../src/fallback/cache';
-import { mockInterpret, type RawInterpretResponse } from './mock/interpreter';
-import { callLlm, LlmError } from './llm/client';
-import { resolveMode, type Env } from './env';
-import { allowRequest } from './rateLimit';
+import { InterpretRequest, InterpretResponse, MAX_INPUT_LENGTH, type ResponseSource } from '../../src/schemas/interpret.js';
+import { cachedFloor, cachedIncantation } from '../../src/fallback/cache.js';
+import { mockInterpret, type RawInterpretResponse } from './mock/interpreter.js';
+import { callLlm, LlmError } from './llm/client.js';
+import { resolveMode, type Env } from './env.js';
+import { allowRequest } from './rateLimit.js';
 
 export const TIMEOUT_MS = 8_000;
 

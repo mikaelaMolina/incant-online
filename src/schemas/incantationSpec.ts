@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fuzzyEnum, hexColor, int, num, objectOrEmpty, text } from './lenient';
+import { fuzzyEnum, hexColor, int, num, objectOrEmpty, text } from './lenient.js';
 
 export const INCANTATION_TYPES = ['melee_combo', 'projectile', 'area', 'beam', 'chain', 'buff', 'dash'] as const;
 export const INCANTATION_SHAPES = ['slash', 'thrust', 'spin', 'cone', 'circle', 'line', 'orb'] as const;

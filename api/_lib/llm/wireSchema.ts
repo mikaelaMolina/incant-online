@@ -1,6 +1,6 @@
-import { ELEMENTS, INCANTATION_SHAPES, INCANTATION_TYPES, PARTICLES, STATUS_KINDS } from '../../../src/schemas/incantationSpec';
-import { FLOOR_BIOMES, FLOOR_SIZES, TIMES_OF_DAY } from '../../../src/schemas/floorSpec';
-import { ENEMY_ARCHETYPES } from '../../../src/schemas/enemySpec';
+import { ELEMENTS, INCANTATION_SHAPES, INCANTATION_TYPES, PARTICLES, STATUS_KINDS } from '../../../src/schemas/incantationSpec.js';
+import { FLOOR_BIOMES, FLOOR_SIZES, TIMES_OF_DAY } from '../../../src/schemas/floorSpec.js';
+import { ENEMY_ARCHETYPES } from '../../../src/schemas/enemySpec.js';
 
 /**
  * JSON schema for structured output (output_config.format). Structured outputs do not support

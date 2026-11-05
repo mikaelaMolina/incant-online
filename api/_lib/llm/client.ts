@@ -1,5 +1,5 @@
-import { INTERPRET_JSON_SCHEMA } from './wireSchema';
-import { SYSTEM_PROMPT } from './prompt';
+import { INTERPRET_JSON_SCHEMA } from './wireSchema.js';
+import { SYSTEM_PROMPT } from './prompt.js';
 
 /**
  * Raw HTTP call to the Claude Messages API (no SDK: its dependency tree includes a package outside

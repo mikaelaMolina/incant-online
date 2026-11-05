@@ -1,4 +1,4 @@
-import type { LlmMode } from '../../src/schemas/interpret';
+import type { LlmMode } from '../../src/schemas/interpret.js';
 
 export type Env = Readonly<Record<string, string | undefined>>;
 

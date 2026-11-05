@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { IncantationSpec } from './incantationSpec';
-import { FloorSpec } from './floorSpec';
-import { text } from './lenient';
+import { IncantationSpec } from './incantationSpec.js';
+import { FloorSpec } from './floorSpec.js';
+import { text } from './lenient.js';
 
 export const INTENTS = ['forge', 'build', 'reply'] as const;
 export type Intent = (typeof INTENTS)[number];

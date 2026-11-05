@@ -172,4 +172,7 @@ try {
 } finally {
   await vite.close();
 }
-process.exit(exitCode);
+// Let Node exit by itself once Vite (and its esbuild service) has shut down: calling
+// process.exit() here can kill esbuild mid-shutdown and print a Go "deadlock" trace.
+process.exitCode = exitCode;
+setTimeout(() => process.exit(exitCode), 5000).unref();

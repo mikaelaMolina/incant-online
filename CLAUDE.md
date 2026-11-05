@@ -187,9 +187,11 @@ Done (see git log):
 8. Incantation runner (`src/combat`): every type × shape (`castPlan.ts`, pure + tested), chain_targets, status effects on enemies, heal/ward/dash on the Incanter, mana + cooldowns; VFX presets per shape/element + bloom (`src/vfx`); test Incantations on keys 1–3; `GameController.castIncantation(spec)` for the Grimoire to call.
 9. Voice router (`src/voice/intentRouter.ts` + `commandRouter.ts`): recite with Fuse.js (threshold 0.4, also on interim transcripts, no network), system commands (open/close Grimoire, next floor), refine (keeps the bar slot, even when renamed), forge → Arbiter → Grimoire bar (6 stable slots, keys 1–6, LRU when full) with cooldown sweeps, Grimoire panel. Talk route is wired but closed until the guide NPC exists.
 
+9c. Build intent + gate: "The Spire reshapes…" curtain, request budget with cached-floor fallback (< 10 s), floor build failure → starting arena; gate opens when a floor is cleared, words said inside it build the next floor (re-asked explicitly, then cached); reply lines shown and spoken (`src/voice/narrator.ts`, silent while push-to-talk is held).
+
 Next:
 9b. Judgement card UI (show the Arbiter's verdict when an Incantation is forged).
-10. Arbiter narrator voice (`speechSynthesis`), guide NPC + `/api/talk`.
+10. Speak more Arbiter lines (forge verdicts) + guide NPC + `/api/talk`.
 11. `/api/stt` (needs a speech-to-text provider; until then the client answers in character).
 12. Deploy to Vercel: verify `/api` runs there (relative ESM imports may need explicit `.js` extensions or a bundling step; JSON imports may need import attributes). Set `ANTHROPIC_API_KEY` there to switch on llm mode, then test the real LLM path end to end.
 13. Polish: performance pass (60 fps, < 150 draw calls), README, demo video.

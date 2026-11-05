@@ -63,7 +63,11 @@ Speech uses the browser's Web Speech API. Browsers without it record a short cli
 1. **Recite**: say the name of an Incantation in your Grimoire ("Frost Comet", "cast Blazing Cyclone") and it is cast at once, matched locally with Fuse.js. No network call; it fires on the live transcript as soon as the name is clear.
 2. **System commands**: "open Grimoire", "close Grimoire", "next floor".
 3. **Refine**: "make it wider", "add a stun", "remove the burn", "make it ice", "make it night" change your last Incantation (it keeps its bar slot) or the current floor.
-4. **Forge / build / reply**: anything else goes to `/api/interpret`. New Incantations are balanced by the Arbiter and placed on the Grimoire bar (6 slots; when it is full, the least recently used slot makes room, and everything stays in the Grimoire to recite).
+4. **Forge / build / reply**: anything else goes to `/api/interpret`. New Incantations are balanced by the Arbiter and placed on the Grimoire bar (6 slots; when it is full, the least recently used slot makes room, and everything stays in the Grimoire to recite). A described place ("build a misty forest at night with archers") becomes a new floor behind a short "The Spire reshapes…" curtain. Anything else gets an in-character line from the Arbiter, shown and spoken.
+
+**Climbing the Spire**: defeat every enemy and a gate opens nearby. Step into it and describe the next floor ("a sunlit desert with ruined pillars"); whatever you say there builds it. Questions still get an answer, and reciting still works.
+
+The Arbiter speaks through the browser's text-to-speech (`speechSynthesis`) and falls silent the moment you hold V.
 
 ## Privacy
 

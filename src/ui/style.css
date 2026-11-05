@@ -607,3 +607,89 @@ kbd {
   font-size: 20px;
   cursor: pointer;
 }
+
+/* --- Floor transition + gate prompt ------------------------------------------------------- */
+.reshape {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: radial-gradient(circle at 50% 50%, rgb(30 20 70 / 0.85), rgb(4 4 14 / 0.97) 70%);
+  z-index: 30;
+  pointer-events: auto;
+  opacity: 0;
+}
+
+.reshape-in {
+  animation: reshape-in 0.45s ease-out forwards;
+}
+
+.reshape-out {
+  animation: reshape-out 0.45s ease-in forwards;
+}
+
+@keyframes reshape-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes reshape-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.reshape-title {
+  font-size: clamp(22px, 4vw, 34px);
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 18px rgb(140 170 255 / 0.8);
+}
+
+.reshape-sub {
+  min-height: 1.4em;
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+
+.reshape-rune {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid rgb(160 190 255 / 0.8);
+  border-top-color: transparent;
+  box-shadow: 0 0 24px rgb(120 160 255 / 0.6);
+  animation: reshape-spin 1.2s linear infinite;
+}
+
+@keyframes reshape-spin {
+  to { transform: rotate(360deg); }
+}
+
+.gate-prompt {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgb(160 220 255 / 0.5);
+  background: rgb(8 16 40 / 0.75);
+  box-shadow: 0 0 18px rgb(120 200 255 / 0.35);
+  font-size: 15px;
+  text-align: center;
+  text-shadow: 0 1px 2px #000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reshape-in,
+  .reshape-out,
+  .reshape-rune {
+    animation: none;
+  }
+  .reshape {
+    opacity: 1;
+  }
+}

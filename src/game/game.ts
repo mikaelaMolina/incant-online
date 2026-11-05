@@ -21,6 +21,8 @@ import { judge } from '../arbiter/arbiter';
 import { Vfx } from '../vfx/presets';
 import { PostFx } from '../vfx/bloom';
 import { CastHud } from '../ui/castHud';
+import { Gate, chooseGateSpot, rayClearance } from './gate';
+import { INCANTER_CENTER_Y } from './player';
 
 /** Longest frame we simulate; avoids a "spiral of death" after a tab switch or hitch. */
 const MAX_FRAME = 0.1;
@@ -33,16 +35,32 @@ const BAR_KEYS = Array.from({ length: GRIMOIRE_BAR_SIZE }, (_, i) => [`Digit${i 
 export interface GameController {
   /** While paused the world renders but nothing simulates (start screen). */
   setPaused(paused: boolean): void;
-  /** Replace the current floor (props, lighting, enemies) and respawn the Incanter. */
-  loadFloor(spec: FloorSpec): Promise<void>;
+  /**
+   * Replace the current floor (props, lighting, enemies) and respawn the Incanter.
+   * Never rejects: if the floor can't be built, the starting arena is loaded instead.
+   * Resolves with the floor actually loaded.
+   */
+  loadFloor(spec: FloorSpec): Promise<FloorSpec>;
   /** The floor currently loaded, e.g. as context for "make it night". */
   currentFloor(): FloorSpec;
   /** Cast an (Arbiter-judged) Incantation toward the current aim. Refusals are also shown on the HUD. */
   castIncantation(spec: IncantationSpec): CastOutcome;
   /** Show the Grimoire bar (one entry per slot, undefined = empty); number keys cast these. */
   setBar(slots: readonly (IncantationSpec | undefined)[]): void;
-  /** Called after a successful cast from a number key. */
-  onBarCast: ((spec: IncantationSpec) => void) | undefined;
+  /** Is the Incanter standing in the open gate (describing the next floor)? */
+  atGate(): boolean;
+  /** Event callbacks set by the UI layer. */
+  readonly hooks: GameHooks;
+}
+
+export interface GameHooks {
+  /** A successful cast from a number key. */
+  onBarCast?: (spec: IncantationSpec) => void;
+  /** All enemies defeated (or none to fight): the gate has opened. */
+  onGateOpen?: () => void;
+  /** The Incanter stepped into / out of the gate. */
+  onGateEnter?: () => void;
+  onGateLeave?: () => void;
 }
 
 /** Load the first floor and start rendering. Resolves once the floor is playable (paused). */
@@ -91,6 +109,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         enemies = spawned;
         hadEnemies = spawned.length > 0;
         clearedShown = false;
+        // Nothing to fight on this floor: the way on is open from the start.
+        if (!hadEnemies) openGate();
       })
       .catch((err: unknown) => console.warn('Enemies failed to spawn.', err))
       .finally(() => {
@@ -105,7 +125,24 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   const postFx = new PostFx(renderer, scene, cam.camera);
   const castHud = new CastHud(hud);
   let bar: readonly (IncantationSpec | undefined)[] = [];
-  let onBarCast: ((spec: IncantationSpec) => void) | undefined;
+  const hooks: GameHooks = {};
+
+  // The gate to the next floor: opens when the floor is cleared.
+  let gate: Gate | undefined;
+  let inGate = false;
+  function openGate(): void {
+    if (gate) return;
+    const me = incanter.physicsPosition;
+    const spot = chooseGateSpot(me, rayClearance(world, me), Math.atan2(incanter.aimPoint.x - me.x, incanter.aimPoint.z - me.z));
+    gate = new Gate(scene, vfx, spot, me.y - INCANTER_CENTER_Y);
+    hooks.onGateOpen?.();
+  }
+  function closeGate(): void {
+    gate?.dispose();
+    gate = undefined;
+    if (inGate) hooks.onGateLeave?.();
+    inGate = false;
+  }
   const castIncantation = (spec: IncantationSpec): CastOutcome => {
     runner.setTargets(enemies);
     const outcome = runner.cast(spec);
@@ -145,6 +182,15 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         castCached: (i: number) => castIncantation(judge(CACHED_INCANTATIONS[i % CACHED_INCANTATIONS.length]).incantation),
         mana: () => runner.resources.mana,
         refill: () => runner.resources.reset(),
+        /** Defeat every enemy (opens the gate). */
+        killAll: () => {
+          for (const e of enemies) e.takeHit(1e6, e.physicsPosition, 0);
+        },
+        gate: () => (gate ? { x: gate.position.x, z: gate.position.z, open: gate.open, inside: inGate } : null),
+        /** Move the Incanter onto the gate (dev only: also moves the respawn point). */
+        warpToGate: () => {
+          if (gate) incanter.setSpawn(gate.position);
+        },
         particles: () => vfx.particles.count,
         activeCasts: () => runner.activeCasts,
         aim: () => ({ x: incanter.aimPoint.x, z: incanter.aimPoint.z }),
@@ -188,7 +234,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       incanter.frameInput();
       BAR_KEYS.forEach((codes, i) => {
         const spec = bar[i];
-        if (spec && codes.some((c) => input.wasPressed(c)) && castIncantation(spec).ok) onBarCast?.(spec);
+        if (spec && codes.some((c) => input.wasPressed(c)) && castIncantation(spec).ok) hooks.onBarCast?.(spec);
       });
     }
     runner.setTargets(enemies);
@@ -233,7 +279,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     } else if (hadEnemies && !clearedShown && enemies.every((e) => !e.alive)) {
       clearedShown = true;
       clearedTimer = CLEARED_BANNER_TIME;
-      healthBars.showBanner('Floor cleared');
+      healthBars.showBanner('Floor cleared: a gate opens');
+      openGate();
     }
     if (clearedTimer > 0) {
       clearedTimer -= dt;
@@ -246,6 +293,15 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     projectiles.render(alpha);
     basicAttack.update(dt);
     runner.render(dt);
+    if (gate) {
+      const near = incanter.alive && gate.open && gate.contains(incanter.physicsPosition);
+      gate.update(dt, near);
+      if (near !== inGate) {
+        inGate = near;
+        if (near) hooks.onGateEnter?.();
+        else hooks.onGateLeave?.();
+      }
+    }
     cam.update(incanter.position, dt);
     vfx.update(dt, cam.camera, renderer.domElement.height);
 
@@ -287,8 +343,14 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         projectiles.clear();
         runner.clear();
         vfx.clear();
+        closeGate();
         floor.dispose();
-        floor = await buildFloor(spec, { scene, world, models });
+        try {
+          floor = await buildFloor(spec, { scene, world, models });
+        } catch (err) {
+          console.warn(`Floor "${spec.name}" failed to build; loading the starting arena.`, err);
+          floor = await buildFloor(STARTING_ARENA, { scene, world, models });
+        }
         sunOffset = floor.sun.position.clone();
         incanter.revive();
         incanter.setSpawn(floor.spawn);
@@ -299,6 +361,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         loading = false;
         input.clear();
       }
+      return floor.spec;
     },
     currentFloor: () => floor.spec,
     castIncantation,
@@ -306,11 +369,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       bar = [...slots];
       castHud.setSlots(bar);
     },
-    get onBarCast() {
-      return onBarCast;
-    },
-    set onBarCast(fn) {
-      onBarCast = fn;
-    },
+    atGate: () => inGate,
+    hooks,
   };
 }

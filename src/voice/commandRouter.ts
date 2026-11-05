@@ -5,21 +5,36 @@ import type { IncantationSpec } from '../schemas/incantationSpec';
 import { parseFloorSpec, type FloorSpec } from '../schemas/floorSpec';
 import type { InterpretResponse } from '../schemas/interpret';
 import { CACHED_FLOORS } from '../fallback/cache';
-import { requestInterpretation, type InterpretContext } from './interpretClient';
+import { offlineFallback, requestInterpretation, type InterpretContext } from './interpretClient';
 import { classify, INTERIM_RECITE_THRESHOLD, ReciteIndex, words, type Route, type SystemCommand } from './intentRouter';
 import type { Utterance } from './pipeline';
 
 /** A final transcript repeating what an interim already cast is ignored within this window. */
 const INTERIM_DEDUPE_MS = 4000;
+/** Floor build target is < 10 s end to end; the request gets most of it, the build the rest. */
+const GATE_REQUEST_BUDGET_MS = 7500;
+/** At the gate, a second, explicit "build" request is only tried if the first came back this fast. */
+const GATE_REPHRASE_IF_UNDER_MS = 3500;
+/** Questions get an answer even at the gate ("what is this place?"). */
+const QUESTION = /\?\s*$|^(what|who|why|how|where|when|is|are|can|could|do|does|will|should)\b/i;
 
 export interface RouterDeps {
   grimoire: Grimoire;
   currentFloor(): FloorSpec;
-  loadFloor(spec: FloorSpec): Promise<void>;
+  /** Load a floor; resolves with the floor actually loaded (a fallback if building failed). */
+  loadFloor(spec: FloorSpec): Promise<FloorSpec | void>;
   /** Cast locally (the runner checks mana and cooldown). */
   cast(spec: IncantationSpec): CastOutcome;
   say(text: string): void;
+  /** The Arbiter's voice (speechSynthesis). Lines are also shown with say(). */
+  speak?(text: string): void;
   thinking(on: boolean): void;
+  /** "The Spire reshapes…" curtain; hiding resolves once it has faded. */
+  reshape?(on: boolean, subtitle?: string): Promise<void> | void;
+  /** Is the Incanter standing in the open gate? Then words describe the next floor. */
+  atGate?(): boolean;
+  /** Timing hook for the floor budget (< 10 s from words to a playable floor). */
+  onFloorBuilt?(name: string, ms: number): void;
   showGrimoire(open: boolean): void;
   onMode?(response: InterpretResponse & { offline?: boolean }): void;
   /** Talk route (guide NPC): not built yet, so the route stays closed until both exist. */
@@ -75,6 +90,8 @@ export class CommandRouter {
       canRefine: true, // the current floor is always refinable
       nearGuide: !!(this.deps.talk && this.deps.nearGuide?.()),
     });
+    // In the gate, anything that isn't a recital or a command describes the next floor.
+    if (this.deps.atGate?.() && route.kind !== 'recite' && route.kind !== 'command') return this.gateBuild(u.text, startedAt);
     return this.run(route, u, startedAt);
   }
 
@@ -90,14 +107,14 @@ export class CommandRouter {
       case 'command':
         return this.command(route.command);
       case 'refine':
-        return this.network(u.text, true);
+        return this.network(u.text, true, startedAt);
       case 'talk':
         return this.withBusy(async () => {
           const reply = await this.deps.talk!(u.text);
           this.deps.say(reply);
         });
       case 'interpret':
-        return this.network(u.text, false);
+        return this.network(u.text, false, startedAt);
     }
   }
 
@@ -124,10 +141,8 @@ export class CommandRouter {
           this.deps.say('The stair above is sealed.');
           return;
         }
-        return this.withBusy(async () => {
-          this.deps.say(`You climb to ${next.name}…`);
-          await this.deps.loadFloor(next);
-        });
+        const t0 = performance.now();
+        return this.withBusy(() => this.buildFloor(next, t0));
       }
     }
   }
@@ -144,14 +159,62 @@ export class CommandRouter {
   }
 
   /** Refine (with the last Incantation and the current floor attached) or a fresh interpretation. */
-  private network(text: string, refine: boolean): Promise<void> {
+  private network(text: string, refine: boolean, startedAt: number): Promise<void> {
     return this.withBusy(async () => {
       const base = refine ? this.deps.grimoire.last : undefined;
       const context: InterpretContext | undefined = refine ? { ...(base ? { incantation: base } : {}), floor: this.deps.currentFloor() } : undefined;
       const r = await requestInterpretation(text, context);
       this.deps.onMode?.(r);
-      await this.apply(r, base);
+      await this.apply(r, base, startedAt);
     });
+  }
+
+  /**
+   * At the gate: the words describe the next floor. The curtain goes up straight away; if the
+   * Spire answers with something other than a floor, it is asked once more explicitly, then a
+   * cached floor stands in. A plain question still gets its answer.
+   */
+  private gateBuild(text: string, startedAt: number): Promise<void> {
+    return this.withBusy(async () => {
+      void this.deps.reshape?.(true, 'The Spire listens…');
+      let r = await requestInterpretation(text, undefined, { want: 'floor', budgetMs: GATE_REQUEST_BUDGET_MS });
+      this.deps.onMode?.(r);
+      if (r.intent !== 'build' || !r.floor) {
+        if (r.intent === 'reply' && r.reply && QUESTION.test(text.trim())) {
+          await this.deps.reshape?.(false);
+          this.reply(r.reply);
+          return;
+        }
+        const elapsed = performance.now() - startedAt;
+        if (elapsed < GATE_REPHRASE_IF_UNDER_MS) {
+          r = await requestInterpretation(`Build the next floor of the Spire: ${text}`, undefined, {
+            want: 'floor',
+            budgetMs: GATE_REQUEST_BUDGET_MS - elapsed,
+          });
+        }
+        if (r.intent !== 'build' || !r.floor) r = offlineFallback(text, 'floor');
+      }
+      if (r.reply && r.intent === 'build') this.deps.say(r.reply);
+      if (r.floor) await this.buildFloor(r.floor, startedAt);
+    });
+  }
+
+  /** Curtain up, build, curtain down, announce. */
+  private async buildFloor(spec: FloorSpec, startedAt: number): Promise<void> {
+    void this.deps.reshape?.(true, spec.name);
+    this.deps.speak?.('The Spire reshapes.');
+    const loaded = (await this.deps.loadFloor(spec)) ?? spec;
+    this.deps.onFloorBuilt?.(loaded.name, performance.now() - startedAt);
+    await this.deps.reshape?.(false);
+    const line = `${loaded.name} awaits.`;
+    this.deps.say(line);
+    this.deps.speak?.(line);
+  }
+
+  /** An in-character Arbiter line: shown and spoken. */
+  private reply(text: string): void {
+    this.deps.say(text);
+    this.deps.speak?.(text);
   }
 
   private async withBusy(fn: () => Promise<void>): Promise<void> {
@@ -169,10 +232,11 @@ export class CommandRouter {
     } finally {
       this.busy = false;
       this.deps.thinking(false);
+      void this.deps.reshape?.(false); // never leave the curtain down
     }
   }
 
-  private async apply(r: InterpretResponse, refined: IncantationSpec | undefined): Promise<void> {
+  private async apply(r: InterpretResponse, refined: IncantationSpec | undefined, startedAt: number): Promise<void> {
     if (r.intent === 'forge' && r.incantation) {
       const judged = judge(r.incantation);
       const j = refined ? this.deps.grimoire.replace(refined.name, judged) : this.deps.grimoire.add(judged);
@@ -186,12 +250,10 @@ export class CommandRouter {
     }
     if (r.intent === 'build' && r.floor) {
       if (r.reply) this.deps.say(r.reply);
-      this.deps.say(`The Spire raises ${r.floor.name}…`);
-      await this.deps.loadFloor(r.floor);
-      this.deps.say(`${r.floor.name} awaits.`);
+      await this.buildFloor(r.floor, startedAt);
       return;
     }
-    this.deps.say(r.reply ?? 'The Spire is silent.');
+    this.reply(r.reply ?? 'The Spire is silent.');
   }
 }
 

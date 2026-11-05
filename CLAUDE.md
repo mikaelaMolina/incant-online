@@ -188,6 +188,7 @@ Done (see git log):
 9. Voice router (`src/voice/intentRouter.ts` + `commandRouter.ts`): recite with Fuse.js (threshold 0.4, also on interim transcripts, no network), system commands (open/close Grimoire, next floor), refine (keeps the bar slot, even when renamed), forge → Arbiter → Grimoire bar (6 stable slots, keys 1–6, LRU when full) with cooldown sweeps, Grimoire panel. Talk route is wired but closed until the guide NPC exists.
 
 9c. Build intent + gate: "The Spire reshapes…" curtain, request budget with cached-floor fallback (< 10 s), floor build failure → starting arena; gate opens when a floor is cleared, words said inside it build the next floor (re-asked explicitly, then cached); reply lines shown and spoken (`src/voice/narrator.ts`, silent while push-to-talk is held).
+9d. Fallbacks: `src/fallback/fallback.ts` shared by server and browser (closest cached item by element/type/shape/biome; refine kept locally; replies for chat; per-reason lines); 3 dedicated pre-built floors (forest, castle, ice; the starting arena is separate); browser handles unreachable / timeout (7 s, 6 s at the gate) / 429 without retry; never repeats a Grimoire Incantation or the current floor.
 
 Next:
 9b. Judgement card UI (show the Arbiter's verdict when an Incantation is forged).

@@ -40,7 +40,7 @@ Put a key in `.env` (or the Vercel environment) and the same requests go to Clau
 | Mouse | Aim (the Incanter faces the cursor) |
 | Left click | Staff strike (short arc in front of you) |
 | Space | Dodge (brief invulnerability: roll through arrows and slams) |
-| 1 / 2 / 3 | Test Incantations: Blazing Cyclone (fire spin, burn), Thunder Chain (lightning that leaps, stun), Frost Comet (ice bolts that burst and freeze). Temporary until the Grimoire bar arrives |
+| 1 – 6 | Cast the Incantation in that Grimoire bar slot. Slots 1–3 start with three test Incantations: Blazing Cyclone (fire spin, burn), Thunder Chain (lightning that leaps, stun), Frost Comet (ice bolts that burst and freeze) |
 | Hold V (or the mic button) | Push-to-talk: speak, then let go |
 | Enter | Type instead of speaking (Enter again sends, Esc cancels) |
 | F3 | Toggle the performance overlay (shown by default in `npm run dev`) |
@@ -58,7 +58,12 @@ An LLM (Claude, via the Anthropic Messages API) turns what the player says into 
 ## Voice
 
 Say **"I speak, I enter"** on the start screen to begin (or press Enter to skip voice).
-Speech uses the browser's Web Speech API. Browsers without it record a short clip while you hold V and send it to `/api/stt` for transcription. Until the backend exists, `npm run dev` answers that with an in-character "type instead" message. Every input, spoken or typed, goes through the same pipeline (`src/voice/pipeline.ts`).
+Speech uses the browser's Web Speech API. Browsers without it record a short clip while you hold V and send it to `/api/stt` for transcription. Until the backend exists, `npm run dev` answers that with an in-character "type instead" message. Every input, spoken or typed, goes through the same pipeline (`src/voice/pipeline.ts`) and is routed in this order (`src/voice/intentRouter.ts`):
+
+1. **Recite**: say the name of an Incantation in your Grimoire ("Frost Comet", "cast Blazing Cyclone") and it is cast at once, matched locally with Fuse.js. No network call; it fires on the live transcript as soon as the name is clear.
+2. **System commands**: "open Grimoire", "close Grimoire", "next floor".
+3. **Refine**: "make it wider", "add a stun", "remove the burn", "make it ice", "make it night" change your last Incantation (it keeps its bar slot) or the current floor.
+4. **Forge / build / reply**: anything else goes to `/api/interpret`. New Incantations are balanced by the Arbiter and placed on the Grimoire bar (6 slots; when it is full, the least recently used slot makes room, and everything stays in the Grimoire to recite).
 
 ## Privacy
 

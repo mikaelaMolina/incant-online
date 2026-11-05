@@ -438,8 +438,14 @@ kbd {
   bottom: calc(104px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   width: min(220px, 50vw);
+}
+
+.cast-empty {
+  opacity: 0.35;
+  border-style: dashed;
+  --accent: #8a93a8;
 }
 
 .cast-slot {
@@ -528,4 +534,76 @@ kbd {
   .cast-fired {
     animation: none;
   }
+}
+
+/* --- Grimoire panel ("open Grimoire") ------------------------------------------------------ */
+.grimoire-panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%);
+  width: min(520px, calc(100vw - 32px));
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  padding: 14px 18px;
+  border-radius: 10px;
+  border: 1px solid rgb(160 190 255 / 0.35);
+  background: rgb(10 12 28 / 0.88);
+  box-shadow: 0 0 30px rgb(80 120 255 / 0.25);
+  pointer-events: auto;
+  z-index: 15;
+}
+
+.grimoire-panel h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  letter-spacing: 0.06em;
+}
+
+.grimoire-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.grimoire-entry {
+  display: grid;
+  grid-template-columns: 2em 1fr;
+  gap: 2px 8px;
+  padding: 6px 0;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+  font-size: 13px;
+}
+
+.grimoire-slot {
+  grid-row: span 3;
+  font: 600 14px/1.4 ui-monospace, monospace;
+  color: var(--accent);
+}
+
+.grimoire-name {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.grimoire-stats,
+.grimoire-flavor,
+.grimoire-judgement {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.grimoire-flavor {
+  font-style: italic;
+}
+
+.grimoire-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 20px;
+  cursor: pointer;
 }

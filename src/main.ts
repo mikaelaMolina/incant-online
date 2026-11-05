@@ -12,6 +12,8 @@ import { ModeLabel } from './ui/modeLabel';
 import { fetchBackendMode } from './voice/interpretClient';
 import { CommandRouter } from './voice/commandRouter';
 import { Grimoire } from './combat/grimoire';
+import { TEST_INCANTATIONS } from './combat/testIncantations';
+import { GrimoirePanel } from './ui/grimoirePanel';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const hud = document.querySelector<HTMLElement>('#hud');
@@ -23,6 +25,7 @@ if (canvas && hud) {
   let startScreen: StartScreen | undefined;
   let transcript: Transcript | undefined;
   let commandBar: CommandBar | undefined;
+  let router: CommandRouter | undefined;
   const inGame = (): boolean => !!startScreen && !startScreen.visible;
 
   const speech = new SpeechInput({
@@ -33,8 +36,13 @@ if (canvas && hud) {
       if (state === 'listening' && inGame()) transcript?.setInterim('Listening…');
     },
     onInterim(text) {
-      if (inGame()) transcript?.setInterim(text);
-      else startScreen?.showHeard(text);
+      if (inGame()) {
+        transcript?.setInterim(text);
+        // Recite as soon as a name is clearly heard, without waiting for the final result.
+        router?.handleInterim(text);
+      } else {
+        startScreen?.showHeard(text);
+      }
     },
     onFinal(text) {
       transcript?.setInterim(null);
@@ -73,6 +81,15 @@ if (canvas && hud) {
 
   let game: GameController | undefined;
   const grimoire = new Grimoire();
+  const grimoirePanel = new GrimoirePanel(hud);
+  // Forged Incantations (after the Arbiter) fill the bar; the three test ones start in slots 1–3.
+  grimoire.onChange = () => {
+    game?.setBar(grimoire.bar.map((j) => j?.incantation));
+    grimoirePanel.render(grimoire);
+    router?.syncNames();
+  };
+  for (const j of TEST_INCANTATIONS) grimoire.add(j);
+
   startScreen.onEnter = () => {
     commandBar?.show();
     if (!speech.supported) transcript?.add('spire', NO_VOICE_MESSAGE);
@@ -80,23 +97,31 @@ if (canvas && hud) {
     const g = game;
     if (!g) return;
     // In the game: everything said or typed is shown, then routed (forge / build / reply).
-    const router = new CommandRouter({
+    g.onBarCast = (spec) => grimoire.touch(spec.name);
+    router = new CommandRouter({
       grimoire,
       currentFloor: () => g.currentFloor(),
       loadFloor: (spec) => g.loadFloor(spec),
+      cast: (spec) => g.castIncantation(spec),
+      showGrimoire: (open) => grimoirePanel.show(open),
+      onRecite: (name, ms, fromInterim) => {
+        if (import.meta.env.DEV) console.debug(`recite ${name}: ${ms.toFixed(1)} ms${fromInterim ? ' (interim)' : ''}`);
+      },
       say: (text) => transcript?.add('spire', text),
       thinking: (on) => transcript?.setInterim(on ? 'The Spire weighs your words…' : null),
       onMode: (r) => modeLabel.set(r.offline ? 'offline' : (r.mode ?? 'offline')),
     });
+    const r = router;
     pipeline.setHandler((u) => {
       transcript?.add('you', u.text);
-      void router.handle(u);
+      void r.handle(u);
     });
   };
 
   startGame(canvas, hud)
     .then((g) => {
       game = g;
+      g.setBar(grimoire.bar.map((j) => j?.incantation));
       startScreen?.setReady();
     })
     .catch((err: unknown) => {

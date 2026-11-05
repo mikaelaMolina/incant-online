@@ -15,7 +15,7 @@ import type { Enemy } from '../enemies/enemy';
 import type { FloorSpec } from '../schemas/floorSpec';
 import type { IncantationSpec } from '../schemas/incantationSpec';
 import { IncantationRunner, type CastOutcome } from '../combat/incantationRunner';
-import { TEST_INCANTATIONS, TEST_KEYS } from '../combat/testIncantations';
+import { GRIMOIRE_BAR_SIZE } from '../combat/grimoire';
 import { CACHED_INCANTATIONS } from '../fallback/cache';
 import { judge } from '../arbiter/arbiter';
 import { Vfx } from '../vfx/presets';
@@ -27,6 +27,8 @@ const MAX_FRAME = 0.1;
 const MAX_STEPS = 5;
 const REVIVE_DELAY = 2.5;
 const CLEARED_BANNER_TIME = 3;
+/** Number keys (top row and numpad) cast Grimoire bar slots 1–6. */
+const BAR_KEYS = Array.from({ length: GRIMOIRE_BAR_SIZE }, (_, i) => [`Digit${i + 1}`, `Numpad${i + 1}`]);
 
 export interface GameController {
   /** While paused the world renders but nothing simulates (start screen). */
@@ -37,6 +39,10 @@ export interface GameController {
   currentFloor(): FloorSpec;
   /** Cast an (Arbiter-judged) Incantation toward the current aim. Refusals are also shown on the HUD. */
   castIncantation(spec: IncantationSpec): CastOutcome;
+  /** Show the Grimoire bar (one entry per slot, undefined = empty); number keys cast these. */
+  setBar(slots: readonly (IncantationSpec | undefined)[]): void;
+  /** Called after a successful cast from a number key. */
+  onBarCast: ((spec: IncantationSpec) => void) | undefined;
 }
 
 /** Load the first floor and start rendering. Resolves once the floor is playable (paused). */
@@ -98,7 +104,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   const runner = new IncantationRunner({ world, incanter, vfx });
   const postFx = new PostFx(renderer, scene, cam.camera);
   const castHud = new CastHud(hud);
-  castHud.setSlots(TEST_INCANTATIONS.map((j, i) => ({ key: String(i + 1), spec: j.incantation })));
+  let bar: readonly (IncantationSpec | undefined)[] = [];
+  let onBarCast: ((spec: IncantationSpec) => void) | undefined;
   const castIncantation = (spec: IncantationSpec): CastOutcome => {
     runner.setTargets(enemies);
     const outcome = runner.cast(spec);
@@ -179,9 +186,9 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
 
     if (!frozen) {
       incanter.frameInput();
-      TEST_KEYS.forEach((code, i) => {
-        const j = TEST_INCANTATIONS[i];
-        if (j && input.wasPressed(code)) castIncantation(j.incantation);
+      BAR_KEYS.forEach((codes, i) => {
+        const spec = bar[i];
+        if (spec && codes.some((c) => input.wasPressed(c)) && castIncantation(spec).ok) onBarCast?.(spec);
       });
     }
     runner.setTargets(enemies);
@@ -295,5 +302,15 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     },
     currentFloor: () => floor.spec,
     castIncantation,
+    setBar(slots) {
+      bar = [...slots];
+      castHud.setSlots(bar);
+    },
+    get onBarCast() {
+      return onBarCast;
+    },
+    set onBarCast(fn) {
+      onBarCast = fn;
+    },
   };
 }

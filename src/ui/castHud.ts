@@ -3,12 +3,7 @@ import type { IncantationSpec } from '../schemas/incantationSpec';
 
 const TOAST_TIME = 2.2;
 
-export interface HudSlot {
-  key: string;
-  spec: IncantationSpec;
-}
-
-/** Mana bar, quick slots with cooldown sweeps, and a short toast for refused casts. */
+/** Mana bar, the Grimoire bar (keys 1–6) with cooldown sweeps, and a short toast for refused casts. */
 export class CastHud {
   private readonly manaFill: HTMLDivElement;
   private readonly manaText: HTMLSpanElement;
@@ -34,9 +29,19 @@ export class CastHud {
     hud.appendChild(this.toast);
   }
 
-  setSlots(slots: readonly HudSlot[]): void {
+  /** One entry per bar slot, in key order; undefined = empty slot. */
+  setSlots(slots: readonly (IncantationSpec | undefined)[]): void {
     this.slotsEl.replaceChildren();
-    this.slots = slots.map(({ key, spec }) => {
+    this.slots = [];
+    slots.forEach((spec, i) => {
+      const key = String(i + 1);
+      if (!spec) {
+        const empty = document.createElement('div');
+        empty.className = 'cast-slot cast-empty';
+        empty.innerHTML = `<span class="cast-key">${key}</span><span class="cast-name">—</span>`;
+        this.slotsEl.appendChild(empty);
+        return;
+      }
       const el = document.createElement('div');
       el.className = 'cast-slot';
       el.style.setProperty('--accent', spec.vfx.color);
@@ -58,7 +63,7 @@ export class CastHud {
       time.className = 'cast-time';
       el.append(shade, keyEl, name, cost, time);
       this.slotsEl.appendChild(el);
-      return { spec, el, shade, time };
+      this.slots.push({ spec, el, shade, time });
     });
   }
 

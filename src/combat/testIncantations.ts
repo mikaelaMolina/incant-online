@@ -1,7 +1,8 @@
 import { judge, type Judgement } from '../arbiter/arbiter';
 
 /**
- * Three hard-coded Incantations on number keys 1–3, for checking the runner and VFX by hand.
+ * Three hard-coded Incantations the Grimoire starts with (bar slots 1–3), for checking the runner
+ * and VFX by hand.
  * Together they cover melee / chain / projectile, burn / stun / freeze, chain_targets and trails.
  * They go through the Arbiter like any forged Incantation, so mana and cooldowns are real.
  */
@@ -51,6 +52,3 @@ const RAW = [
 ] as const;
 
 export const TEST_INCANTATIONS: readonly Judgement[] = RAW.map((r) => judge(r));
-
-/** Key codes for the test slots (physical keys, any layout). */
-export const TEST_KEYS = ['Digit1', 'Digit2', 'Digit3'] as const;

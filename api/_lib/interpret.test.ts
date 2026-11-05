@@ -5,7 +5,8 @@ import { RATE_LIMIT, resetRateLimit } from './rateLimit';
 import { ANTHROPIC_URL, ANTHROPIC_VERSION } from './llm/client';
 import { SYSTEM_PROMPT } from './llm/prompt';
 import { INTERPRET_JSON_SCHEMA } from './llm/wireSchema';
-import { CACHED_INCANTATIONS } from '../../src/fallback/cache';
+import { CACHED_FLOORS, CACHED_INCANTATIONS } from '../../src/fallback/cache';
+import { STARTING_ARENA } from '../../src/fallback/floors';
 
 const KEY = { ANTHROPIC_API_KEY: 'test-key' };
 const names = CACHED_INCANTATIONS.map((i) => (i as { name: string }).name);
@@ -133,9 +134,48 @@ describe('interpret: llm mode (mocked HTTP)', () => {
       );
       const p = interpret({ text: 'ice orb' }, { env: KEY, ip: '1', fetchImpl: fetchImpl as unknown as typeof fetch });
       await vi.advanceTimersByTimeAsync(8_100);
-      expect((await p).source).toBe('cache');
+      const r = await p;
+      expect(r.source).toBe('cache');
+      expect(r.reply).toMatch(/too long/);
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('failure answers come from src/fallback', () => {
+  const failing = () => vi.fn(async () => new Response('overloaded', { status: 529 })) as unknown as typeof fetch;
+  const floorNames = CACHED_FLOORS.map((f) => (f as { name: string }).name);
+
+  it('a place during an LLM failure → a pre-built floor, never the starting arena', async () => {
+    for (const text of ['build a frozen castle', 'a misty forest', 'take me to the desert', 'a cozy village']) {
+      const r = await interpret({ text }, { env: KEY, ip: text, fetchImpl: failing() });
+      expect(r).toMatchObject({ intent: 'build', source: 'cache' });
+      expect(floorNames).toContain(r.floor?.name);
+      expect(r.floor?.name).not.toBe(STARTING_ARENA.name);
+      expect(r.reply).toMatch(/scatter/);
+    }
+  });
+
+  it('a refine during an LLM failure keeps the player’s Incantation, changed as asked', async () => {
+    const r = await interpret(
+      { text: 'add a stun', context: { incantation: llmIncantation.incantation } },
+      { env: KEY, ip: '1', fetchImpl: failing() },
+    );
+    expect(r.incantation?.name).toBe('Starfall Edge');
+    expect(r.incantation?.status_effect.kind).toBe('stun');
+  });
+
+  it('chat during an LLM failure → an in-character reply, not an item', async () => {
+    const r = await interpret({ text: 'hello' }, { env: KEY, ip: '1', fetchImpl: failing() });
+    expect(r.intent).toBe('reply');
+    expect(r.reply).toBeTruthy();
+  });
+
+  it('rate-limited requests say so in character', async () => {
+    for (let i = 0; i < RATE_LIMIT.requests; i++) await interpret({ text: 'a forest' }, { env: {}, ip: 'rl' });
+    const r = await interpret({ text: 'a forest' }, { env: {}, ip: 'rl' });
+    expect(r).toMatchObject({ intent: 'build', source: 'cache' });
+    expect(r.reply).toMatch(/weary/);
   });
 });

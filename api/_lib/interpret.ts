@@ -1,6 +1,6 @@
 import { InterpretRequest, InterpretResponse, MAX_INPUT_LENGTH, type ResponseSource } from '../../src/schemas/interpret.js';
-import { cachedFloor, cachedIncantation } from '../../src/fallback/cache.js';
-import { mockInterpret, type RawInterpretResponse } from './mock/interpreter.js';
+import { fallbackResponse, type FallbackReason } from '../../src/fallback/fallback.js';
+import { mockInterpret } from './mock/interpreter.js';
 import { callLlm, LlmError } from './llm/client.js';
 import { resolveMode, type Env } from './env.js';
 import { allowRequest } from './rateLimit.js';
@@ -33,7 +33,7 @@ export async function interpret(body: unknown, opts: InterpretOptions): Promise<
 
   if (!allowRequest(opts.ip)) {
     log(`rate limit: ${opts.ip}`);
-    return fromCache(text, context, cfg.mode, 'The Spire grows weary of your voice; it offers what it already knows.');
+    return fromCache(text, context, cfg.mode, 'rate-limit');
   }
 
   if (cfg.mode === 'mock') {
@@ -68,25 +68,15 @@ export async function interpret(body: unknown, opts: InterpretOptions): Promise<
   } finally {
     clearTimeout(timer);
   }
-  return fromCache(text, context, 'llm');
+  return fromCache(text, context, 'llm', deadline.aborted ? 'timeout' : 'llm-error');
 }
 
-/** Pick a cached item of the kind the words suggest (the mock parser is a free classifier). */
-function fromCache(
-  text: string,
-  context: InterpretRequest['context'],
-  mode: 'mock' | 'llm',
-  reply?: string,
-): InterpretResponse {
-  const guess = mockInterpret(text, context ?? {});
-  const raw: RawInterpretResponse =
-    guess.intent === 'build'
-      ? { intent: 'build', floor: cachedFloor(text) }
-      : guess.intent === 'forge'
-        ? { intent: 'forge', incantation: cachedIncantation(text) }
-        : guess;
-  if (reply) raw.reply = reply;
-  return finish(raw, mode, 'cache');
+/**
+ * Failure, timeout or rate limit: a pre-forged Incantation or pre-built floor of the kind the
+ * words ask for (src/fallback), the player's own work refined locally, or an in-character reply.
+ */
+function fromCache(text: string, context: InterpretRequest['context'], mode: 'mock' | 'llm', reason: FallbackReason): InterpretResponse {
+  return finish(fallbackResponse(text, context, { reason }), mode, 'cache');
 }
 
 function finish(raw: unknown, mode: 'mock' | 'llm', source: ResponseSource): InterpretResponse {

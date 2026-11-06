@@ -2,52 +2,80 @@
 
 **Say it. Cast it.**
 
-Incant Online is a browser-based, voice-first action RPG. You play an **Incanter** climbing **the Spire**. You don't pick spells from a menu: you *describe* them out loud ("a spinning fire slash that hits three times") and the Spire forges them. Then you cast them by saying their names. When a floor is cleared, a gate opens, and you describe the next floor into being.
+Incant Online is a browser-based, voice-first action RPG. You play an **Incanter** climbing **the Spire**. You don't pick spells from a menu: you *describe* them out loud ("a spinning fire slash that hits three times") and the Spire forges them into working abilities. Then you cast them by saying their names. When a floor is cleared, a gate opens, and you describe the next floor into being.
 
-Plain language becomes both **working game logic** (Incantations with real hitboxes, damage, status effects, cooldowns and mana) and **3D places** (floors with lighting, props and enemies), in real time, in the browser, and it never breaks, whatever you say.
+Plain language becomes both **game logic** (Incantations with real hitboxes, damage, status effects, cooldowns and mana) and **3D places** (floors with lighting, props and enemies), in real time, in the browser, and it never breaks, whatever you say.
 
-> Built in TypeScript with Three.js and Rapier. Runs fully in a desktop browser; the only backend is one serverless function. **Best in Chrome or Edge.**
+> TypeScript, Three.js and Rapier physics. Runs fully in a desktop browser; the only backend is one serverless function. **Best in Chrome or Edge.**
 
 ---
 
 ## Contents
 
-- [Features](#features)
-- [Quick start](#quick-start)
-- [How to play](#how-to-play)
-- [Things to say](#things-to-say)
+- [What you can do](#what-you-can-do)
 - [The problem we're exploring](#the-problem-were-exploring)
-- [How it works](#how-it-works)
-- [The Arbiter (balancing)](#the-arbiter-balancing)
-- [Combat: every type × shape](#combat-every-type--shape)
-- [LLM modes and robustness](#llm-modes-and-robustness)
-- [Project structure](#project-structure)
-- [Scripts](#scripts)
-- [Testing](#testing)
-- [Deploying](#deploying)
-- [Performance](#performance)
 - [How AI is used](#how-ai-is-used)
+- [Run it locally](#run-it-locally)
+- [How to play](#how-to-play)
+- [Browser support](#browser-support)
 - [Privacy](#privacy)
+- [Under the hood](#under-the-hood): how it works, the Arbiter, combat, LLM modes and fallbacks, project structure, scripts, testing, deploying, performance
 - [Roadmap](#roadmap)
 - [Credits and licence](#credits-and-licence)
 
 ---
 
-## Features
+## What you can do
 
-- **Forge Incantations by voice or text.** Describe an ability; it is turned into a validated `IncantationSpec`, balanced by the Arbiter, and placed on your Grimoire bar.
-- **Recite to cast.** Say an Incantation's name ("Frost Comet") and it fires immediately, matched locally with fuzzy search. No network round-trip; it can even fire from the live transcript before you finish speaking.
+- **Forge Incantations by voice or text.** Describe an ability; it becomes a validated `IncantationSpec`, is balanced by the Arbiter, and lands on your Grimoire bar.
+- **Recite to cast.** Say an Incantation's name ("Frost Comet") and it fires immediately, matched locally. No network round-trip; it can fire from the live transcript before you finish speaking.
 - **Refine what you made.** "make it wider", "add a stun", "remove the burn", "make it ice". The Incantation keeps its slot and is re-balanced.
 - **Build floors by description.** "a cozy village at night", "build a frozen castle with archers". A new floor rises behind a "The Spire reshapes…" transition.
 - **Climb the Spire.** Defeat every enemy and a gate opens; step in and describe the next floor.
-- **Real combat for any spec.** 7 delivery types × 7 shapes, multi-hit combos, chain lightning, burn / freeze / stun / slow / knockback / heal, wards, dashes, mana and cooldowns.
-- **Readable, glowing VFX.** Effects driven by shape and element, emissive materials and a bloom pass.
-- **The Arbiter.** Deterministic balancing after the LLM: power score → cooldown and mana, bans instant kills and long invulnerability, explains every change in one sentence.
-- **A voice that answers.** In-character replies are shown and spoken (text-to-speech), and fall silent the moment you hold the talk key.
-- **Never a crash, never an error page.** Off-topic, nonsense or impossible requests always end in a floor, an Incantation or an in-character reply. Verified by `npm run judge-test`.
-- **Playable without an API key.** Mock mode uses a local keyword parser that produces the same JSON as the LLM.
+- **Fight with whatever you invent.** 7 delivery types × 7 shapes, multi-hit combos, chain lightning, burn / freeze / stun / slow / knockback / heal, wards and dashes, with glowing shape-and-element effects, sounds, damage numbers and screen shake.
+- **Ask for anything.** Off-topic, nonsense or impossible requests always end in a floor, an Incantation or an in-character reply from the Arbiter, never an error. "Kill everything instantly" gets the strongest blast the rules allow, and an explanation.
+- **Play without an API key.** Mock mode uses a local keyword parser that produces the same JSON as the LLM.
 
-## Quick start
+## The problem we're exploring
+
+Language models are good at understanding what people mean, but letting one *write game code* at runtime is slow, unsafe and fragile: a single bad answer can crash the game or break its balance. We wanted to know: **can plain spoken language drive both a playable 3D world and real game mechanics, in real time, without ever letting the model break the game?**
+
+Our answer is a strict division of labour:
+
+1. **The model only fills in data.** It never writes code. It fills fixed JSON shapes (`IncantationSpec`, `FloorSpec`) using structured output.
+2. **Everything is validated and repaired.** Shared zod schemas clamp numbers to range, map unknown values to the nearest valid one ("flames" → fire, "bolt" → orb) and fill defaults, on the server and again in the browser.
+3. **A deterministic referee has the last word.** The Arbiter scores the power of every Incantation, sets its cooldown and mana, bans instant kills and long invulnerability, and explains changes in one sentence. Balance doesn't depend on the model behaving.
+4. **The engine is generic.** One runner executes *any* valid spec: every type, shape, hit count, radius, chain and status effect. A new idea needs no new code.
+5. **There is always a fallback.** Timeouts, bad JSON, rate limits or no key at all end in a mock-parser result, a pre-forged Incantation or pre-built floor, or an in-character reply.
+6. **The fast path is local.** Casting by name never touches the network, so combat stays responsive while the model works on something else.
+
+## How AI is used
+
+AI does the *understanding*; deterministic code does the *deciding*.
+
+### 1. Interpret: words → game data (LLM)
+
+Everything you say that isn't a spell name or a fixed command goes to `/api/interpret`. There an LLM (Claude, through the Anthropic Messages API) reads it and answers with JSON in one fixed shape: **forge** an Incantation, **build** a floor, or **reply** in character. The system prompt carries the schema, the allowed values, the prop and enemy models that exist, and six worked examples. The model never writes code, and it can only pick props and enemies the game already has.
+
+- Its answer is validated with zod on the server and again in the browser; out-of-range numbers are clamped and unknown values mapped to the nearest valid one.
+- "Make it…" requests are sent with your last Incantation and the current floor, so the model changes only what you asked for.
+- Impossible asks are steered, not refused: turning foes into frogs becomes a stun, stopping time becomes a freeze, each with a sentence explaining why.
+- **Without a key** (mock mode) a local keyword parser produces the same JSON, so the game is fully playable offline. **If the model fails**, is slow or rate-limited, the game answers from 10 pre-forged Incantations and 3 pre-built floors, choosing the closest match to what you asked.
+
+### 2. The Arbiter: the model proposes, rules decide (not AI)
+
+The Arbiter is plain, deterministic code that runs on **every** Incantation after the model, whoever produced it. It scores its power (`P = d × h × (1 + r/4) × (1 + 0.5c) + E`), sets the cooldown and mana cost from that score, caps or swaps forbidden effects (instant kills, long invulnerability, oversized heals), and explains any change in one sentence: *"The Spire resists such power: cooldown raised to 60 s."* This is what makes it safe to let a language model invent game mechanics: whatever it proposes, the game stays balanced.
+
+### 3. Voice: speaking and being answered
+
+- **Speech in**: the browser's speech recognition (Web Speech API) turns push-to-talk audio into text, live. Spell names are matched locally with fuzzy search (Fuse.js), so a slightly misheard "Blazing Cycle On" still casts *Blazing Cyclone*, within milliseconds.
+- **Speech out**: the Arbiter's replies are spoken with the browser's text-to-speech (`speechSynthesis`), and it falls silent the moment you hold the talk key.
+
+### Built with AI, too
+
+This codebase was written with the help of Claude Code, an AI coding assistant by Anthropic. All AI components (Claude Code, the Anthropic Messages API, browser speech services) and every third-party library and asset are listed with provider and licence in [CREDITS.md](CREDITS.md).
+
+## Run it locally
 
 **Requirements:** Node.js 22.18 or newer (24 recommended) and a desktop browser (Chrome or Edge for voice).
 
@@ -74,6 +102,8 @@ cp .env.example .env   # git-ignored
 | `LLM_MODE` | *(unset)* | `mock` forces mock mode even with a key. |
 
 Keys are only read by the serverless function and are never sent to the browser.
+
+Other useful commands: `npm test` (unit and integration tests), `npm run judge-test` (ten judge-style prompts end to end), `npm run build` (type-check, production build, API check). `npm run preview` serves the production build without `/api`, so it plays in its offline fallback mode.
 
 ## How to play
 
@@ -104,7 +134,7 @@ Keys are only read by the serverless function and are never sent to the browser.
 - **Mode label** (top right): "Mock mode" without a key, "Offline: cached Incantations" if the backend can't be reached.
 - **Feedback**: damage numbers in the spell's colour, a trailing chunk on the health bar when you're hit, a red edge at low health, a cooldown sweep and a "ready" pop on each slot. Screen shake, camera look-ahead toward your aim and a field-of-view kick on dashes; all motion effects switch off when your system asks for reduced motion.
 
-## Things to say
+### Things to say
 
 | You say | What happens |
 | --- | --- |
@@ -122,18 +152,28 @@ Keys are only read by the serverless function and are never sent to the browser.
 | "what is this game?" | An in-character explanation of how to play |
 | "asdf" | An in-character reply, never an error |
 
-## The problem we're exploring
+## Browser support
 
-Language models are good at understanding what people mean, but letting one *write game code* at runtime is slow, unsafe and fragile: a single bad answer can crash the game or break its balance. We wanted to know: **can plain spoken language drive both a playable 3D world and real game mechanics, in real time, without ever letting the model break the game?**
+| Browser (desktop) | Status |
+| --- | --- |
+| **Chrome, Edge** | Recommended. Everything works: 3D (WebGL2), voice input (Web Speech API), the spoken Arbiter, sound. |
+| Firefox | Plays fully with the **text box** (Enter). Firefox has no built-in speech recognition, so holding V explains that voice is unavailable and asks you to type. |
+| Safari | Not tested. It should run with WebGL2; voice input and some sounds (Ogg) may not work. |
+| Phones and tablets | Not supported: the game needs a keyboard and mouse. |
 
-Our answer is a strict division of labour:
+Requirements: **WebGL2** (without it the page shows "The Spire could not awaken"), Web Audio for sound, and a microphone for voice (optional; typing always works). Graphics quality adapts automatically: the game starts at full quality and steps down (anti-aliasing, then resolution) if your GPU can't hold about 50 fps.
 
-1. **The model only fills in data.** It never writes code. It fills fixed JSON shapes (`IncantationSpec`, `FloorSpec`) using structured output.
-2. **Everything is validated and repaired.** Shared zod schemas clamp numbers to range, map unknown values to the nearest valid one ("flames" → fire, "bolt" → orb) and fill defaults, on the server and again in the browser.
-3. **A deterministic referee has the last word.** The Arbiter scores the power of every Incantation, sets its cooldown and mana, bans instant kills and long invulnerability, and explains changes in one sentence. Balance doesn't depend on the model behaving.
-4. **The engine is generic.** One runner executes *any* valid spec: every type, shape, hit count, radius, chain and status effect. A new idea needs no new code.
-5. **There is always a fallback.** Timeouts, bad JSON, rate limits or no key at all end in a mock-parser result, a cached Incantation or floor, or an in-character reply.
-6. **The fast path is local.** Casting by name never touches the network, so combat stays responsive while the model works on something else.
+## Privacy
+
+- The microphone is **push-to-talk only** (hold V or the mic button) and closes as soon as you let go.
+- Browser speech recognition **may send your audio to your browser vendor** (e.g. Google or Microsoft) to turn it into text.
+- Our backend **never stores audio**. Only the text of what you said is sent to `/api/interpret`, and in llm mode on to the model provider (Anthropic).
+- API keys live only in server-side environment variables and are never sent to the browser.
+- The game keeps two settings in your browser's local storage (sound and voice on/off) and nothing else.
+
+---
+
+# Under the hood
 
 ## How it works
 
@@ -314,7 +354,7 @@ scripts/             manifest builder, API ESM check, judge test
 ## Testing
 
 ```bash
-npm test             # ~190 unit and integration tests
+npm test             # ~230 unit and integration tests
 npm run judge-test   # end to end over HTTP against a local dev server
 ```
 
@@ -352,28 +392,13 @@ Measured on an Intel Iris Xe laptop GPU (Chromium, 1280×720, through WSL's Dire
 
 How: instanced props; one pooled particle system; shared effect geometries and **pooled effect materials** (disposing them made the GPU recompile shaders mid-fight); shaders compiled in the background before the first frame and when enemies arrive, plus a hidden warm-up draw of every effect shader on the start screen and behind floor changes; fixed-step physics with interpolation; **adaptive quality** that starts at 4× MSAA and steps down (2× MSAA, none, then 85% and 75% resolution) if the median frame stays under ~50 fps, applying changes on the start screen or behind the floor-change curtain rather than mid-fight. Press F3 for the live overlay (fps, draw calls, triangles, particles, quality level).
 
-## How AI is used
-
-- **At runtime**, an LLM (Claude, via the Anthropic Messages API) turns what the player says into JSON that matches fixed schemas. It never writes code. Every result is validated with zod and every Incantation is balanced by the deterministic Arbiter. Without a key, a keyword parser produces the same JSON (mock mode). If anything fails, the game answers from cached content, never with an error.
-- **Speech** uses the browser's Web Speech API (speech to text) and `speechSynthesis` (the Arbiter's voice).
-- **Development**: this codebase was written with the help of Claude Code, an AI coding assistant by Anthropic.
-
-All AI components and third-party assets are listed with provider and licence in [CREDITS.md](CREDITS.md).
-
-## Privacy
-
-- The microphone is **push-to-talk only** (hold V or the mic button) and closes as soon as you let go.
-- Browser speech recognition **may send your audio to your browser vendor** (e.g. Google or Microsoft) to turn it into text.
-- Our backend **never stores audio**. Only the text of what you said is sent to `/api/interpret`, and in llm mode on to the model provider.
-- API keys live only in server-side environment variables and are never sent to the browser.
-
 ## Roadmap
 
 - Judgement card: show the Arbiter's verdict when an Incantation is forged.
 - More spoken Arbiter lines, a guide NPC and `/api/talk`.
 - `/api/stt` for browsers without built-in speech recognition (until then the game asks you to type).
 - First Vercel deployment and a real-LLM test pass.
-- Performance pass, boss phases, demo video.
+- Performance on more GPUs (measured so far on an Intel Iris Xe), boss phases, demo video.
 
 ## Credits and licence
 

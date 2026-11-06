@@ -3,6 +3,7 @@ import { RAPIER } from './physics';
 import type { Input } from './input';
 import type { FollowCamera } from './camera';
 import { Health } from '../combat/health';
+import { emitCombat } from '../combat/events';
 
 const RADIUS = 0.35;
 const HALF_HEIGHT = 0.5; // cylindrical half-height; total height = 2 * (HALF_HEIGHT + RADIUS) = 1.7 m
@@ -207,7 +208,8 @@ export class Incanter {
    */
   takeHit(amount: number, from: THREE.Vector3, knockback: number): boolean {
     if (!this.alive || this.isInvulnerable) return false;
-    this.health.damage(amount);
+    const dealt = this.health.damage(amount);
+    if (dealt > 0) emitCombat({ kind: 'damage', target: 'player', amount: dealt, at: { x: this.currPos.x, y: this.currPos.y + 1.1, z: this.currPos.z } });
     const away = new THREE.Vector3(this.currPos.x - from.x, 0, this.currPos.z - from.z);
     if (away.lengthSq() < 1e-6) away.copy(this.facing).negate();
     this.knock.copy(away.normalize().multiplyScalar(knockback));

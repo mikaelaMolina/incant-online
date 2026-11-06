@@ -6,6 +6,7 @@ import { STATIC_ONLY, type ProjectileSystem } from '../combat/projectiles';
 import { StatusSet, type LastingStatus } from '../combat/statusEffects';
 import { STATUS_TINT } from '../vfx/palette';
 import type { StatusEffect } from '../schemas/incantationSpec';
+import { emitCombat } from '../combat/events';
 import { INCANTER_RADIUS, type Incanter } from '../game/player';
 import type { EnemySpec } from '../schemas/enemySpec';
 import type { ArchetypeProfile } from './archetypes';
@@ -21,6 +22,7 @@ const CORPSE_SINK_AFTER = 2.5;
 const CORPSE_GONE_AFTER = 4;
 /** No attacks right after spawning (or a reset), so the Incanter can get their bearings. */
 const SPAWN_GRACE = 2;
+const BURN_SHOW_EVERY = 0.5;
 
 export interface EnemyContext {
   world: RAPIER.World;
@@ -69,6 +71,9 @@ export class Enemy {
   private canSee = false;
   private losTimer = Math.random() * LOS_INTERVAL; // stagger raycasts between enemies
   private deadTime = 0;
+  /** Burn damage is shown as one number every BURN_SHOW_EVERY seconds, not per physics step. */
+  private burnShown = 0;
+  private burnTimer = 0;
 
   private readonly telegraph: THREE.Mesh;
   private readonly telegraphMat: THREE.MeshBasicMaterial;
@@ -157,9 +162,10 @@ export class Enemy {
   }
 
   /** Called by the Incanter's attacks. */
-  takeHit(amount: number, from: THREE.Vector3, knockback: number): void {
+  takeHit(amount: number, from: THREE.Vector3, knockback: number, color?: string): void {
     if (!this.alive) return;
-    this.health.damage(amount);
+    const dealt = this.health.damage(amount);
+    if (dealt > 0) emitCombat({ kind: 'damage', target: 'enemy', amount: dealt, at: this.headPoint(), ...(color ? { color } : {}) });
     this.provoked = true;
     this.hitFlash = HIT_FLASH;
     const away = this.tmp.set(this.currPos.x - from.x, 0, this.currPos.z - from.z);
@@ -203,8 +209,14 @@ export class Enemy {
 
     const burn = this.status.tick(dt);
     if (burn > 0) {
-      this.health.damage(burn);
+      this.burnShown += this.health.damage(burn);
       this.provoked = true;
+    }
+    this.burnTimer += dt;
+    if (this.burnTimer >= BURN_SHOW_EVERY || (this.health.dead && this.burnShown > 0)) {
+      this.burnTimer = 0;
+      if (this.burnShown >= 0.5) emitCombat({ kind: 'damage', target: 'enemy', amount: this.burnShown, at: this.headPoint(), color: '#ff8a3a', overTime: true });
+      this.burnShown = 0;
     }
 
     // Frozen / stunned: no thinking, no attacking; only knockback and gravity move the body.
@@ -387,6 +399,7 @@ export class Enemy {
       this.visual.play('attack', { once: true, duration: this.params.attackDuration });
     } else if (s === 'dead') {
       this.deadTime = 0;
+      emitCombat({ kind: 'death', archetype: this.spec.archetype, at: this.headPoint() });
       this.telegraph.visible = false;
       this.visual.play('death', { once: true });
       this.removePhysics(); // the corpse doesn't block anyone
@@ -421,6 +434,11 @@ export class Enemy {
         break;
       }
     }
+  }
+
+  /** Just above the head: where damage numbers start. */
+  private headPoint(): { x: number; y: number; z: number } {
+    return { x: this.currPos.x, y: this.currPos.y + this.profile.height * 0.55, z: this.currPos.z };
   }
 
   private lineOfSight(target: THREE.Vector3, dist: number): boolean {

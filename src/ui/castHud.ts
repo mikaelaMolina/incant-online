@@ -6,10 +6,11 @@ const TOAST_TIME = 2.2;
 /** Mana bar, the Grimoire bar (keys 1–6) with cooldown sweeps, and a short toast for refused casts. */
 export class CastHud {
   private readonly manaFill: HTMLDivElement;
+  private readonly manaEl: HTMLDivElement;
   private readonly manaText: HTMLSpanElement;
   private readonly slotsEl = document.createElement('div');
   private readonly toast = document.createElement('div');
-  private slots: { spec: IncantationSpec; el: HTMLDivElement; shade: HTMLDivElement; time: HTMLSpanElement }[] = [];
+  private slots: { spec: IncantationSpec; el: HTMLDivElement; shade: HTMLDivElement; time: HTMLSpanElement; cooling: boolean }[] = [];
   private toastTimer = 0;
   private lastMana = -1;
 
@@ -19,6 +20,7 @@ export class CastHud {
     mana.innerHTML = '<span class="hp-player-name">Mana</span><div class="hp-track"><div class="hp-fill"></div></div><span class="hp-player-text"></span>';
     hud.appendChild(mana);
     this.manaFill = mana.querySelector('.hp-fill') as HTMLDivElement;
+    this.manaEl = mana;
     this.manaText = mana.querySelector('.hp-player-text') as HTMLSpanElement;
 
     this.slotsEl.className = 'cast-slots';
@@ -63,7 +65,7 @@ export class CastHud {
       time.className = 'cast-time';
       el.append(shade, keyEl, name, cost, time);
       this.slotsEl.appendChild(el);
-      this.slots.push({ spec, el, shade, time });
+      this.slots.push({ spec, el, shade, time, cooling: false });
     });
   }
 
@@ -77,10 +79,18 @@ export class CastHud {
   /** Flash a slot when it fires. */
   pulse(name: string): void {
     const s = this.slots.find((x) => x.spec.name === name);
-    if (!s) return;
-    s.el.classList.remove('cast-fired');
-    void s.el.offsetWidth; // restart the animation
-    s.el.classList.add('cast-fired');
+    if (s) this.flashSlot(s.el, 'cast-fired');
+  }
+
+  /** Shake the mana bar when a cast is refused for lack of mana. */
+  manaShort(): void {
+    this.flashSlot(this.manaEl, 'mana-short');
+  }
+
+  private flashSlot(el: HTMLElement, cls: string): void {
+    el.classList.remove(cls);
+    void el.offsetWidth; // restart the animation
+    el.classList.add(cls);
   }
 
   update(dt: number, res: CastResources): void {
@@ -93,8 +103,11 @@ export class CastHud {
     for (const s of this.slots) {
       const cd = res.cooldown(s.spec.name);
       const cooling = cd.remaining > 0;
-      s.shade.style.height = cooling ? `${(cd.remaining / cd.total) * 100}%` : '0';
-      s.time.textContent = cooling ? cd.remaining.toFixed(1) : '';
+      // Clockwise sweep that empties as the cooldown runs out.
+      s.el.style.setProperty('--cd', cooling ? (cd.remaining / cd.total).toFixed(3) : '0');
+      s.time.textContent = cooling ? (cd.remaining >= 10 ? cd.remaining.toFixed(0) : cd.remaining.toFixed(1)) : '';
+      if (s.cooling && !cooling) this.flashSlot(s.el, 'cast-ready'); // ready again
+      s.cooling = cooling;
       s.el.classList.toggle('cast-nomana', !cooling && s.spec.mana_cost > res.mana);
     }
     if (this.toastTimer > 0) {

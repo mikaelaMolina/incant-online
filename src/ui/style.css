@@ -489,12 +489,10 @@ kbd {
 }
 
 .cast-shade {
+  /* Clockwise cooldown sweep: --cd goes 1 → 0 as the Incantation recharges. */
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 0;
-  background: rgb(0 0 0 / 0.55);
+  inset: 0;
+  background: conic-gradient(from 0deg, rgb(0 0 0 / 0.62) calc(var(--cd, 0) * 360deg), transparent 0);
   pointer-events: none;
 }
 
@@ -691,5 +689,196 @@ kbd {
   }
   .reshape {
     opacity: 1;
+  }
+}
+
+/* --- Polish: damage numbers, health feedback, ready pop, sound toggle, narrow layouts ------- */
+.dmg-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.dmg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font: 700 16px/1 system-ui, sans-serif;
+  color: color-mix(in srgb, var(--c, #fff) 70%, white);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--c, #fff) 70%, transparent), 0 1px 2px #000, 0 0 2px #000;
+  white-space: nowrap;
+  will-change: transform, opacity;
+}
+
+.dmg-big {
+  font-size: 22px;
+}
+
+.dmg-dot {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dmg-player {
+  font-size: 18px;
+}
+
+.hp-player .hp-track {
+  position: relative;
+}
+
+.hp-player .hp-fill,
+.hp-player .hp-lag {
+  position: absolute;
+  inset: 0 auto 0 0;
+}
+
+.hp-player .hp-fill {
+  background: linear-gradient(90deg, #3fae63, #6be08c);
+}
+
+.hp-lag {
+  height: 100%;
+  background: #fff3d6;
+  opacity: 0.85;
+  transition: width 0.45s ease-in 0.35s;
+}
+
+.hp-player.hp-low .hp-fill {
+  background: linear-gradient(90deg, #c23a2a, #ff6a4a);
+  animation: hp-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes hp-pulse {
+  50% { filter: brightness(1.5); }
+}
+
+.mana-player .hp-fill {
+  background: linear-gradient(90deg, #2f7de0, #6fb8ff);
+}
+
+.mana-short {
+  animation: mana-short 0.35s ease-out;
+}
+
+@keyframes mana-short {
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+
+.mana-short .hp-track {
+  box-shadow: 0 0 0 2px #ff6a5a;
+}
+
+.low-hp,
+.hurt-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.low-hp {
+  opacity: var(--danger, 0);
+  background: radial-gradient(ellipse at center, transparent 55%, rgb(160 0 0 / 0.55) 100%);
+  transition: opacity 0.3s;
+}
+
+.hurt-flash {
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 45%, rgb(255 40 30 / 0.45) 100%);
+}
+
+.hurt-on {
+  animation: hurt-flash 0.35s ease-out;
+}
+
+@keyframes hurt-flash {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.cast-slot {
+  border-left-width: 3px;
+}
+
+.cast-ready {
+  animation: cast-ready 0.4s ease-out;
+}
+
+@keyframes cast-ready {
+  from {
+    box-shadow: 0 0 0 2px var(--accent), 0 0 22px var(--accent);
+    filter: brightness(1.6);
+  }
+}
+
+.cast-time {
+  text-shadow: 0 0 4px #000, 0 1px 2px #000;
+}
+
+.sound-toggle {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  right: 8px;
+  padding: 3px 9px;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.45);
+  color: inherit;
+  font: 11px/1.4 ui-monospace, monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 20;
+}
+
+.sound-toggle[data-muted='true'] {
+  opacity: 0.6;
+}
+
+.sound-toggle:focus-visible {
+  outline: 2px solid #9fd8ff;
+  outline-offset: 2px;
+}
+
+.mode-label {
+  top: calc(36px + env(safe-area-inset-top, 0px));
+}
+
+/* Narrower windows: keep the left column (bars, Grimoire) and the centre column (transcript,
+   command bar) side by side instead of overlapping. */
+@media (max-width: 1100px) and (min-width: 701px) {
+  .hp-player,
+  .mana-player {
+    width: 210px;
+  }
+
+  .cast-slots {
+    width: 200px;
+  }
+
+  .command-bar,
+  .transcript {
+    left: 242px;
+    transform: none;
+    width: calc(100vw - 258px);
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hp-player.hp-low .hp-fill,
+  .mana-short,
+  .cast-ready,
+  .hurt-on {
+    animation: none;
+  }
+
+  .hp-lag {
+    transition: none;
   }
 }

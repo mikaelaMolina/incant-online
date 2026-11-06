@@ -1004,7 +1004,7 @@ kbd {
 
 .level-up {
   position: absolute;
-  top: 22%;
+  top: 11%;
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
@@ -1043,6 +1043,217 @@ kbd {
   .level-up-on,
   .xp-pop-on,
   .boss-enraged .boss-fill {
+    animation: none;
+  }
+}
+
+/* --- RPG presentation: unit frame, Grimoire bar skin, floor title card ----------------------- */
+:root {
+  --rpg-serif: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, 'Times New Roman', serif;
+  --rpg-gold: #d9b26a;
+  --rpg-gold-dim: rgb(217 178 106 / 0.45);
+  --rpg-panel: linear-gradient(180deg, rgb(28 20 48 / 0.88), rgb(12 9 24 / 0.88));
+}
+
+.unit-frame {
+  position: absolute;
+  left: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 8px;
+  width: min(330px, 70vw);
+  box-sizing: border-box;
+  background: var(--rpg-panel);
+  border: 1px solid var(--rpg-gold-dim);
+  border-radius: 40px 8px 8px 40px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.5), inset 0 0 0 1px rgb(255 255 255 / 0.04);
+}
+
+.uf-portrait {
+  position: relative;
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid var(--rpg-gold);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--uf-glow, #7cd6ff) 55%, transparent), inset 0 0 8px #000;
+  overflow: visible;
+}
+
+.uf-portrait svg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.uf-orb {
+  filter: drop-shadow(0 0 4px var(--uf-glow, #7cd6ff));
+}
+
+.uf-level {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 11px;
+  background: radial-gradient(circle at 40% 35%, #fff1c4, #c48a2c 70%);
+  border: 1px solid #5a3d10;
+  color: #2a1a04;
+  font: 700 12px/20px var(--rpg-serif);
+  text-align: center;
+}
+
+.uf-bars {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.uf-title {
+  font: 600 14px/1.1 var(--rpg-serif);
+  letter-spacing: 0.08em;
+  color: #f3e3c0;
+  text-shadow: 0 1px 2px #000;
+}
+
+/* Bars adopted into the frame: no absolute placement of their own. */
+.unit-frame .hp-player,
+.unit-frame .mana-player {
+  position: static;
+  width: auto;
+  grid-template-columns: 1fr auto;
+  gap: 0 6px;
+}
+
+.unit-frame .hp-player-name {
+  display: none;
+}
+
+.unit-frame .hp-player-text {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 10px;
+  min-width: 4.5em;
+  text-align: right;
+}
+
+.unit-frame .hp-track {
+  grid-column: 1;
+  grid-row: 1;
+  border-radius: 2px;
+  border: 1px solid rgb(0 0 0 / 0.6);
+}
+
+.unit-frame .hp-player .hp-track {
+  height: 11px;
+}
+
+/* Grimoire bar: framed spell plates above the unit frame. */
+.cast-slots {
+  bottom: calc(110px + env(safe-area-inset-bottom, 0px));
+}
+
+.cast-slot {
+  border-radius: 3px 10px 3px 10px;
+  background: var(--rpg-panel);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--rpg-gold-dim));
+}
+
+.cast-name {
+  font-family: var(--rpg-serif);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.cast-key {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  background: rgb(0 0 0 / 0.4);
+}
+
+.hud-banner,
+.floor-label,
+.boss-name,
+.level-up-title {
+  font-family: var(--rpg-serif);
+}
+
+.hud-banner {
+  background: var(--rpg-panel);
+  border: 1px solid var(--rpg-gold-dim);
+  color: #f6e7c6;
+}
+
+.title-card {
+  position: absolute;
+  top: 26%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.title-card-floor {
+  font: 600 15px/1 var(--rpg-serif);
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: var(--rpg-gold);
+  text-shadow: 0 1px 3px #000;
+}
+
+.title-card-name {
+  margin-top: 8px;
+  font: 600 46px/1.1 var(--rpg-serif);
+  color: #fff4dc;
+  text-shadow: 0 0 22px rgb(160 120 255 / 0.6), 0 2px 4px #000;
+}
+
+.title-card-sub {
+  margin-top: 6px;
+  font: italic 15px/1.2 var(--rpg-serif);
+  color: #e6d6ff;
+  text-shadow: 0 1px 3px #000;
+}
+
+.title-card-rule {
+  width: 60%;
+  height: 1px;
+  margin: 10px auto 0;
+  background: linear-gradient(90deg, transparent, var(--rpg-gold), transparent);
+}
+
+.title-card-on {
+  animation: title-card 3.6s ease-out forwards;
+}
+
+@keyframes title-card {
+  0% { opacity: 0; letter-spacing: 0.02em; }
+  15% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (max-width: 1100px) and (min-width: 701px) {
+  .unit-frame {
+    width: 240px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-card-on {
     animation: none;
   }
 }

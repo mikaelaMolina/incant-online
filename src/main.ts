@@ -120,11 +120,14 @@ if (canvas && hud) {
     commandBar?.show();
     if (!speech.supported) transcript?.add('spire', NO_VOICE_MESSAGE);
     game?.setPaused(false);
+    // The Arbiter sets the goal once: climb, speak, survive.
+    arbiter('Welcome, Incanter. The Spire rises floor upon floor, and a guardian waits on every third. Speak new Incantations into being, say their names to cast them, and climb.');
     const g = game;
     if (!g) return;
     // In the game: everything said or typed is shown, then routed (forge / build / reply).
     g.hooks.onBarCast = (spec) => grimoire.touch(spec.name);
-    g.hooks.onGateOpen = () => arbiter('A gate opens. Step into it and speak the next floor into being.');
+    g.hooks.onGateOpen = () => arbiter(`Floor ${g.floorNumber()} falls silent. A gate opens: step into it and speak the next floor into being.`);
+    g.hooks.onBossAwake = (name) => arbiter(`${name} guards this floor. Unmake it, Incanter.`);
     g.hooks.onGateEnter = () => {
       gatePrompt.show(true);
       arbiter('Describe the floor that lies beyond.');

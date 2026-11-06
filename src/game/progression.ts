@@ -108,3 +108,18 @@ export function spawnsForFloor(spec: FloorSpec, floor: number, bossModel: string
   };
   return [...scaled, { enemy: boss, count: 1 }];
 }
+
+const BIOME_LINES: Record<FloorSpec['biome'], string> = {
+  forest: 'Where the old roots still listen',
+  ruins: 'Stones that remember older words',
+  ice: 'Every breath here freezes into silence',
+  desert: 'The sand swallows all but the loudest voice',
+  cavern: 'Deep below, something echoes back',
+  castle: 'Walls raised by a forgotten tongue',
+  void: 'Nothing here until you name it',
+};
+
+/** Title-card subtitle for a floor. */
+export function floorSubtitle(biome: FloorSpec['biome'], boss: boolean): string {
+  return boss ? `${BIOME_LINES[biome]}. A guardian waits.` : BIOME_LINES[biome];
+}

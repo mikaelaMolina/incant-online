@@ -4,7 +4,8 @@ import { Input } from './input';
 import { FollowCamera } from './camera';
 import { loadIncanterModel } from './incanterModel';
 import { Incanter } from './player';
-import { Progression, XP_FOR, spawnsForFloor, xpToNext } from './progression';
+import { Progression, XP_FOR, floorSubtitle, spawnsForFloor, xpToNext } from './progression';
+import { UnitFrame } from '../ui/unitFrame';
 import { Pickups, type PickupKind } from './pickups';
 import { ProgressHud } from '../ui/progressHud';
 import { loadManifest, ModelIndex } from './assets';
@@ -74,6 +75,8 @@ export interface GameHooks {
   /** The Incanter stepped into / out of the gate. */
   onGateEnter?: () => void;
   onGateLeave?: () => void;
+  /** A floor guardian has appeared. */
+  onBossAwake?: (name: string) => void;
 }
 
 /** Load the first floor and start rendering. Resolves once the floor is playable (paused). */
@@ -165,6 +168,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     switch (e.kind) {
       case 'cast': {
         const t = e.spec.type;
+        unitFrame.setColor(e.spec.vfx.color);
         incanter.castPose(t === 'melee_combo' ? 'strike' : t === 'beam' || t === 'area' || t === 'buff' ? 'channel' : 'cast', e.spec.vfx.color);
         soundAt('cast');
         const accent = ELEMENT_ACCENT[e.spec.element];
@@ -350,7 +354,11 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
 
   const healthBars = new HealthBars(hud);
   const progressHud = new ProgressHud(hud);
+  const unitFrame = new UnitFrame(hud);
+  const showTitle = (): void => progressHud.titleCard(progress.floor, floor.spec.name, floorSubtitle(floor.spec.biome, progress.bossFloor));
+  let titleShown = false;
   const showProgress = (): void => {
+    unitFrame.setLevel(progress.level);
     progressHud.setXp(progress.level, progress.xpFraction, progress.xp, xpToNext(progress.level));
     progressHud.setFloor(progress.floor, floor.spec.name, progress.bossFloor);
   };
@@ -524,6 +532,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       clearedTimer = CLEARED_BANNER_TIME; // the cleared-banner timer hides it again
       sfx.play('bossRoar');
       cam.shake(0.5);
+      hooks.onBossAwake?.(bossIntro.spec.id);
       bossIntro = undefined;
     }
     damageNumbers.update(dt, cam.camera);
@@ -565,6 +574,10 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   return {
     setPaused(p) {
       paused = p;
+      if (!p && !titleShown) {
+        titleShown = true;
+        showTitle();
+      }
       quality.reset();
       if (pendingQuality) applyQuality(pendingQuality);
       pendingQuality = undefined;
@@ -604,6 +617,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         warmEffects(); // behind the curtain
         spawnFor(floor);
         showProgress();
+        window.setTimeout(showTitle, 450); // after the reshape curtain lifts
       } finally {
         loading = false;
         input.clear();

@@ -15,6 +15,8 @@ export class ProgressHud {
   private readonly bossLag: HTMLDivElement;
   private readonly levelUpEl = document.createElement('div');
   private readonly xpPopEl = document.createElement('div');
+  private readonly titleEl = document.createElement('div');
+  private titleTimer: number | undefined;
   private lastBoss = -1;
   private bossUid = -1;
   private xpPopTimer: number | undefined;
@@ -41,7 +43,11 @@ export class ProgressHud {
     this.xpPopEl.className = 'xp-pop';
     this.xpPopEl.setAttribute('aria-hidden', 'true');
 
-    hud.append(this.xpEl, this.floorEl, this.bossEl, this.levelUpEl, this.xpPopEl);
+    this.titleEl.className = 'title-card';
+    this.titleEl.hidden = true;
+    this.titleEl.setAttribute('role', 'status');
+
+    hud.append(this.xpEl, this.floorEl, this.bossEl, this.levelUpEl, this.xpPopEl, this.titleEl);
   }
 
   setXp(level: number, fraction: number, xp: number, toNext: number): void {
@@ -62,6 +68,33 @@ export class ProgressHud {
   setFloor(floor: number, name: string, boss: boolean): void {
     this.floorEl.textContent = `Floor ${floor} · ${name}${boss ? ' · Guardian floor' : ''}`;
     this.floorEl.classList.toggle('floor-boss', boss);
+  }
+
+  /** Big centred card when a floor begins: "FLOOR 3", its name, and a subtitle. */
+  titleCard(floor: number, name: string, subtitle: string): void {
+    this.titleEl.innerHTML = '';
+    const parts: [string, string][] = [
+      ['title-card-floor', `Floor ${floor}`],
+      ['title-card-name', name],
+      ['title-card-sub', subtitle],
+    ];
+    for (const [cls, text] of parts) {
+      const d = document.createElement('div');
+      d.className = cls;
+      d.textContent = text;
+      this.titleEl.appendChild(d);
+    }
+    const rule = document.createElement('div');
+    rule.className = 'title-card-rule';
+    this.titleEl.appendChild(rule);
+    this.titleEl.hidden = false;
+    this.titleEl.classList.remove('title-card-on');
+    void this.titleEl.offsetWidth;
+    this.titleEl.classList.add('title-card-on');
+    window.clearTimeout(this.titleTimer);
+    this.titleTimer = window.setTimeout(() => {
+      this.titleEl.hidden = true;
+    }, 3600);
   }
 
   levelUp(level: number, gains: string): void {

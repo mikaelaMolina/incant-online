@@ -33,7 +33,7 @@ export const SETTLEMENT_WORDS = ['village*', 'town*', 'hamlet*', 'settlement*', 
  */
 export const BOSS_WORDS: ReadonlyArray<readonly [string, string]> = [
   ['dragon*', 'Dragon'], ['wyrm*', 'Wyrm'], ['drake*', 'Drake'], ['wyvern*', 'Wyvern'], ['hydra*', 'Hydra'], ['demon*', 'Demon'],
-  ['lich*', 'Lich'], ['titan*', 'Titan'], ['behemoth*', 'Behemoth'], ['colossus', 'Colossus'], ['kraken*', 'Kraken'], ['boss*', 'Overlord'],
+  ['lich*', 'Lich'], ['titan*', 'Titan'], ['behemoth*', 'Behemoth'], ['colossus', 'Colossus'], ['kraken*', 'Kraken'], ['boss*', 'Tyrant'],
   ['king', 'King'], ['queen', 'Queen'], ['lord', 'Lord'], ['beast*', 'Beast'], ['monstrosity', 'Monstrosity'],
 ];
 export const SOFT_BIOME_WORDS: ReadonlyArray<readonly [string, Biome]> = [

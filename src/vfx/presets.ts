@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Shape } from '../schemas/incantationSpec';
 import type { HitArea } from '../combat/castPlan';
 import { areaCentre } from '../combat/castPlan';
-import { GEO, emissiveMaterial, glowMaterial, sectorGeometry } from './materials';
+import { GEO, emissiveMaterial, glowMaterial, releaseMaterial, sectorGeometry } from './materials';
 import { ParticleSystem } from './particles';
 import type { Palette } from './palette';
 
@@ -368,7 +368,7 @@ export class Vfx {
       },
       dispose: () => {
         this.scene.remove(group);
-        for (const m of mats) m.dispose();
+        for (const m of mats) releaseMaterial(m);
         this.handles.delete(handle);
       },
     };
@@ -409,7 +409,7 @@ export class Vfx {
       },
       dispose: () => {
         this.scene.remove(group);
-        for (const m of mats) m.dispose();
+        for (const m of mats) releaseMaterial(m);
         this.handles.delete(handle);
       },
     };
@@ -454,9 +454,9 @@ export class Vfx {
       },
       dispose: () => {
         this.scene.remove(group);
-        ringMat.dispose();
-        colMat.dispose();
-        orbMat.dispose();
+        releaseMaterial(ringMat);
+        releaseMaterial(colMat);
+        releaseMaterial(orbMat);
         this.handles.delete(handle);
       },
     };
@@ -465,6 +465,31 @@ export class Vfx {
   }
 
   // --- Lifecycle ------------------------------------------------------------------------------
+
+  /**
+   * Put one hidden mesh of every effect material (glow, emissive, plus `extra`) in the scene so a
+   * scene-wide shader compile covers them too; call the returned function to take them out again.
+   * Pooled materials keep their programs alive afterwards (see materials.ts), so no cast compiles.
+   */
+  addPrewarmMeshes(extra: readonly THREE.Material[] = []): () => void {
+    const c = new THREE.Color('#ffffff');
+    const glow = glowMaterial(c, 1, 0);
+    const emissive = emissiveMaterial(c, 1);
+    const group = new THREE.Group();
+    for (const m of [glow, emissive, ...extra]) {
+      const mesh = new THREE.Mesh(GEO.sphere, m);
+      mesh.frustumCulled = false;
+      mesh.scale.setScalar(0.01);
+      group.add(mesh);
+    }
+    group.position.set(0, -200, 0); // far below the ground, never seen
+    this.scene.add(group);
+    return () => {
+      this.scene.remove(group);
+      releaseMaterial(glow);
+      releaseMaterial(emissive);
+    };
+  }
 
   update(dt: number, camera: THREE.PerspectiveCamera, pixelHeight: number): void {
     let done = 0;
@@ -506,7 +531,7 @@ export class Vfx {
 
   private disposeTransient(fx: Transient): void {
     this.scene.remove(fx.object);
-    for (const m of fx.materials) m.dispose();
+    for (const m of fx.materials) releaseMaterial(m);
     for (const g of fx.geometries ?? []) g.dispose();
   }
 }

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RAPIER } from './physics';
 import { STATIC_ONLY } from '../combat/projectiles';
-import { GEO, glowMaterial } from '../vfx/materials';
+import { GEO, glowMaterial, releaseMaterial } from '../vfx/materials';
 import type { Vfx } from '../vfx/presets';
 
 /** Standing this close to the gate's centre counts as "at the gate". */
@@ -52,6 +52,9 @@ export function rayClearance(world: RAPIER.World, origin: THREE.Vector3): (dx: n
   };
 }
 
+/** Shared by every gate and never disposed, so its shader is compiled once (see Vfx.prewarm). */
+export const GATE_STONE = new THREE.MeshStandardMaterial({ color: '#3a3f55', emissive: GATE_COLOR, emissiveIntensity: 0.25, roughness: 0.8 });
+
 /** The gate that opens when a floor is cleared: two glowing pillars, a lintel and a shimmering portal. */
 export class Gate {
   readonly position: THREE.Vector3;
@@ -74,9 +77,9 @@ export class Gate {
     this.group.position.copy(this.position);
     this.group.rotation.y = spot.yaw;
 
-    const stone = new THREE.MeshStandardMaterial({ color: '#3a3f55', emissive: GATE_COLOR, emissiveIntensity: 0.25, roughness: 0.8 });
+    const stone = GATE_STONE;
     const edge = glowMaterial(GATE_COLOR, 3, 0.9);
-    this.materials.push(stone, edge);
+    this.materials.push(edge); // the stone material is shared and kept (its shader stays compiled)
 
     const pillarGeo = new THREE.BoxGeometry(0.45, HEIGHT, 0.45).translate(0, HEIGHT / 2, 0);
     const lintelGeo = new THREE.BoxGeometry(WIDTH + 0.9, 0.4, 0.55).translate(0, HEIGHT + 0.2, 0);
@@ -148,7 +151,7 @@ export class Gate {
 
   dispose(): void {
     this.scene.remove(this.group);
-    for (const m of this.materials) m.dispose();
+    for (const m of this.materials) releaseMaterial(m);
     for (const g of this.geometries) g.dispose();
   }
 }

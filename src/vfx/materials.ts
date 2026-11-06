@@ -6,30 +6,55 @@ import * as THREE from 'three';
  * threshold; lit scenery stays below it.
  */
 
+/*
+ * Effect materials are pooled, never disposed. Each effect needs its own instance (it animates
+ * opacity), but they all share one shader program per kind. three.js deletes a program when the
+ * last material using it is disposed, so disposing faded effects made the next cast of that kind
+ * recompile its shaders mid-fight (frames of 100–300 ms). Pooling keeps every program alive, and
+ * Vfx.prewarm() compiles them all once at startup.
+ */
+const glowPool: THREE.MeshBasicMaterial[] = [];
+const emissivePool: THREE.MeshStandardMaterial[] = [];
+const POOL_KEY = 'vfxPool';
+
 /** Unlit additive glow (shells, arcs, rings). Opacity is animated per effect, so each gets its own. */
 export function glowMaterial(color: THREE.Color, intensity: number, opacity = 1): THREE.MeshBasicMaterial {
-  return new THREE.MeshBasicMaterial({
-    color: color.clone().multiplyScalar(intensity),
-    transparent: true,
-    opacity,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-    toneMapped: false,
-    fog: false,
-  });
+  const m =
+    glowPool.pop() ??
+    new THREE.MeshBasicMaterial({
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+      fog: false,
+    });
+  m.userData[POOL_KEY] = 'glow';
+  m.color.copy(color).multiplyScalar(intensity);
+  m.opacity = opacity;
+  return m;
 }
 
 /** Solid emissive core (projectiles, orbs): reads as an object, glows through bloom. */
 export function emissiveMaterial(color: THREE.Color, intensity: number): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({
-    color: '#000000',
-    emissive: color,
-    emissiveIntensity: intensity,
-    roughness: 1,
-    metalness: 0,
-    toneMapped: false,
-  });
+  const m = emissivePool.pop() ?? new THREE.MeshStandardMaterial({ color: '#000000', roughness: 1, metalness: 0, toneMapped: false });
+  m.userData[POOL_KEY] = 'emissive';
+  m.emissive.copy(color);
+  m.emissiveIntensity = intensity;
+  return m;
+}
+
+/** Hand an effect material back for reuse (others are disposed as usual). */
+export function releaseMaterial(m: THREE.Material): void {
+  const kind = m.userData[POOL_KEY];
+  if (kind === 'glow' && m instanceof THREE.MeshBasicMaterial) glowPool.push(m);
+  else if (kind === 'emissive' && m instanceof THREE.MeshStandardMaterial) emissivePool.push(m);
+  else m.dispose();
+}
+
+/** Pool sizes, for the profiler overlay. */
+export function materialPoolSize(): number {
+  return glowPool.length + emissivePool.length;
 }
 
 /** Shared unit geometries. Never disposed: there are few and they are reused by every effect. */

@@ -90,3 +90,15 @@ Every model the game may load is listed with its licence in `public/assets/manif
 | RPG Characters (Nov 2020) | Quaternius | CC0 1.0 | https://quaternius.com |
 
 CC0 does not require credit. We give it anyway, with thanks.
+
+## Sound effects (`public/assets/audio/`)
+
+Only the files the game plays are included; each pack folder carries its licence note.
+
+| Pack | Author | Licence | Source | Used for |
+| --- | --- | --- | --- | --- |
+| 100 CC0 SFX | rubberduck | CC0 1.0 | https://opengameart.org/content/100-cc0-sfx | hits, explosions, ice, wind, light, gate gong, floor-cleared bell |
+| RPG Sound Pack | artisticdude | CC0 1.0 | https://opengameart.org/content/rpg-sound-pack | swings, spell casts, floor reshaping, shadow, creature deaths (converted to 16-bit mono WAV; one file trimmed) |
+| Interface Sounds (1.0) | Kenney | CC0 1.0 | https://opengameart.org/content/interface-sounds (also https://kenney.nl) | forge and refine chimes, refused casts, Grimoire open/close, lightning crackle |
+
+CC0 does not require credit. We give it anyway, with thanks.

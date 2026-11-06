@@ -1,0 +1,5 @@
+100 CC0 SFX, by rubberduck
+Source: https://opengameart.org/content/100-cc0-sfx
+Licence: CC0 1.0 Universal (public domain dedication), as stated on the source page.
+https://creativecommons.org/publicdomain/zero/1.0/
+Retrieved 2026-11-05. Files used unmodified: hit_01-04, explosion, slam_01, glass_01-02, noise_01, gong_01, bell_01-02 (.ogg).

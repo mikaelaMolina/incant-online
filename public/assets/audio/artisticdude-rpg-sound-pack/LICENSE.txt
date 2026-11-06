@@ -1,0 +1,7 @@
+RPG Sound Pack, by artisticdude
+Source: https://opengameart.org/content/rpg-sound-pack
+Licence: CC0 1.0 Universal (public domain dedication), as stated on the source page.
+https://creativecommons.org/publicdomain/zero/1.0/
+Retrieved 2026-11-05. Files used: battle/swing, swing2, swing3, magic1, spell (trimmed to 2.2 s with a fade-out),
+NPC/shade/shade1, NPC/giant/giant1, NPC/gutteral beast/mnstr1 and mnstr3. Converted from 24-bit stereo WAV
+to 16-bit mono WAV at half the sample rate to keep the download small.

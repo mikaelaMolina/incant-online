@@ -10,7 +10,9 @@ export type CastBlock = { reason: 'cooldown'; remaining: number } | { reason: 'm
 
 export class CastResources {
   mana = MAX_MANA;
-  readonly max = MAX_MANA;
+  /** Raised by levelling up. */
+  max = MAX_MANA;
+  regen = MANA_REGEN;
   private readonly cooldowns = new Map<string, { remaining: number; total: number }>();
 
   /** Why an Incantation can't be cast right now, or undefined if it can. */
@@ -33,7 +35,7 @@ export class CastResources {
   }
 
   update(dt: number): void {
-    this.mana = Math.min(this.max, this.mana + MANA_REGEN * dt);
+    this.mana = Math.min(this.max, this.mana + this.regen * dt);
     for (const [k, cd] of this.cooldowns) {
       cd.remaining -= dt;
       if (cd.remaining <= 0) this.cooldowns.delete(k);

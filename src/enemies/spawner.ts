@@ -24,17 +24,22 @@ function seeded(text: string): () => number {
  * Spawn every group in floor.spec.spawns. Groups cluster around an anchor point that is away
  * from the Incanter's spawn and clear of props. Missing models fall back to placeholders.
  */
-export async function spawnEnemies(floor: Floor, models: ModelIndex, ctx: EnemyContext): Promise<Enemy[]> {
+export async function spawnEnemies(
+  floor: Floor,
+  models: ModelIndex,
+  ctx: EnemyContext,
+  spawns: Floor['spec']['spawns'] = floor.spec.spawns,
+): Promise<Enemy[]> {
   const rand = seeded(floor.spec.name);
   const half = floor.halfExtent - 2;
   const enemies: Enemy[] = [];
   const taken: THREE.Vector3[] = [];
   const anchors: THREE.Vector3[] = [];
 
-  const entries = floor.spec.spawns.map((g) => models.resolve(g.enemy.model, 'enemy'));
+  const entries = spawns.map((g) => models.resolve(g.enemy.model, 'enemy'));
   await preloadEnemyModels(entries.filter((e) => e !== undefined));
 
-  for (const [gi, group] of floor.spec.spawns.entries()) {
+  for (const [gi, group] of spawns.entries()) {
     const profile = ARCHETYPES[group.enemy.archetype];
     const entry = entries[gi];
     if (!entry && group.enemy.model) floor.warnings.push(`enemy model "${group.enemy.model}" not found; using a placeholder`);
@@ -83,7 +88,7 @@ export async function spawnEnemies(floor: Floor, models: ModelIndex, ctx: EnemyC
       enemies.push(new Enemy(group.enemy, profile, visual, ctx, pos, yaw));
     }
   }
-  if (floor.spec.spawns.reduce((a, g) => a + g.count, 0) > MAX_ENEMIES) {
+  if (spawns.reduce((a, g) => a + g.count, 0) > MAX_ENEMIES) {
     floor.warnings.push(`enemy count capped at ${MAX_ENEMIES}`);
   }
   return enemies;

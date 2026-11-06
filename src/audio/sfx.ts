@@ -42,6 +42,10 @@ export const SOUNDS = {
   // Enemies
   death: def([`${RPG}/mnstr1.wav`, `${RPG}/mnstr3.wav`], 0.5, [0.9, 1.15], 100),
   bigDeath: def([`${RPG}/giant1.wav`], 0.6, [0.85, 1], 150),
+  // Progression
+  levelUp: def([`${SFX100}/bell_02.ogg`], 0.55, [0.75, 0.75], 500),
+  pickup: def([`${SFX100}/glass_01.ogg`, `${SFX100}/glass_02.ogg`], 0.25, [1.6, 1.9], 40),
+  bossRoar: def([`${RPG}/giant1.wav`], 0.75, [0.62, 0.68], 1000),
   // World and UI
   gate: def([`${SFX100}/gong_01.ogg`], 0.5, [0.95, 1.0], 500),
   cleared: def([`${SFX100}/bell_01.ogg`], 0.45, [1, 1], 500),

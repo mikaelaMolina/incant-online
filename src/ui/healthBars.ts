@@ -56,7 +56,7 @@ export class HealthBars {
     const seen = new Set<number>();
 
     for (const e of enemies) {
-      if (!e.alive) continue;
+      if (!e.alive || e.spec.archetype === 'boss') continue; // bosses use the big bar
       seen.add(e.uid);
       let bar = this.bars.get(e.uid);
       if (!bar) {

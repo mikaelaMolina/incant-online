@@ -4,6 +4,9 @@ import { Input } from './input';
 import { FollowCamera } from './camera';
 import { loadIncanterModel } from './incanterModel';
 import { Incanter } from './player';
+import { Progression, XP_FOR, spawnsForFloor, xpToNext } from './progression';
+import { Pickups, type PickupKind } from './pickups';
+import { ProgressHud } from '../ui/progressHud';
 import { loadManifest, ModelIndex } from './assets';
 import { buildFloor, type Floor } from './floorLoader';
 import { STARTING_ARENA } from '../fallback/floors';
@@ -35,6 +38,8 @@ const MAX_FRAME = 0.1;
 const MAX_STEPS = 5;
 const REVIVE_DELAY = 2.5;
 const CLEARED_BANNER_TIME = 3;
+/** Model for guardians added on boss floors (when the floor didn't describe its own boss). */
+const BOSS_MODEL = 'rpg.warrior';
 /** Number keys (top row and numpad) cast Grimoire bar slots 1–6. */
 const BAR_KEYS = Array.from({ length: GRIMOIRE_BAR_SIZE }, (_, i) => [`Digit${i + 1}`, `Numpad${i + 1}`]);
 
@@ -47,6 +52,8 @@ export interface GameController {
    * Resolves with the floor actually loaded.
    */
   loadFloor(spec: FloorSpec): Promise<FloorSpec>;
+  /** How high the Incanter has climbed (1 = the first floor). */
+  floorNumber(): number;
   /** The floor currently loaded, e.g. as context for "make it night". */
   currentFloor(): FloorSpec;
   /** Cast an (Arbiter-judged) Incantation toward the current aim. Refusals are also shown on the HUD. */
@@ -90,6 +97,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   const input = new Input(canvas);
   const cam = new FollowCamera(window.innerWidth / window.innerHeight);
   const incanter = new Incanter(world, input, cam);
+  const progress = new Progression();
+  const pickups = new Pickups(scene);
   scene.add(incanter.object);
   incanter.setSpawn(floor.spawn);
   // The animated wizard body loads in the background; the capsule stands in until then (or if it fails).
@@ -112,12 +121,14 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   // Enemy models (FBX) take a moment to parse: start playing now, enemies join when ready.
   let enemies: Enemy[] = [];
   let hadEnemies = false;
+  /** A boss that just spawned, to announce on the next frame. */
+  let bossIntro: Enemy | undefined;
   let clearedShown = false;
   /** Bumped on every floor change, so late spawns from an old floor are discarded. */
   let generation = 0;
   const spawnFor = (f: Floor): void => {
     const gen = ++generation;
-    spawnEnemies(f, models, { world, scene, player: incanter, projectiles })
+    spawnEnemies(f, models, { world, scene, player: incanter, projectiles }, spawnsForFloor(f.spec, progress.floor, BOSS_MODEL))
       .then((spawned) => {
         if (gen !== generation) {
           for (const e of spawned) e.dispose();
@@ -125,6 +136,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         }
         enemies = spawned;
         hadEnemies = spawned.length > 0;
+        bossIntro = spawned.find((e) => e.spec.archetype === 'boss'); // announced by the main loop
         // Enemy models arrive after the floor: compile their shaders before they're first drawn in a fight.
         void precompile();
         clearedShown = false;
@@ -212,7 +224,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   let warmFrames = 0;
   let removeWarm: (() => void) | undefined;
   function warmEffects(frames = 3): void {
-    removeWarm ??= vfx.addPrewarmMeshes([GATE_STONE]);
+    removeWarm ??= vfx.addPrewarmMeshes([GATE_STONE, ...pickups.prewarm]);
     warmFrames = Math.max(warmFrames, frames);
   }
 
@@ -238,7 +250,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   // background where the browser supports parallel compilation (KHR_parallel_shader_compile), so
   // the first frame doesn't freeze the page and no cast compiles mid-fight. Compiled against the
   // bloom pass's scene buffer: shaders compile per render target, and the screen's would differ.
-  await precompile(vfx.addPrewarmMeshes([GATE_STONE]));
+  await precompile(vfx.addPrewarmMeshes([GATE_STONE, ...pickups.prewarm]));
   warmEffects();
   const castHud = new CastHud(hud);
   let bar: readonly (IncantationSpec | undefined)[] = [];
@@ -309,6 +321,10 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         castCached: (i: number) => castIncantation(judge(CACHED_INCANTATIONS[i % CACHED_INCANTATIONS.length]).incantation),
         mana: () => runner.resources.mana,
         refill: () => runner.resources.reset(),
+        progress: () => ({ level: progress.level, xp: progress.xp, floor: progress.floor, maxHp: incanter.health.max, maxMana: runner.resources.max }),
+        setFloorNumber: (n: number) => {
+          progress.floor = n;
+        },
         /** Damage the Incanter (checks hurt feedback). */
         hurt: (n: number) => incanter.takeHit(n, incanter.physicsPosition.clone().add(new THREE.Vector3(1, 0, 0)), 2),
         /** Defeat every enemy (opens the gate). */
@@ -333,6 +349,34 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   }
 
   const healthBars = new HealthBars(hud);
+  const progressHud = new ProgressHud(hud);
+  const showProgress = (): void => {
+    progressHud.setXp(progress.level, progress.xpFraction, progress.xp, xpToNext(progress.level));
+    progressHud.setFloor(progress.floor, floor.spec.name, progress.bossFloor);
+  };
+  showProgress();
+  /** A kill: experience, maybe a level, and orbs to pick up. */
+  const onKill = (archetype: keyof typeof XP_FOR, at: { x: number; y: number; z: number }): void => {
+    const xp = XP_FOR[archetype];
+    const before = progress.stats;
+    const gained = progress.addXp(xp);
+    progressHud.xpGained(xp);
+    if (gained > 0) {
+      const after = progress.stats;
+      incanter.health.max = after.maxHp;
+      incanter.health.heal(after.maxHp);
+      runner.resources.max = after.maxMana;
+      runner.resources.regen = after.manaRegen;
+      runner.resources.mana = after.maxMana;
+      progressHud.levelUp(progress.level, `+${after.maxHp - before.maxHp} HP · +${after.maxMana - before.maxMana} mana · fully restored`);
+      sfx.play('levelUp');
+      vfx.deathBurst(incanter.position.clone().setY(incanter.position.y + 0.4), '#ffd36a', true);
+    }
+    showProgress();
+    const drops: PickupKind[] =
+      archetype === 'boss' ? ['health', 'health', 'mana', 'mana', 'mana'] : archetype === 'tank' ? ['health', 'mana'] : Math.random() < 0.45 ? [Math.random() < 0.5 ? 'health' : 'mana'] : [];
+    for (const k of drops) pickups.drop(at, incanter.feetY, k);
+  };
   const damageNumbers = new DamageNumbers(hud);
   const debug = new DebugOverlay(hud);
 
@@ -463,6 +507,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         const big = ev.archetype === 'tank' || ev.archetype === 'boss';
         soundAt(big ? 'bigDeath' : 'death', ev.at);
         vfx.deathBurst(new THREE.Vector3(ev.at.x, ev.at.y, ev.at.z), ev.archetype === 'boss' ? '#ff5ad0' : '#a98bff', big);
+        if (ev.archetype in XP_FOR) onKill(ev.archetype as keyof typeof XP_FOR, ev.at);
         hitStop = Math.max(hitStop, ev.archetype === 'boss' ? 0.25 : big ? 0.1 : 0.06);
         if (big) cam.shake(0.35);
       }
@@ -474,7 +519,20 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     wasDodging = incanter.isDodging;
 
     cam.update(incanter.position, dt, incanter.alive ? incanter.aimPoint : undefined);
+    if (bossIntro && !paused) {
+      healthBars.showBanner(`${bossIntro.spec.id} awakens`);
+      clearedTimer = CLEARED_BANNER_TIME; // the cleared-banner timer hides it again
+      sfx.play('bossRoar');
+      cam.shake(0.5);
+      bossIntro = undefined;
+    }
     damageNumbers.update(dt, cam.camera);
+    for (const kind of pickups.update(dt, incanter.position, incanter.feetY)) {
+      if (!incanter.alive) break;
+      if (kind === 'health') incanter.health.heal(incanter.health.max * 0.2);
+      else runner.resources.mana = Math.min(runner.resources.max, runner.resources.mana + runner.resources.max * 0.25);
+      sfx.play('pickup');
+    }
     vfx.update(dt, cam.camera, renderer.domElement.height);
 
     aimMarker.position.set(incanter.aimPoint.x, incanter.aimPoint.y + 0.02, incanter.aimPoint.z);
@@ -491,6 +549,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     input.endFrame();
 
     healthBars.update(enemies, incanter.health, cam.camera, incanter.position);
+    progressHud.updateBoss(enemies);
     castHud.update(dt, runner.resources);
     const alive = enemies.filter((e) => e.alive);
     debug.update(
@@ -522,6 +581,9 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         enemies = [];
         hadEnemies = false;
         clearedTimer = 0;
+        // Leaving through the open gate climbs a floor; reshaping the current floor does not.
+        if (gate) progress.floor++;
+        pickups.clear();
         healthBars.showBanner(null);
         projectiles.clear();
         runner.clear();
@@ -541,6 +603,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         cam.snapTo(incanter.position);
         warmEffects(); // behind the curtain
         spawnFor(floor);
+        showProgress();
       } finally {
         loading = false;
         input.clear();
@@ -548,6 +611,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       return floor.spec;
     },
     currentFloor: () => floor.spec,
+    floorNumber: () => progress.floor,
     castIncantation,
     setBar(slots) {
       bar = [...slots];

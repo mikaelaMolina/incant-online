@@ -189,6 +189,7 @@ Done (see git log):
 
 9c. Build intent + gate: "The Spire reshapes…" curtain, request budget with cached-floor fallback (< 10 s), floor build failure → starting arena; gate opens when a floor is cleared, words said inside it build the next floor (re-asked explicitly, then cached); reply lines shown and spoken (`src/voice/narrator.ts`, silent while push-to-talk is held).
 9d. Fallbacks: `src/fallback/fallback.ts` shared by server and browser (closest cached item by element/type/shape/biome; refine kept locally; replies for chat; per-reason lines); 3 dedicated pre-built floors (forest, castle, ice; the starting arena is separate); browser handles unreachable / timeout (7 s, 6 s at the gate) / 429 without retry; never repeats a Grimoire Incantation or the current floor.
+9e. Profiling + polish: pooled effect materials and shader warm-up (no compiles mid-fight), background shader compile at load and on enemy spawn, adaptive quality (MSAA then resolution, applied off-fight), 5-level bloom; CC0 sounds (`src/audio/sfx.ts`, credited), camera look-ahead / shake / FOV kick (reduced-motion aware), damage numbers, HP lag + low-HP edge, cooldown sweeps, sound toggle (M), narrow-window layout.
 
 Next:
 9b. Judgement card UI (show the Arbiter's verdict when an Incantation is forged).

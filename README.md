@@ -93,6 +93,7 @@ Keys are only read by the serverless function and are never sent to the browser.
 | 1 – 6 (or numpad) | Cast the Incantation in that Grimoire bar slot |
 | Hold V (or the mic button) | Push-to-talk: speak, then let go |
 | Enter | Type instead of speaking (Enter again sends, Esc cancels) |
+| M (or the button top right) | Sound on/off (effects and the Arbiter's voice) |
 | F3 | Toggle the performance overlay (on by default in `npm run dev`) |
 
 ### The HUD
@@ -101,6 +102,7 @@ Keys are only read by the serverless function and are never sent to the browser.
 - **Mana and health** (bottom left). Mana regenerates; every Incantation's cost is set by the Arbiter.
 - **Transcript** (bottom): what you said and what the Arbiter answered.
 - **Mode label** (top right): "Mock mode" without a key, "Offline: cached Incantations" if the backend can't be reached.
+- **Feedback**: damage numbers in the spell's colour, a trailing chunk on the health bar when you're hit, a red edge at low health, a cooldown sweep and a "ready" pop on each slot. Screen shake, camera look-ahead toward your aim and a field-of-view kick on dashes; all motion effects switch off when your system asks for reduced motion.
 
 ## Things to say
 
@@ -335,9 +337,20 @@ The app is a static Vite build plus one Vercel serverless function (`api/interpr
 
 ## Performance
 
-Targets: 60 fps on a mid-range laptop (30 minimum), recite → cast < 500 ms, forge < 6 s (p90), floor build < 10 s, first load < 8 s, < 150 draw calls, < 3,000 particles.
+Measured on an Intel Iris Xe laptop GPU (Chromium, 1280×720, through WSL's Direct3D 12 layer, which is slower than Chrome on Windows), production build for loading, mock mode:
 
-How we get there: instanced props, a single pooled particle system, shared VFX geometries, fixed-step physics with interpolation, and local recital (a typed recital measured 38 ms even under software rendering). A full frame including the bloom passes measured about 124 draw calls. Press F3 for the live overlay (fps, draw calls, triangles, particles).
+| Target | Budget | Measured |
+| --- | --- | --- |
+| Frame rate, exploring | 60 fps (30 minimum) | 55–60 fps |
+| Frame rate, heavy combat (a spell every 300 ms) | 60 fps (30 minimum) | 25–105 fps depending on floor and quality level; occasional GPU stalls of 100–500 ms on this driver |
+| Draw calls (whole frame, bloom included) | < 150 | 66–141 |
+| Particles | < 3,000 | ≤ 380 (hard cap 2,400) |
+| First load (to playable) | < 8 s | 3.7–5.6 s typical, one cold outlier at 10 s |
+| Total download | < 25 MB | 6.8 MB (JS 1.9, models 1.7, textures 2.6, sounds 0.6) |
+| Recite → cast | < 500 ms | under 40 ms (local, no network) |
+| Floor build | < 10 s | 3–8 s, including the backend timing out |
+
+How: instanced props; one pooled particle system; shared effect geometries and **pooled effect materials** (disposing them made the GPU recompile shaders mid-fight); shaders compiled in the background before the first frame and when enemies arrive, plus a hidden warm-up draw of every effect shader on the start screen and behind floor changes; fixed-step physics with interpolation; **adaptive quality** that starts at 4× MSAA and steps down (2× MSAA, none, then 85% and 75% resolution) if the median frame stays under ~50 fps, applying changes on the start screen or behind the floor-change curtain rather than mid-fight. Press F3 for the live overlay (fps, draw calls, triangles, particles, quality level).
 
 ## How AI is used
 
@@ -366,6 +379,6 @@ All AI components and third-party assets are listed with provider and licence in
 
 Code: [MIT](LICENSE) © 2026 Mikaela Molina.
 
-3D models: CC0 packs by [Kenney](https://kenney.nl) and [Quaternius](https://quaternius.com). Libraries: Three.js (MIT), Rapier (Apache-2.0), postprocessing (Zlib), Fuse.js (Apache-2.0), zod (MIT) and others. Full list with sources and licences: [CREDITS.md](CREDITS.md).
+3D models: CC0 packs by [Kenney](https://kenney.nl) and [Quaternius](https://quaternius.com). Sound effects: CC0 packs by rubberduck, artisticdude and Kenney (via OpenGameArt). Libraries: Three.js (MIT), Rapier (Apache-2.0), postprocessing (Zlib), Fuse.js (Apache-2.0), zod (MIT) and others. Full list with sources and licences: [CREDITS.md](CREDITS.md).
 
 Incant Online is an original work. All names, characters and places in it are original.

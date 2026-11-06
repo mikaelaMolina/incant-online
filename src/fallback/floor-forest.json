@@ -294,7 +294,7 @@
       "enemy": {
         "id": "mossbound_sentinel",
         "archetype": "melee",
-        "model": "rpg.rogue",
+        "model": "monster.tree",
         "hp": 60,
         "speed": 3.6,
         "damage": 8,
@@ -309,7 +309,7 @@
       "enemy": {
         "id": "mossbound_archer",
         "archetype": "ranged",
-        "model": "rpg.ranger",
+        "model": "monster.greendemon",
         "hp": 40,
         "speed": 3,
         "damage": 7,

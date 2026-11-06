@@ -50,7 +50,7 @@ export const ARCHETYPES: Record<EnemySpec['archetype'], ArchetypeProfile> = {
     radius: 0.4,
     fleeDuration: 3,
     color: '#ff5a4a',
-    clips: { attack: ['sword_attack$', 'dagger_attack$', 'sword_attackfast', 'punch'], move: ['run_weapon', 'run'] },
+    clips: { attack: ['sword_attack$', 'dagger_attack$', 'sword_attackfast', '^bite_inplace$', 'bite_front', 'punch'], move: ['run_weapon', 'run', '^walk$', 'flying'] },
   },
   ranged: {
     label: 'ranged',
@@ -70,7 +70,7 @@ export const ARCHETYPES: Record<EnemySpec['archetype'], ArchetypeProfile> = {
     radius: 0.38,
     fleeDuration: 3.5,
     color: '#ffb340',
-    clips: { attack: ['bow_shoot', 'spell1', 'staff_attack', 'punch'], move: ['run_weapon', 'run'] },
+    clips: { attack: ['bow_shoot', 'spell1', 'staff_attack', '^bite_inplace$', 'bite_front', '^yes$', 'punch'], move: ['run_weapon', 'run', '^walk$', 'flying'] },
   },
   tank: {
     label: 'tank',
@@ -90,7 +90,7 @@ export const ARCHETYPES: Record<EnemySpec['archetype'], ArchetypeProfile> = {
     radius: 0.6,
     fleeDuration: 2,
     color: '#b07cff',
-    clips: { attack: ['sword_attack$', 'punch'], move: ['walk', 'run'] },
+    clips: { attack: ['sword_attack$', '^bite_inplace$', 'bite_front', 'punch'], move: ['walk', 'run', 'flying'] },
   },
   // Bosses fight like tanks for now; phases arrive with the boss task.
   boss: {
@@ -111,6 +111,6 @@ export const ARCHETYPES: Record<EnemySpec['archetype'], ArchetypeProfile> = {
     radius: 0.8,
     fleeDuration: 0,
     color: '#ff3d7f',
-    clips: { attack: ['sword_attack$', 'punch'], move: ['walk', 'run'] },
+    clips: { attack: ['sword_attack$', '^bite_inplace$', 'bite_front', 'punch'], move: ['walk', 'run', 'flying'] },
   },
 };

@@ -1,0 +1,10 @@
+Cute Animated Monsters (Aug 2020) by Quaternius
+
+License: CC0 1.0 Universal (Public Domain Dedication)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Source: https://opengameart.org/content/textured-cute-monster-pack
+(the pack zip has no licence file; the licence above is the one stated by the author on the
+source page). Also published at https://quaternius.com.
+
+Incant Online ships 11 of the 21 models (FBX + textures); the rest are not included.

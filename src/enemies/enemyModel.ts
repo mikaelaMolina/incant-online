@@ -122,11 +122,11 @@ function fromTemplate(t: Template, profile: ArchetypeProfile): EnemyVisual {
 
   const mixer = new THREE.AnimationMixer(model);
   const clips: Record<ClipRole, THREE.AnimationClip | undefined> = {
-    idle: pickClip(t.clips, ['^idle_weapon$', '^idle$', 'idle']),
+    idle: pickClip(t.clips, ['^idle_weapon$', '^idle$', 'idle', 'flying']),
     move: pickClip(t.clips, profile.clips.move),
     attack: pickClip(t.clips, profile.clips.attack),
-    hit: pickClip(t.clips, ['^recievehit$', 'hit']),
-    death: pickClip(t.clips, ['death']),
+    hit: pickClip(t.clips, ['^recievehit$', '^hitrecieve$', 'hit']),
+    death: pickClip(t.clips, ['^death$', 'death']),
   };
   let current: THREE.AnimationAction | undefined;
   /** Seconds left in a one-shot (hit, attack, death); looping clips wait for it. */

@@ -25,6 +25,12 @@
    "source": "https://quaternius.com",
    "licence": "CC0-1.0",
    "licenceFile": "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/License.txt"
+  },
+  "monster": {
+   "author": "Quaternius",
+   "source": "https://opengameart.org/content/textured-cute-monster-pack",
+   "licence": "CC0-1.0",
+   "licenceFile": "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/License.txt"
   }
  },
  "models": [
@@ -6769,6 +6775,149 @@
    "textures": [
     "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/Textures/Wizard_Staff_Texture.png",
     "assets/quaternius/rpg_characters_-_nov_2020/RPG Characters - Nov 2020/Textures/Wizard_Texture.png"
+   ]
+  },
+  {
+   "id": "monster.alien_tall",
+   "path": "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/FBX/Alien_Tall.fbx",
+   "type": "enemy",
+   "licence": "CC0-1.0",
+   "pack": "monster",
+   "format": "fbx",
+   "baseScale": 1,
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/Textures/Alien_Tall_Texture.png"
+   ]
+  },
+  {
+   "id": "monster.cactus",
+   "path": "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/FBX/Cactus.fbx",
+   "type": "enemy",
+   "licence": "CC0-1.0",
+   "pack": "monster",
+   "format": "fbx",
+   "baseScale": 1,
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/Textures/Cactus_Texture.png"
+   ]
+  },
+  {
+   "id": "monster.crab",
+   "path": "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/FBX/Crab.fbx",
+   "type": "enemy",
+   "licence": "CC0-1.0",
+   "pack": "monster",
+   "format": "fbx",
+   "baseScale": 1,
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/Textures/Crab_Texture.png"
+   ]
+  },
+  {
+   "id": "monster.cyclops",
+   "path": "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/FBX/Cyclops.fbx",
+   "type": "enemy",
+   "licence": "CC0-1.0",
+   "pack": "monster",
+   "format": "fbx",
+   "baseScale": 1,
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/Textures/Cyclops_Texture.png"
+   ]
+  },
+  {
+   "id": "monster.demon",
+   "path": "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/FBX/Demon.fbx",
+   "type": "enemy",
+   "licence": "CC0-1.0",
+   "pack": "monster",
+   "format": "fbx",
+   "baseScale": 1,
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/Textures/Demon_Texture.png"
+   ]
+  },
+  {
+   "id": "monster.ghost",
+   "path": "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/FBX/Ghost.fbx",
+   "type": "enemy",
+   "licence": "CC0-1.0",
+   "pack": "monster",
+   "format": "fbx",
+   "baseScale": 1,
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/Textures/Ghost_Texture.png"
+   ]
+  },
+  {
+   "id": "monster.greendemon",
+   "path": "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/FBX/GreenDemon.fbx",
+   "type": "enemy",
+   "licence": "CC0-1.0",
+   "pack": "monster",
+   "format": "fbx",
+   "baseScale": 1,
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/Textures/GreenDemon_Texture.png"
+   ]
+  },
+  {
+   "id": "monster.skull",
+   "path": "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/FBX/Skull.fbx",
+   "type": "enemy",
+   "licence": "CC0-1.0",
+   "pack": "monster",
+   "format": "fbx",
+   "baseScale": 1,
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/Textures/Skull_Texture.png"
+   ]
+  },
+  {
+   "id": "monster.tree",
+   "path": "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/FBX/Tree.fbx",
+   "type": "enemy",
+   "licence": "CC0-1.0",
+   "pack": "monster",
+   "format": "fbx",
+   "baseScale": 1,
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/Textures/Tree_Texture.png"
+   ]
+  },
+  {
+   "id": "monster.yellowdragon",
+   "path": "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/FBX/YellowDragon.fbx",
+   "type": "enemy",
+   "licence": "CC0-1.0",
+   "pack": "monster",
+   "format": "fbx",
+   "baseScale": 1,
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/Textures/YellowDragon_Texture.png"
+   ]
+  },
+  {
+   "id": "monster.yeti",
+   "path": "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/FBX/Yeti.fbx",
+   "type": "enemy",
+   "licence": "CC0-1.0",
+   "pack": "monster",
+   "format": "fbx",
+   "baseScale": 1,
+   "collider": "none",
+   "textures": [
+    "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/Textures/Yeti_Texture.png"
    ]
   }
  ]

@@ -294,7 +294,7 @@
       "enemy": {
         "id": "oathless_sentinel",
         "archetype": "melee",
-        "model": "rpg.rogue",
+        "model": "monster.skull",
         "hp": 60,
         "speed": 3.6,
         "damage": 8,
@@ -309,7 +309,7 @@
       "enemy": {
         "id": "oathless_warden",
         "archetype": "tank",
-        "model": "rpg.warrior",
+        "model": "monster.cyclops",
         "hp": 160,
         "speed": 2,
         "damage": 18,

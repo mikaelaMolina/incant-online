@@ -1,5 +1,6 @@
 import type { EnemySpec } from '../schemas/enemySpec';
 import type { FloorSpec } from '../schemas/floorSpec';
+import { monsterFor } from '../schemas/monsters';
 
 /**
  * The Incanter's climb: experience, levels and the floor count. Pure (no three.js), so it is
@@ -87,7 +88,7 @@ export function bossNameFor(biome: FloorSpec['biome']): string {
  * The spawns actually used on floor `floor`: scaled by height, and on boss floors guaranteed a
  * boss (the floor's own if it described one, else the biome's guardian).
  */
-export function spawnsForFloor(spec: FloorSpec, floor: number, bossModel: string): FloorSpec['spawns'] {
+export function spawnsForFloor(spec: FloorSpec, floor: number, bossModel = monsterFor(spec.biome, 'boss')): FloorSpec['spawns'] {
   const s = floorScale(floor);
   const scaled = spec.spawns.map((g) => ({
     ...g,

@@ -72,7 +72,7 @@
       "enemy": {
         "id": "hollow_sentinel",
         "archetype": "melee",
-        "model": "rpg.rogue",
+        "model": "monster.skull",
         "hp": 60,
         "speed": 3.6,
         "damage": 8,
@@ -87,7 +87,7 @@
       "enemy": {
         "id": "ashen_archer",
         "archetype": "ranged",
-        "model": "rpg.ranger",
+        "model": "monster.ghost",
         "hp": 40,
         "speed": 3,
         "damage": 7,
@@ -102,7 +102,7 @@
       "enemy": {
         "id": "stone_warden",
         "archetype": "tank",
-        "model": "rpg.warrior",
+        "model": "monster.cyclops",
         "hp": 160,
         "speed": 2,
         "damage": 18,

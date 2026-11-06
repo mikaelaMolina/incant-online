@@ -61,9 +61,21 @@ const PACKS = [
     author: 'Quaternius',
     source: 'https://quaternius.com',
     baseScale: 1, // measured on load by the character loader
-    // Wizard is the Incanter; the other classes stand in as humanoid enemies until a monster pack is added.
+    // Wizard is the Incanter; the other classes are humanoid enemies (bandits, knights).
     type: (name) => (name === 'wizard' ? 'character' : 'enemy'),
     collider: () => 'none', // characters get capsules from gameplay code
+  },
+  {
+    id: 'monster',
+    dir: 'quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020',
+    models: 'FBX',
+    format: 'fbx',
+    license: 'License.txt',
+    author: 'Quaternius',
+    source: 'https://opengameart.org/content/textured-cute-monster-pack',
+    baseScale: 1, // measured on load by the character loader
+    type: () => 'enemy',
+    collider: () => 'none',
   },
 ];
 

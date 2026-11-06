@@ -87,7 +87,8 @@ Every model the game may load is listed with its licence in `public/assets/manif
 | Nature Kit (2.1) | Kenney | CC0 1.0 | https://kenney.nl/assets/nature-kit |
 | Castle Kit (2.0) | Kenney | CC0 1.0 | https://kenney.nl/assets/castle-kit |
 | Modular Dungeon Kit (2.1) | Kenney | CC0 1.0 | https://kenney.nl |
-| RPG Characters (Nov 2020) | Quaternius | CC0 1.0 | https://quaternius.com |
+| RPG Characters (Nov 2020): the Incanter (Wizard) and humanoid foes | Quaternius | CC0 1.0 | https://quaternius.com |
+| Cute Animated Monsters (Aug 2020): 11 of 21 models (Skull, Demon, Green Demon, Ghost, Yeti, Cyclops, Tree, Cactus, Crab, Alien Tall, Yellow Dragon) | Quaternius | CC0 1.0 | https://opengameart.org/content/textured-cute-monster-pack |
 
 CC0 does not require credit. We give it anyway, with thanks.
 

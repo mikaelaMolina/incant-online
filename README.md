@@ -111,6 +111,9 @@ Other useful commands: `npm test` (unit and integration tests), `npm run judge-t
 2. Fight with the staff and the three starter Incantations on keys **1–3**.
 3. Hold **V** and describe new Incantations; say their names to cast them.
 4. Clear the floor, walk into the gate, and describe the next floor.
+5. Climb. Each kill gives experience; levels raise your health and mana (never spell damage, so the Arbiter's balance holds). Defeated monsters drop health and mana orbs. Every third floor is guarded by a named boss, and each floor up is a little tougher.
+
+Monsters fit the floor: skeletons and ghosts in ruins, treants in forests, yetis on ice, cacti and crabs in the desert. Name a creature ("a castle full of ghosts", "a cave with a dragon") and it appears.
 
 ### Controls
 
@@ -129,7 +132,8 @@ Other useful commands: `npm test` (unit and integration tests), `npm run judge-t
 ### The HUD
 
 - **Grimoire bar** (left): six slots with mana cost, cooldown and a cooldown sweep. Slots 1–3 start with *Blazing Cyclone* (fire spin, burn), *Thunder Chain* (lightning that leaps between foes, stun) and *Frost Comet* (ice bolts that burst and freeze).
-- **Mana and health** (bottom left). Mana regenerates; every Incantation's cost is set by the Arbiter.
+- **Unit frame** (bottom left): the Incanter's portrait and level, health and mana. Mana regenerates; every Incantation's cost is set by the Arbiter.
+- **Experience** (bottom edge), **floor number** (top) and a **boss bar** while a guardian lives.
 - **Transcript** (bottom): what you said and what the Arbiter answered.
 - **Mode label** (top right): "Mock mode" without a key, "Offline: cached Incantations" if the backend can't be reached.
 - **Feedback**: damage numbers in the spell's colour, a trailing chunk on the health bar when you're hit, a red edge at low health, a cooldown sweep and a "ready" pop on each slot. Screen shake, camera look-ahead toward your aim and a field-of-view kick on dashes; all motion effects switch off when your system asks for reduced motion.

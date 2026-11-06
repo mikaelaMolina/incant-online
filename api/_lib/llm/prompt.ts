@@ -2,8 +2,9 @@ import { RANGES } from '../../../src/schemas/incantationSpec.js';
 import { FLOOR_HALF_EXTENT } from '../../../src/schemas/floorSpec.js';
 import { mockInterpret } from '../mock/interpreter.js';
 import { PALETTES, SETTLEMENT_PALETTE } from '../mock/floor.js';
+import { ENEMY_MODEL_IDS } from '../../../src/schemas/monsters.js';
 
-const ENEMY_MODELS = ['rpg.rogue', 'rpg.ranger', 'rpg.warrior', 'rpg.monk', 'rpg.cleric'];
+const ENEMY_MODELS = ENEMY_MODEL_IDS;
 
 /**
  * Example pairs (CLAUDE.md asks for 4-6), produced by the mock parser so both modes agree.
@@ -65,7 +66,7 @@ Floor fields:
 - lighting: time_of_day dawn | day | dusk | night, fog_density 0-1, ambient_color "#rrggbb".
 - props: 20-40 entries { model, x, z, rotation (degrees), scale 0.25-4, tint "#rrggbb" or null }. Keep 5 m around (0, 0) clear: the Incanter spawns there. x and z must stay inside the half-width. Use only these model ids:
 ${palettes()}
-- spawns: 0-4 groups { enemy, count 1-8 }. enemy: id (snake_case), archetype melee | ranged | tank | boss, model one of ${ENEMY_MODELS.join(', ')}, hp 1-5000 (melee ~60, ranged ~40, tank ~160), speed 0.5-10 (about 2-4), damage 1-200 (about 7-18), aggro_range 2-40, flee_threshold 0-1, attack_pattern (short text), phases [] unless it is a boss.
+- spawns: 0-4 groups { enemy, count 1-8 }. enemy: id (snake_case), archetype melee | ranged | tank | boss, model one of ${ENEMY_MODELS.join(', ')} (monster.* are creatures; rpg.* are humans: use them only for bandits, knights and the like), hp 1-5000 (melee ~60, ranged ~40, tank ~160), speed 0.5-10 (about 2-4), damage 1-200 (about 7-18), aggro_range 2-40, flee_threshold 0-1, attack_pattern (short text), phases [] unless it is a boss.
 
 Use original names only: no characters, places, phrases or items from existing games, anime, films or books.
 

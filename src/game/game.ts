@@ -39,8 +39,6 @@ const MAX_FRAME = 0.1;
 const MAX_STEPS = 5;
 const REVIVE_DELAY = 2.5;
 const CLEARED_BANNER_TIME = 3;
-/** Model for guardians added on boss floors (when the floor didn't describe its own boss). */
-const BOSS_MODEL = 'rpg.warrior';
 /** Number keys (top row and numpad) cast Grimoire bar slots 1–6. */
 const BAR_KEYS = Array.from({ length: GRIMOIRE_BAR_SIZE }, (_, i) => [`Digit${i + 1}`, `Numpad${i + 1}`]);
 
@@ -126,12 +124,13 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   let hadEnemies = false;
   /** A boss that just spawned, to announce on the next frame. */
   let bossIntro: Enemy | undefined;
+  let bossIntroDelay = 0;
   let clearedShown = false;
   /** Bumped on every floor change, so late spawns from an old floor are discarded. */
   let generation = 0;
   const spawnFor = (f: Floor): void => {
     const gen = ++generation;
-    spawnEnemies(f, models, { world, scene, player: incanter, projectiles }, spawnsForFloor(f.spec, progress.floor, BOSS_MODEL))
+    spawnEnemies(f, models, { world, scene, player: incanter, projectiles }, spawnsForFloor(f.spec, progress.floor))
       .then((spawned) => {
         if (gen !== generation) {
           for (const e of spawned) e.dispose();
@@ -140,6 +139,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         enemies = spawned;
         hadEnemies = spawned.length > 0;
         bossIntro = spawned.find((e) => e.spec.archetype === 'boss'); // announced by the main loop
+        bossIntroDelay = 3.4; // after the floor title card has faded
         // Enemy models arrive after the floor: compile their shaders before they're first drawn in a fight.
         void precompile();
         clearedShown = false;
@@ -527,7 +527,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     wasDodging = incanter.isDodging;
 
     cam.update(incanter.position, dt, incanter.alive ? incanter.aimPoint : undefined);
-    if (bossIntro && !paused) {
+    if (bossIntro && !paused) bossIntroDelay -= rawDt;
+    if (bossIntro && !paused && bossIntroDelay <= 0) {
       healthBars.showBanner(`${bossIntro.spec.id} awakens`);
       clearedTimer = CLEARED_BANNER_TIME; // the cleared-banner timer hides it again
       sfx.play('bossRoar');

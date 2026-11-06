@@ -334,7 +334,7 @@
       "enemy": {
         "id": "rimeborn_sentinel",
         "archetype": "melee",
-        "model": "rpg.rogue",
+        "model": "monster.yeti",
         "hp": 60,
         "speed": 3.6,
         "damage": 8,
@@ -349,7 +349,7 @@
       "enemy": {
         "id": "rimeborn_archer",
         "archetype": "ranged",
-        "model": "rpg.ranger",
+        "model": "monster.ghost",
         "hp": 40,
         "speed": 3,
         "damage": 7,
@@ -364,7 +364,7 @@
       "enemy": {
         "id": "rimeborn_warden",
         "archetype": "tank",
-        "model": "rpg.warrior",
+        "model": "monster.yeti",
         "hp": 160,
         "speed": 2,
         "damage": 18,

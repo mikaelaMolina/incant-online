@@ -1,6 +1,7 @@
 import type { Biome, FloorSize, TimeOfDay } from '../../../src/schemas/floorSpec.js';
 import { FLOOR_HALF_EXTENT } from '../../../src/schemas/floorSpec.js';
 import type { EnemySpec } from '../../../src/schemas/enemySpec.js';
+import { CREATURE_WORDS, monsterFor } from '../../../src/schemas/monsters.js';
 import { countFor, findKeyword, hasAny, pick, seededRandom } from './words.js';
 
 /** Raw FloorSpec as the mock "LLM" would emit it (validated by FloorSpec later). */
@@ -270,17 +271,22 @@ function spawnsFromWords(words: readonly string[], biome: Biome): RawFloor['spaw
   const wantsTank = tanks !== undefined || hasAny(words, ['golem*', 'guardian*', 'brute*', 'warden*', 'ogre*', 'troll*']);
   const wantsArchers = archers !== undefined || hasAny(words, ['archer*', 'ranger*', 'shooter*']);
 
+  // A creature the player named ("skeletons", "ghosts") leads the floor; otherwise the biome's own.
+  const named = findKeyword(words, CREATURE_WORDS);
+  const boss = findKeyword(words, BOSS_WORDS);
+  const bossModel = boss && named && named !== 'rpg.rogue' && named !== 'rpg.ranger' ? named : monsterFor(biome, 'boss');
+  const meleeModel = named && !(boss && named === bossModel) && named !== 'rpg.ranger' ? named : monsterFor(biome, 'melee');
+  const rangedModel = wantsArchers && hasAny(words, ['archer*', 'ranger*']) ? 'rpg.ranger' : monsterFor(biome, 'ranged');
   const spawns: RawFloor['spawns'] = [
-    { enemy: enemy('melee', 'Sentinel', 'rpg.rogue', 60, 3.6, 8, 11, 0.2), count: warriors ?? (many ? 4 : 2) },
+    { enemy: enemy('melee', 'Sentinel', meleeModel, 60, 3.6, 8, 11, 0.2), count: warriors ?? (many ? 4 : 2) },
   ];
   if (wantsArchers || !wantsTank) {
-    spawns.push({ enemy: enemy('ranged', 'Archer', 'rpg.ranger', 40, 3, 7, 14, 0.3), count: archers ?? (many ? 3 : 1) });
+    spawns.push({ enemy: enemy('ranged', 'Archer', rangedModel, 40, 3, 7, 14, 0.3), count: archers ?? (many ? 3 : 1) });
   }
   if (wantsTank || many) {
-    spawns.push({ enemy: enemy('tank', 'Warden', 'rpg.warrior', 160, 2, 18, 9, 0), count: tanks ?? 1 });
+    spawns.push({ enemy: enemy('tank', 'Warden', monsterFor(biome, 'tank'), 160, 2, 18, 9, 0), count: tanks ?? 1 });
   }
-  const boss = findKeyword(words, BOSS_WORDS);
-  if (boss) spawns.push({ enemy: enemy('boss', boss, 'rpg.warrior', 420, 2.2, 24, 14, 0), count: 1 });
+  if (boss) spawns.push({ enemy: enemy('boss', boss, bossModel, 420, 2.2, 24, 14, 0), count: 1 });
   return spawns;
 }
 

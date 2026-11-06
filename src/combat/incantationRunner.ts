@@ -10,10 +10,20 @@ import { CastResources } from './mana';
 import { paletteFor, STATUS_PARTICLES, type Palette } from '../vfx/palette';
 import type { AuraHandle, BeamHandle, ProjectileHandle, Vfx } from '../vfx/presets';
 
+/** Feedback events for sound, screen shake and the like (never used by game logic). */
+export type CastFx =
+  | { kind: 'cast'; spec: IncantationSpec }
+  | { kind: 'hit'; at: THREE.Vector3 }
+  | { kind: 'explode'; at: THREE.Vector3; radius: number }
+  | { kind: 'pulse'; at: THREE.Vector3; radius: number; shape: IncantationSpec['shape'] }
+  | { kind: 'zap'; at: THREE.Vector3 }
+  | { kind: 'dash' };
+
 export interface RunnerContext {
   world: RAPIER.World;
   incanter: Incanter;
   vfx: Vfx;
+  onFx?: (e: CastFx) => void;
 }
 
 export type CastOutcome =
@@ -83,6 +93,7 @@ export class IncantationRunner {
 
     this.resources.spend(spec.name, spec.mana_cost, spec.cooldown);
     incanter.faceDirection(dir);
+    this.ctx.onFx?.({ kind: 'cast', spec });
     if (plan.selfHeal.perSecond > 0) this.heals.push({ perSecond: plan.selfHeal.perSecond, remaining: plan.selfHeal.duration });
     this.active.push(this.deliver(state));
     return { ok: true };
@@ -154,9 +165,11 @@ export class IncantationRunner {
   private strike(s: CastState, target: Enemy, from: THREE.Vector3, scale = 1): void {
     if (!target.alive) return;
     const se = s.spec.status_effect;
-    target.takeHit(s.spec.damage_per_hit * scale, from, s.plan.knockback * Math.max(0.5, scale));
+    target.takeHit(s.spec.damage_per_hit * scale, from, s.plan.knockback * Math.max(0.5, scale), s.spec.vfx.color);
     if (se.kind !== 'heal') target.applyStatus(se);
-    this.ctx.vfx.impact(chest(target), s.palette);
+    const at = chest(target);
+    this.ctx.vfx.impact(at, s.palette);
+    this.ctx.onFx?.({ kind: 'hit', at });
   }
 
   /**
@@ -180,6 +193,7 @@ export class IncantationRunner {
       if (!best) return;
       struck.add(best);
       this.ctx.vfx.bolt(chest(current), chest(best), s.palette, 0.04);
+      this.ctx.onFx?.({ kind: 'zap', at: chest(best) });
       this.strike(s, best, current.physicsPosition, falloff);
       current = best;
     }
@@ -260,6 +274,7 @@ export class IncantationRunner {
     return this.timedHits(plan, (i) => {
       const origin = incanter.physicsPosition;
       vfx.shapeHit(plan.shape, plan.area, origin, s.yaw, incanter.feetY, s.palette, i % 2 === 1);
+      this.ctx.onFx?.({ kind: 'pulse', at: origin.clone(), radius: areaRadius(plan.area), shape: plan.shape });
       this.hitArea(s, plan.area, origin, s.dir);
     });
   }
@@ -281,6 +296,7 @@ export class IncantationRunner {
       // Caster-anchored areas follow the Incanter between pulses.
       const o = plan.anchor === 'caster' ? incanter.physicsPosition : origin;
       vfx.shapeHit(plan.shape, plan.area, o, s.yaw, plan.anchor === 'caster' ? incanter.feetY : feetY, s.palette);
+      this.ctx.onFx?.({ kind: 'pulse', at: o.clone(), radius: areaRadius(plan.area), shape: plan.shape });
       this.hitArea(s, plan.area, o, s.dir);
     });
   }
@@ -314,6 +330,7 @@ export class IncantationRunner {
     const explode = (shot: Shot, at: THREE.Vector3): void => {
       const area: HitArea = { kind: 'circle', radius: pp.explodeRadius, offset: 0 };
       vfx.orbBurst(at, Math.max(0.8, pp.explodeRadius * 0.6), s.palette);
+      this.ctx.onFx?.({ kind: 'explode', at: at.clone(), radius: pp.explodeRadius });
       vfx.shockwave(new THREE.Vector3(at.x, incanter.feetY, at.z), pp.explodeRadius, s.palette);
       this.hitArea(s, area, at, shot.dir, shot.hit);
       shot.alive = false;
@@ -472,6 +489,7 @@ export class IncantationRunner {
       const hand = incanter.physicsPosition.clone();
       hand.y += 0.3;
       vfx.bolt(hand, chest(primary), s.palette, 0.07);
+      this.ctx.onFx?.({ kind: 'zap', at: chest(primary) });
       this.strike(s, primary, incanter.physicsPosition);
       // Area shapes splash around each link.
       const links: Enemy[] = [primary];
@@ -510,6 +528,7 @@ export class IncantationRunner {
           landed++;
           const me = incanter.physicsPosition;
           vfx.shockwave(new THREE.Vector3(me.x, incanter.feetY, me.z), radius, s.palette);
+          this.ctx.onFx?.({ kind: 'pulse', at: me.clone(), radius, shape: plan.shape });
           this.hitArea(s, plan.area, me, s.dir);
         }
         return t >= bp.duration || !incanter.alive;
@@ -529,6 +548,7 @@ export class IncantationRunner {
     const { plan } = s;
     const dp = plan.dash!;
     incanter.dash(s.dir, dp.distance, dp.duration);
+    this.ctx.onFx?.({ kind: 'dash' });
     const start = incanter.physicsPosition.clone();
     const last = start.clone();
     const pathHit = new Set<Enemy>();
@@ -556,6 +576,7 @@ export class IncantationRunner {
         while (t >= dp.duration && finishers < plan.hits - 1 && t >= plan.delay + finishers * plan.interval) {
           finishers++;
           vfx.shapeHit(plan.shape, plan.area, now, s.yaw, incanter.feetY, s.palette, finishers % 2 === 0);
+          this.ctx.onFx?.({ kind: 'pulse', at: now.clone(), radius: areaRadius(plan.area), shape: plan.shape });
           this.hitArea(s, plan.area, now, s.dir);
         }
         return t >= dp.duration && finishers >= plan.hits - 1;

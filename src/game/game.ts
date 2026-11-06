@@ -21,7 +21,12 @@ import { judge } from '../arbiter/arbiter';
 import { Vfx } from '../vfx/presets';
 import { PostFx } from '../vfx/bloom';
 import { CastHud } from '../ui/castHud';
-import { Gate, chooseGateSpot, rayClearance } from './gate';
+import { DamageNumbers } from '../ui/damageNumbers';
+import { sfx, type SoundId } from '../audio/sfx';
+import { drainCombat } from '../combat/events';
+import type { CastFx } from '../combat/incantationRunner';
+import { AdaptiveQuality, QUALITY_LEVELS, SEVERE_FRAME_MS, type QualityLevel } from './quality';
+import { Gate, GATE_STONE, chooseGateSpot, rayClearance } from './gate';
 import { INCANTER_CENTER_Y } from './player';
 
 /** Longest frame we simulate; avoids a "spiral of death" after a tab switch or hitch. */
@@ -70,7 +75,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
 
   // No default-framebuffer MSAA: the bloom composer renders the scene with its own multisampling.
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, stencil: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const basePixelRatio = (): number => Math.min(window.devicePixelRatio, 2);
+  renderer.setPixelRatio(basePixelRatio());
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   // The bloom composer renders several passes; count the whole frame, not just the last pass.
@@ -108,6 +114,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         }
         enemies = spawned;
         hadEnemies = spawned.length > 0;
+        // Enemy models arrive after the floor: compile their shaders before they're first drawn in a fight.
+        void precompile();
         clearedShown = false;
         // Nothing to fight on this floor: the way on is open from the start.
         if (!hadEnemies) openGate();
@@ -121,8 +129,104 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
 
   // Incantations: runner (logic), VFX presets, bloom, HUD.
   const vfx = new Vfx(scene);
-  const runner = new IncantationRunner({ world, incanter, vfx });
+  // Positional sound: panned by where it is on screen, quieter further from the Incanter.
+  const soundAt = (id: SoundId, at?: { x: number; y: number; z: number }, gain = 1): void => {
+    if (!at) return sfx.play(id, { volume: gain });
+    const p = new THREE.Vector3(at.x, at.y, at.z).project(cam.camera);
+    const d = Math.hypot(at.x - incanter.physicsPosition.x, at.z - incanter.physicsPosition.z);
+    sfx.play(id, { pan: Math.max(-1, Math.min(1, p.x)) * 0.7, volume: gain * Math.max(0.25, Math.min(1, 1.2 - d / 25)) });
+  };
+  const ELEMENT_ACCENT: Partial<Record<IncantationSpec['element'], SoundId>> = { ice: 'ice', lightning: 'zap', wind: 'wind', light: 'light', shadow: 'shadow' };
+  /** Spell feedback: sound, screen shake, FOV kick. Bigger effects shake more. */
+  const onFx = (e: CastFx): void => {
+    switch (e.kind) {
+      case 'cast': {
+        soundAt('cast');
+        const accent = ELEMENT_ACCENT[e.spec.element];
+        if (accent) soundAt(accent, undefined, 0.8);
+        if (e.spec.type === 'area' || e.spec.type === 'beam') cam.kick(1.5);
+        break;
+      }
+      case 'hit':
+        soundAt('hit', e.at, 0.8);
+        break;
+      case 'explode':
+        soundAt('explode', e.at);
+        cam.shake(0.1 + e.radius * 0.025);
+        break;
+      case 'pulse':
+        if (e.shape === 'slash' || e.shape === 'thrust' || e.shape === 'line') soundAt('swing', e.at);
+        else {
+          soundAt(e.radius >= 3 ? 'slam' : 'swing', e.at, e.radius >= 3 ? 0.7 : 1);
+          if (e.radius >= 3) cam.shake(0.05 + e.radius * 0.015);
+        }
+        break;
+      case 'zap':
+        soundAt('zap', e.at, 0.7);
+        break;
+      case 'dash':
+        soundAt('dodge');
+        cam.kick(6);
+        break;
+    }
+  };
+  const runner = new IncantationRunner({ world, incanter, vfx, onFx });
   const postFx = new PostFx(renderer, scene, cam.camera);
+  /**
+   * Compile shaders for everything now in the scene, in the background where supported.
+   * compileAsync does its target-dependent work synchronously when called, so the render target
+   * is swapped only around that call and never while a frame is drawing.
+   */
+  async function precompile(cleanup?: () => void): Promise<void> {
+    const previous = renderer.getRenderTarget();
+    renderer.setRenderTarget(postFx.sceneTarget);
+    let pending: Promise<unknown>;
+    try {
+      pending = renderer.compileAsync(scene, cam.camera);
+    } finally {
+      renderer.setRenderTarget(previous);
+    }
+    await pending.catch((err: unknown) => console.warn('Shader precompile failed; shaders will compile on first use.', err));
+    cleanup?.();
+  }
+
+  /**
+   * Draw hidden copies of every effect material for a few frames. Some drivers (e.g. ANGLE on
+   * Direct3D 12) build each shader's GPU pipeline only at its first real draw, for the current
+   * buffer format and MSAA level, which costs hundreds of ms per shader. Doing it now (start
+   * screen, behind a floor change, right after a quality change) keeps it out of fights.
+   */
+  let warmFrames = 0;
+  let removeWarm: (() => void) | undefined;
+  function warmEffects(frames = 3): void {
+    removeWarm ??= vfx.addPrewarmMeshes([GATE_STONE]);
+    warmFrames = Math.max(warmFrames, frames);
+  }
+
+  // Adaptive quality: full quality first, stepping down if the GPU can't hold ~50 fps.
+  // Dev only: ?quality=0…4 pins a level (for profiling).
+  const pinned = import.meta.env.DEV ? new URLSearchParams(location.search).get('quality') : null;
+  const quality = new AdaptiveQuality(pinned === null);
+  let pendingQuality: QualityLevel | undefined;
+  const applyQuality = (q: QualityLevel): void => {
+    warmEffects(); // a new MSAA level means new GPU pipelines for every shader
+    postFx.setSamples(q.samples);
+    renderer.setPixelRatio(basePixelRatio() * q.resolution);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    postFx.setSize(window.innerWidth, window.innerHeight);
+    if (import.meta.env.DEV) console.info(`render quality: ${q.label}`);
+  };
+  if (pinned !== null) {
+    quality.level = Math.max(0, Math.min(QUALITY_LEVELS.length - 1, Number(pinned) || 0));
+    applyQuality(quality.current);
+  }
+
+  // Compile every shader the first floor and the effects need before the first frame, in the
+  // background where the browser supports parallel compilation (KHR_parallel_shader_compile), so
+  // the first frame doesn't freeze the page and no cast compiles mid-fight. Compiled against the
+  // bloom pass's scene buffer: shaders compile per render target, and the screen's would differ.
+  await precompile(vfx.addPrewarmMeshes([GATE_STONE]));
+  warmEffects();
   const castHud = new CastHud(hud);
   let bar: readonly (IncantationSpec | undefined)[] = [];
   const hooks: GameHooks = {};
@@ -135,6 +239,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     const me = incanter.physicsPosition;
     const spot = chooseGateSpot(me, rayClearance(world, me), Math.atan2(incanter.aimPoint.x - me.x, incanter.aimPoint.z - me.z));
     gate = new Gate(scene, vfx, spot, me.y - INCANTER_CENTER_Y);
+    sfx.play('gate');
+    cam.shake(0.25);
     hooks.onGateOpen?.();
   }
   function closeGate(): void {
@@ -147,12 +253,20 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     runner.setTargets(enemies);
     const outcome = runner.cast(spec);
     if (outcome.ok) castHud.pulse(spec.name);
-    else castHud.say(outcome.message);
+    else {
+      castHud.say(outcome.message);
+      if (outcome.reason !== 'dead') sfx.play('refuse');
+      if (outcome.reason === 'mana') castHud.manaShort();
+    }
     return outcome;
   };
 
   const basicAttack = new BasicAttack(scene);
-  incanter.onBasicAttack = (e) => basicAttack.resolve(e, enemies);
+  incanter.onBasicAttack = (e) => {
+    sfx.play('swing');
+    if (basicAttack.resolve(e, enemies) > 0) soundAt('hit', e.origin.clone().addScaledVector(e.direction, 1.5));
+  };
+  let wasDodging = false;
 
   const aimMarker = new THREE.Mesh(
     new THREE.RingGeometry(0.25, 0.35, 24),
@@ -182,6 +296,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         castCached: (i: number) => castIncantation(judge(CACHED_INCANTATIONS[i % CACHED_INCANTATIONS.length]).incantation),
         mana: () => runner.resources.mana,
         refill: () => runner.resources.reset(),
+        /** Damage the Incanter (checks hurt feedback). */
+        hurt: (n: number) => incanter.takeHit(n, incanter.physicsPosition.clone().add(new THREE.Vector3(1, 0, 0)), 2),
         /** Defeat every enemy (opens the gate). */
         killAll: () => {
           for (const e of enemies) e.takeHit(1e6, e.physicsPosition, 0);
@@ -204,10 +320,12 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   }
 
   const healthBars = new HealthBars(hud);
+  const damageNumbers = new DamageNumbers(hud);
   const debug = new DebugOverlay(hud);
 
   window.addEventListener('resize', () => {
     cam.setAspect(window.innerWidth / window.innerHeight);
+    renderer.setPixelRatio(basePixelRatio() * quality.current.resolution);
     renderer.setSize(window.innerWidth, window.innerHeight);
     postFx.setSize(window.innerWidth, window.innerHeight);
   });
@@ -226,8 +344,17 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     renderer.info.reset();
     timer.update(time);
     const frozen = paused || loading;
-    const dt = frozen ? 0 : Math.min(timer.getDelta(), MAX_FRAME);
-    if (frozen) timer.getDelta(); // keep the clock moving so unpausing doesn't jump
+    const rawDt = timer.getDelta(); // also keeps the clock moving while frozen, so unpausing doesn't jump
+    const dt = frozen ? 0 : Math.min(rawDt, MAX_FRAME);
+    // Measure on the start screen too (the scene still renders): changes made there are invisible.
+    if (loading) quality.reset();
+    else if (!pendingQuality) {
+      const next = quality.sample(rawDt);
+      if (next) {
+        if (paused || quality.lastMedian > SEVERE_FRAME_MS) applyQuality(next);
+        else pendingQuality = next; // applied behind the next floor-change curtain
+      }
+    }
     accumulator += dt;
 
     if (!frozen) {
@@ -280,6 +407,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       clearedShown = true;
       clearedTimer = CLEARED_BANNER_TIME;
       healthBars.showBanner('Floor cleared: a gate opens');
+      sfx.play('cleared');
       openGate();
     }
     if (clearedTimer > 0) {
@@ -302,7 +430,27 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         else hooks.onGateLeave?.();
       }
     }
-    cam.update(incanter.position, dt);
+    // Feedback from this frame's combat: damage numbers, hurt flash, deaths.
+    for (const ev of drainCombat()) {
+      if (ev.kind === 'damage') {
+        damageNumbers.show(ev.at, ev.amount, { player: ev.target === 'player', ...(ev.color ? { color: ev.color } : {}), ...(ev.overTime ? { overTime: true } : {}) });
+        if (ev.target === 'player') {
+          healthBars.hurt();
+          sfx.play('hurt');
+          cam.shake(Math.min(0.45, 0.18 + ev.amount / 60));
+        }
+      } else {
+        soundAt(ev.archetype === 'tank' || ev.archetype === 'boss' ? 'bigDeath' : 'death', ev.at);
+      }
+    }
+    if (incanter.isDodging && !wasDodging) {
+      sfx.play('dodge');
+      cam.kick(3);
+    }
+    wasDodging = incanter.isDodging;
+
+    cam.update(incanter.position, dt, incanter.alive ? incanter.aimPoint : undefined);
+    damageNumbers.update(dt, cam.camera);
     vfx.update(dt, cam.camera, renderer.domElement.height);
 
     aimMarker.position.set(incanter.aimPoint.x, incanter.aimPoint.y + 0.02, incanter.aimPoint.z);
@@ -312,6 +460,10 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     floor.sun.target.position.copy(incanter.position);
 
     postFx.render(dt);
+    if (removeWarm && --warmFrames <= 0) {
+      removeWarm();
+      removeWarm = undefined;
+    }
     input.endFrame();
 
     healthBars.update(enemies, incanter.health, cam.camera, incanter.position);
@@ -322,17 +474,24 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       renderer,
       `${floor.spec.name} · ${incanter.isGrounded ? 'grounded' : 'airborne'} · dodge ${incanter.dodgeReady ? 'ready' : 'cooling'}\n` +
         `enemies ${alive.length}: ${alive.map((e) => `${e.profile.label}:${e.state}${e.status.dominant !== 'none' ? `(${e.status.dominant})` : ''}`).join(' ')}\n` +
-        `mana ${Math.floor(runner.resources.mana)} · casts ${runner.activeCasts} · fx ${vfx.activeEffects} · particles ${vfx.particles.count}`,
+        `mana ${Math.floor(runner.resources.mana)} · casts ${runner.activeCasts} · fx ${vfx.activeEffects} · particles ${vfx.particles.count}\n` +
+        `quality ${quality.current.label}`,
     );
   });
 
   return {
     setPaused(p) {
       paused = p;
+      quality.reset();
+      if (pendingQuality) applyQuality(pendingQuality);
+      pendingQuality = undefined;
       input.clear();
     },
     async loadFloor(spec) {
       loading = true;
+      quality.reset();
+      if (pendingQuality) applyQuality(pendingQuality);
+      pendingQuality = undefined;
       try {
         generation++; // drop any spawn still in flight for the old floor
         for (const e of enemies) e.dispose();
@@ -356,6 +515,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         incanter.setSpawn(floor.spawn);
         world.step(); // update the query pipeline before spawn checks
         cam.snapTo(incanter.position);
+        warmEffects(); // behind the curtain
         spawnFor(floor);
       } finally {
         loading = false;

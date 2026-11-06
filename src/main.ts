@@ -17,6 +17,8 @@ import { GrimoirePanel } from './ui/grimoirePanel';
 import { ReshapeTransition } from './ui/transition';
 import { GatePrompt } from './ui/gatePrompt';
 import { Narrator } from './voice/narrator';
+import { sfx } from './audio/sfx';
+import { SoundToggle } from './ui/soundToggle';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const hud = document.querySelector<HTMLElement>('#hud');
@@ -31,6 +33,12 @@ if (canvas && hud) {
   let router: CommandRouter | undefined;
   const inGame = (): boolean => !!startScreen && !startScreen.visible;
   const narrator = new Narrator();
+  // One switch for all audio: sound effects and the Arbiter's voice.
+  narrator.setMuted(sfx.isMuted);
+  // Browsers allow audio only after a user gesture: unlock on the first one (start screen).
+  const unlockAudio = (): void => sfx.unlock();
+  window.addEventListener('pointerdown', unlockAudio);
+  window.addEventListener('keydown', unlockAudio);
 
   const speech = new SpeechInput({
     onState(state) {
@@ -96,6 +104,11 @@ if (canvas && hud) {
   };
   for (const j of TEST_INCANTATIONS) grimoire.add(j);
   const reshape = new ReshapeTransition(hud);
+  new SoundToggle(hud, sfx.isMuted, () => {
+    const muted = sfx.toggleMuted();
+    narrator.setMuted(muted);
+    return muted;
+  });
   const gatePrompt = new GatePrompt(hud, speech.supported);
   /** Show and speak an Arbiter line. */
   const arbiter = (text: string): void => {
@@ -122,13 +135,20 @@ if (canvas && hud) {
       currentFloor: () => g.currentFloor(),
       loadFloor: (spec) => g.loadFloor(spec),
       cast: (spec) => g.castIncantation(spec),
-      showGrimoire: (open) => grimoirePanel.show(open),
+      showGrimoire: (open) => {
+        if (open !== grimoirePanel.visible) sfx.play(open ? 'open' : 'close');
+        grimoirePanel.show(open);
+      },
+      sound: (id) => sfx.play(id),
       onRecite: (name, ms, fromInterim) => {
         if (import.meta.env.DEV) console.debug(`recite ${name}: ${ms.toFixed(1)} ms${fromInterim ? ' (interim)' : ''}`);
       },
       say: (text) => transcript?.add('spire', text),
       speak: (text) => narrator.speak(text),
-      reshape: (on, subtitle) => (on ? reshape.show(subtitle) : reshape.hide()),
+      reshape: (on, subtitle) => {
+        if (on && !reshape.visible) sfx.play('reshape');
+        return on ? reshape.show(subtitle) : reshape.hide();
+      },
       atGate: () => g.atGate(),
       onFloorBuilt: (name, ms) => {
         if (import.meta.env.DEV) console.debug(`floor ${name}: ${(ms / 1000).toFixed(2)} s from words to playable`);

@@ -33,6 +33,8 @@ export interface RouterDeps {
   reshape?(on: boolean, subtitle?: string): Promise<void> | void;
   /** Is the Incanter standing in the open gate? Then words describe the next floor. */
   atGate?(): boolean;
+  /** UI sounds: a chime on forging and refining. */
+  sound?(id: 'forge' | 'refine'): void;
   /** Timing hook for the floor budget (< 10 s from words to a playable floor). */
   onFloorBuilt?(name: string, ms: number): void;
   showGrimoire(open: boolean): void;
@@ -271,6 +273,7 @@ export class CommandRouter {
       const j = refined ? this.deps.grimoire.replace(refined.name, judged) : this.deps.grimoire.add(judged);
       this.syncNames();
       if (r.reply) this.deps.say(r.reply);
+      this.deps.sound?.(refined ? 'refine' : 'forge');
       const slot = this.deps.grimoire.bar.indexOf(j) + 1;
       const where = slot > 0 ? ` [${slot}]` : '';
       const verb = refined ? (refined.name === j.incantation.name ? 'Reshaped' : `Reshaped ${refined.name} into`) : 'Forged';

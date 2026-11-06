@@ -347,9 +347,16 @@ export class Enemy {
     const status = this.alive ? this.status.dominant : 'none';
     this.visual.update(status === 'freeze' ? 0 : dt); // frozen solid: animation stops
 
-    // Hit flash, else a status tint (burn flickers, stun pulses).
-    if (this.hitFlash > 0) {
-      for (const m of this.visual.materials) m.emissive.setRGB(0.6, 0.6, 0.6);
+    // Impact squash: wide and short on the hit, springing back as the flash fades.
+    const punch = this.hitFlash / HIT_FLASH;
+    this.visual.object.scale.set(1 + 0.18 * punch, 1 - 0.16 * punch, 1 + 0.18 * punch);
+
+    // Hit flash, else a status tint (burn flickers, stun pulses). The dead fade into a glow as they sink.
+    if (this.state === 'dead') {
+      const k = Math.min(1, this.deadTime / CORPSE_SINK_AFTER);
+      for (const m of this.visual.materials) m.emissive.setRGB(0.55 * k, 0.4 * k, 0.9 * k);
+    } else if (this.hitFlash > 0) {
+      for (const m of this.visual.materials) m.emissive.setRGB(0.6 + 0.4 * punch, 0.6 + 0.4 * punch, 0.6 + 0.4 * punch);
     } else if (status !== 'none' && status !== 'heal' && status !== 'knockback') {
       const tint = STATUS_TINT[status];
       const now = performance.now() / 1000;

@@ -351,6 +351,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   /** True while a floor is being swapped: render, but don't simulate. */
   let loading = false;
   let reviveTimer = 0;
+  /** Seconds of hit-stop left (time nearly frozen after a heavy hit or a kill). */
+  let hitStop = 0;
   let clearedTimer = 0;
 
   renderer.setAnimationLoop((time) => {
@@ -358,7 +360,10 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     timer.update(time);
     const frozen = paused || loading;
     const rawDt = timer.getDelta(); // also keeps the clock moving while frozen, so unpausing doesn't jump
-    const dt = frozen ? 0 : Math.min(rawDt, MAX_FRAME);
+    // During hit-stop the world crawls at 5% speed (the HUD and camera still run on rawDt).
+    const stopped = hitStop > 0;
+    hitStop = Math.max(0, hitStop - rawDt);
+    const dt = frozen ? 0 : Math.min(rawDt, MAX_FRAME) * (stopped ? 0.05 : 1);
     // Measure on the start screen too (the scene still renders): changes made there are invisible.
     if (loading) quality.reset();
     else if (!pendingQuality) {
@@ -452,8 +457,14 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
           sfx.play('hurt');
           cam.shake(Math.min(0.45, 0.18 + ev.amount / 60));
         }
+        // Hit-stop: a heavy blow freezes time for a few frames.
+        else if (ev.amount >= 25 && !ev.overTime) hitStop = Math.max(hitStop, 0.045);
       } else {
-        soundAt(ev.archetype === 'tank' || ev.archetype === 'boss' ? 'bigDeath' : 'death', ev.at);
+        const big = ev.archetype === 'tank' || ev.archetype === 'boss';
+        soundAt(big ? 'bigDeath' : 'death', ev.at);
+        vfx.deathBurst(new THREE.Vector3(ev.at.x, ev.at.y, ev.at.z), ev.archetype === 'boss' ? '#ff5ad0' : '#a98bff', big);
+        hitStop = Math.max(hitStop, ev.archetype === 'boss' ? 0.25 : big ? 0.1 : 0.06);
+        if (big) cam.shake(0.35);
       }
     }
     if (incanter.isDodging && !wasDodging) {

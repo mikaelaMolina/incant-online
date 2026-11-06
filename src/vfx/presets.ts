@@ -216,6 +216,20 @@ export class Vfx {
     this.particles.emit(p.particles, centre, { count: Math.round(14 + radius * 8), color: p.primary, spread: radius * 0.5, speedScale: 1.4 });
   }
 
+  /** A defeated enemy: a burst of motes and a soul-wisp column rising out of it. */
+  deathBurst(at: THREE.Vector3, color: THREE.ColorRepresentation, big = false): void {
+    const c = new THREE.Color(color);
+    const ring = new THREE.Mesh(GEO.ring, glowMaterial(c, 2.2, 0.9));
+    ring.position.set(at.x, at.y - 1.1, at.z);
+    const r = big ? 4 : 2;
+    this.add(ring, [ring.material], 0.45, (t) => {
+      ring.scale.setScalar(0.3 + r * Math.sqrt(t));
+      ring.material.opacity = 0.9 * (1 - t);
+    });
+    this.particles.emit('motes', at, { count: big ? 70 : 28, color: c, spread: 0.5, speedScale: big ? 2.2 : 1.5 });
+    this.particles.emit('motes', at, { count: big ? 30 : 12, color: c, spread: 0.2, speedScale: 0.6, velocity: new THREE.Vector3(0, 4, 0) });
+  }
+
   /** Small flash where a hit lands. */
   impact(at: THREE.Vector3, p: Palette): void {
     const flash = new THREE.Mesh(GEO.sphere, glowMaterial(p.core, p.glow * 1.2, 1));

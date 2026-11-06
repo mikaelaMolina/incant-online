@@ -76,3 +76,16 @@ describe('enemy state machine', () => {
     expect(nextState('dead', see(), params, fresh())).toBe('dead');
   });
 });
+
+describe('hunting (no idle stragglers)', () => {
+  const B = { aggroRange: 10, leashRange: 18, attackRange: 2, attackDuration: 1, fleeThreshold: 0.25, fleeDuration: 3 };
+  const base = { distToPlayer: 40, playerAlive: true, canSeePlayer: false, hpFraction: 1, attackReady: true, timeInState: 0, provoked: false };
+  it('a hunting enemy wakes from any distance and never gives up the chase', () => {
+    expect(nextState('idle', { ...base, hunting: true }, B, { hasFled: false })).toBe('chase');
+    expect(nextState('chase', { ...base, hunting: true }, B, { hasFled: false })).toBe('chase');
+    expect(nextState('chase', { ...base }, B, { hasFled: false })).toBe('idle');
+  });
+  it('a fleeing enemy turns back before it is out of reach', () => {
+    expect(nextState('flee', { ...base, distToPlayer: 15, timeInState: 1 }, B, { hasFled: true })).toBe('chase');
+  });
+});

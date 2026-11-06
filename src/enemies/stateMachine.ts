@@ -17,6 +17,11 @@ export interface Perception {
   timeInState: number;
   /** Took damage this step (wakes idle enemies regardless of range). */
   provoked: boolean;
+  /**
+   * Hunting: the last enemies of a floor (and any that already fled) come for the Incanter from
+   * anywhere, so nobody is left standing idle at the far end of the map.
+   */
+  hunting?: boolean;
 }
 
 export interface BehaviourParams {
@@ -41,12 +46,12 @@ export function nextState(state: EnemyState, p: Perception, b: BehaviourParams, 
   if (p.hpFraction <= 0) return 'dead';
 
   const shouldFlee = !mem.hasFled && b.fleeThreshold > 0 && p.hpFraction <= b.fleeThreshold;
-  const lostPlayer = !p.playerAlive || p.distToPlayer > b.leashRange;
+  const lostPlayer = !p.playerAlive || (!p.hunting && p.distToPlayer > b.leashRange);
 
   switch (state) {
     case 'idle':
       if (!p.playerAlive) return 'idle';
-      if (p.provoked) return 'chase';
+      if (p.provoked || p.hunting) return 'chase';
       // Notice the player in range if visible, or when very close even without sight.
       if (p.distToPlayer <= b.aggroRange && (p.canSeePlayer || p.distToPlayer <= b.aggroRange * 0.4)) return 'chase';
       return 'idle';
@@ -64,7 +69,7 @@ export function nextState(state: EnemyState, p: Perception, b: BehaviourParams, 
 
     case 'flee':
       if (!p.playerAlive) return 'idle';
-      if (p.timeInState >= b.fleeDuration || p.distToPlayer > b.leashRange) return 'chase';
+      if (p.timeInState >= b.fleeDuration || p.distToPlayer > b.leashRange * 0.8) return 'chase';
       return 'flee';
   }
 }

@@ -29,8 +29,10 @@ export async function spawnEnemies(
   models: ModelIndex,
   ctx: EnemyContext,
   spawns: Floor['spec']['spawns'] = floor.spec.spawns,
+  /** Keep spawns away from this point (the Incanter, for reinforcements); default the floor spawn. */
+  awayFrom: { x: number; z: number } = floor.spawn,
 ): Promise<Enemy[]> {
-  const rand = seeded(floor.spec.name);
+  const rand = seeded(floor.spec.name + spawns.length + Math.round(awayFrom.x) + Math.round(awayFrom.z));
   const half = floor.halfExtent - 2;
   const enemies: Enemy[] = [];
   const taken: THREE.Vector3[] = [];
@@ -47,7 +49,7 @@ export async function spawnEnemies(
 
     const isClear = (p: THREE.Vector3): boolean => {
       if (Math.abs(p.x) > half || Math.abs(p.z) > half) return false;
-      if (Math.hypot(p.x - floor.spawn.x, p.z - floor.spawn.z) < MIN_SPAWN_DISTANCE) return false;
+      if (Math.hypot(p.x - awayFrom.x, p.z - awayFrom.z) < MIN_SPAWN_DISTANCE) return false;
       if (taken.some((t) => t.distanceTo(p) < profile.radius * 2 + 0.6)) return false;
       // Lift the test capsule clear of the ground collider (its bottom sits ~0.2 m up).
       const hit = ctx.world.intersectionWithShape(

@@ -81,7 +81,7 @@ export function preloadEnemyModels(entries: ManifestModel[]): Promise<unknown> {
 export async function createEnemyVisual(entry: ManifestModel | undefined, profile: ArchetypeProfile): Promise<EnemyVisual> {
   if (entry?.format === 'fbx') {
     try {
-      return fromTemplate(await loadTemplate(entry), profile);
+      return fromTemplate(await loadTemplate(entry), profile, entry.id);
     } catch (err) {
       console.warn(`Enemy model ${entry.id} failed to load; using a placeholder.`, err);
     }
@@ -98,9 +98,21 @@ export function pickClip(clips: THREE.AnimationClip[], patterns: string[]): THRE
   return undefined;
 }
 
-function fromTemplate(t: Template, profile: ArchetypeProfile): EnemyVisual {
+/**
+ * Visual size per model relative to the archetype height: squat, wide creatures look far bigger
+ * than tall ones at the same height. Hitboxes are unchanged.
+ */
+const MODEL_SIZE: Record<string, number> = {
+  'monster.ghost': 0.72,
+  'monster.crab': 0.7,
+  'monster.skull': 0.8,
+  'monster.cactus': 0.92,
+  'monster.greendemon': 0.9,
+};
+
+function fromTemplate(t: Template, profile: ArchetypeProfile, id = ''): EnemyVisual {
   const model = SkeletonUtils.clone(t.root) as THREE.Group;
-  const s = profile.height / t.height;
+  const s = (profile.height * (MODEL_SIZE[id] ?? 1)) / t.height;
   model.scale.setScalar(s);
   model.position.y = -t.minY * s;
 

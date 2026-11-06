@@ -161,6 +161,20 @@ export class Enemy {
     return this.currPos;
   }
 
+  /** Seconds the last moves were mostly blocked (by a prop); triggers a sidestep. */
+  private stuckTime = 0;
+  /** Sidestep around an obstacle: seconds left and which way (+1 left / -1 right). */
+  private detourTimer = 0;
+  private detourSide = Math.random() < 0.5 ? 1 : -1;
+
+  /** Set by the game for a floor's last enemies: they come for the Incanter from anywhere. */
+  hunting = false;
+
+  /** A pack-mate started fighting nearby: wake up and join in. */
+  alert(): void {
+    if (this.alive && this.state === 'idle') this.provoked = true;
+  }
+
   /** Called by the Incanter's attacks. */
   takeHit(amount: number, from: THREE.Vector3, knockback: number, color?: string): void {
     if (!this.alive) return;
@@ -249,6 +263,7 @@ export class Enemy {
         attackReady: this.attackCooldown <= 0,
         timeInState: this.timeInState,
         provoked: this.provoked,
+        hunting: this.hunting || this.mem.hasFled,
       },
       this.params,
       this.mem,
@@ -312,6 +327,22 @@ export class Enemy {
     }
     this.facing.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
 
+    // Blocked by a prop while chasing or fleeing: slide sideways around it for a moment.
+    this.detourTimer = Math.max(0, this.detourTimer - dt);
+    if (speed > 0 && (this.state === 'chase' || this.state === 'flee')) {
+      if (this.stuckTime > 0.3 && this.detourTimer === 0) {
+        this.detourTimer = 0.7;
+        this.detourSide = -this.detourSide; // try the other way if the last one failed
+        this.stuckTime = 0;
+      }
+      if (this.detourTimer > 0) {
+        const a = this.detourSide * 1.3; // ~75°
+        const c = Math.cos(a);
+        const sn = Math.sin(a);
+        move.set(move.x * c + move.z * sn, 0, -move.x * sn + move.z * c);
+      }
+    }
+
     speed *= this.status.speedMultiplier; // slowed
     this.moveBy(move.x, move.z, speed, dt);
 
@@ -331,6 +362,12 @@ export class Enemy {
     });
     const m = this.controller.computedMovement();
     this.grounded = this.controller.computedGrounded();
+    // How much of the wanted movement happened: little means a prop is in the way.
+    const wanted = speed * dt;
+    if (wanted > 0.5 * dt) {
+      const got = (m.x * dirX + m.z * dirZ) / wanted;
+      this.stuckTime = got < 0.35 ? this.stuckTime + dt : Math.max(0, this.stuckTime - dt * 2);
+    } else this.stuckTime = 0;
     const t = this.body.translation();
     this.body.setNextKinematicTranslation({ x: t.x + m.x, y: t.y + m.y, z: t.z + m.z });
   }

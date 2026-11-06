@@ -90,8 +90,14 @@ export function bossNameFor(biome: FloorSpec['biome']): string {
  */
 export function spawnsForFloor(spec: FloorSpec, floor: number, bossModel = monsterFor(spec.biome, 'boss')): FloorSpec['spawns'] {
   const s = floorScale(floor);
+  // Higher floors are busier too: +20% enemies per floor, and at least 3 melee from floor 2.
+  const more = 1 + 0.2 * Math.max(0, floor - 1);
   const scaled = spec.spawns.map((g) => ({
     ...g,
+    count:
+      g.enemy.archetype === 'boss' || floor === 1
+        ? g.count
+        : Math.max(g.enemy.archetype === 'melee' ? 3 : 1, Math.ceil(g.count * more)),
     enemy: { ...g.enemy, hp: Math.round(g.enemy.hp * s.hp), damage: Math.round(g.enemy.damage * s.damage) },
   }));
   if (!isBossFloor(floor) || scaled.some((g) => g.enemy.archetype === 'boss')) return scaled;
@@ -123,4 +129,31 @@ const BIOME_LINES: Record<FloorSpec['biome'], string> = {
 /** Title-card subtitle for a floor. */
 export function floorSubtitle(biome: FloorSpec['biome'], boss: boolean): string {
   return boss ? `${BIOME_LINES[biome]}. A guardian waits.` : BIOME_LINES[biome];
+}
+
+/**
+ * Split a floor's spawns into waves. Wave 1 is the floor as described; then reinforcements
+ * (fewer, and they hunt the Incanter) so a floor ends in a rush instead of a search. On a floor
+ * with a boss, the boss arrives last with a small escort.
+ */
+export function planWaves(spawns: FloorSpec['spawns'], floor: number): FloorSpec['spawns'][] {
+  const bosses = spawns.filter((g) => g.enemy.archetype === 'boss');
+  const minions = spawns.filter((g) => g.enemy.archetype !== 'boss');
+  if (minions.length === 0) return bosses.length ? [bosses] : [];
+  const waves: FloorSpec['spawns'][] = [minions];
+  const reinforce = minions
+    .filter((g) => floor >= 2 || g.enemy.archetype !== 'tank')
+    .map((g) => ({ ...g, count: Math.max(1, Math.round(g.count * (floor >= 2 ? 0.8 : 0.6))) }));
+  if (bosses.length) {
+    const escort = reinforce.filter((g) => g.enemy.archetype === 'melee').map((g) => ({ ...g, count: Math.min(2, g.count) }));
+    waves.push([...escort, ...bosses]);
+  } else if (reinforce.length) {
+    waves.push(reinforce);
+    // From floor 4 a last, smaller rush of the quick ones (no tanks) closes the floor.
+    if (floor >= 4) {
+      const rush = reinforce.filter((g) => g.enemy.archetype !== 'tank').map((g) => ({ ...g, count: Math.max(1, Math.ceil(g.count * 0.6)) }));
+      if (rush.length) waves.push(rush);
+    }
+  }
+  return waves;
 }

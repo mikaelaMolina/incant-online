@@ -49,3 +49,24 @@ describe('spawnsForFloor', () => {
     expect(bosses[0]!.enemy.id.length).toBeGreaterThan(3);
   });
 });
+
+describe('planWaves', () => {
+  it('a normal floor has the described enemies, then fewer reinforcements', async () => {
+    const { planWaves } = await import('./progression');
+    const waves = planWaves(STARTING_ARENA.spawns, 1);
+    expect(waves).toHaveLength(2);
+    const total = (w: (typeof waves)[number]) => w.reduce((a, g) => a + g.count, 0);
+    expect(total(waves[1]!)).toBeLessThan(total(waves[0]!));
+    expect(waves[1]!.some((g) => g.enemy.archetype === 'tank')).toBe(false); // no tank reinforcements on floor 1
+  });
+  it('the boss arrives in the last wave', async () => {
+    const { planWaves } = await import('./progression');
+    const waves = planWaves(spawnsForFloor(STARTING_ARENA, 3), 3);
+    expect(waves[0]!.some((g) => g.enemy.archetype === 'boss')).toBe(false);
+    expect(waves.at(-1)!.some((g) => g.enemy.archetype === 'boss')).toBe(true);
+  });
+  it('a peaceful floor has no waves', async () => {
+    const { planWaves } = await import('./progression');
+    expect(planWaves([], 2)).toEqual([]);
+  });
+});

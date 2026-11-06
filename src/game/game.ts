@@ -4,8 +4,10 @@ import { Input } from './input';
 import { FollowCamera } from './camera';
 import { loadIncanterModel } from './incanterModel';
 import { Incanter } from './player';
-import { Progression, XP_FOR, floorSubtitle, spawnsForFloor, xpToNext } from './progression';
+import { Progression, XP_FOR, floorSubtitle, planWaves, spawnsForFloor, xpToNext } from './progression';
+import { preloadEnemyModels } from '../enemies/enemyModel';
 import { UnitFrame } from '../ui/unitFrame';
+import { OffscreenMarkers } from '../ui/offscreenMarkers';
 import { Pickups, type PickupKind } from './pickups';
 import { ProgressHud } from '../ui/progressHud';
 import { loadManifest, ModelIndex } from './assets';
@@ -128,18 +130,34 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   let clearedShown = false;
   /** Bumped on every floor change, so late spawns from an old floor are discarded. */
   let generation = 0;
-  const spawnFor = (f: Floor): void => {
-    const gen = ++generation;
-    spawnEnemies(f, models, { world, scene, player: incanter, projectiles }, spawnsForFloor(f.spec, progress.floor))
+  /** The floor's waves (see planWaves) and which one is in play. */
+  let waves: Floor['spec']['spawns'][] = [];
+  let waveIndex = 0;
+  let spawningWave = false;
+  const spawnWave = (f: Floor, gen: number): void => {
+    const reinforcements = waveIndex > 0;
+    spawningWave = true;
+    const me = incanter.physicsPosition;
+    spawnEnemies(f, models, { world, scene, player: incanter, projectiles }, waves[waveIndex] ?? [], reinforcements ? { x: me.x, z: me.z } : f.spawn)
       .then((spawned) => {
         if (gen !== generation) {
           for (const e of spawned) e.dispose();
           return;
         }
-        enemies = spawned;
-        hadEnemies = spawned.length > 0;
-        bossIntro = spawned.find((e) => e.spec.archetype === 'boss'); // announced by the main loop
-        bossIntroDelay = 3.4; // after the floor title card has faded
+        for (const e of spawned) {
+          // Reinforcements arrive in a burst of light and come straight for the Incanter.
+          if (reinforcements) {
+            e.hunting = true;
+            vfx.deathBurst(e.physicsPosition.clone().setY(e.physicsPosition.y + 1), '#8f6bff');
+          }
+        }
+        enemies = [...enemies, ...spawned];
+        hadEnemies = hadEnemies || spawned.length > 0;
+        const boss = spawned.find((e) => e.spec.archetype === 'boss');
+        if (boss) {
+          bossIntro = boss; // announced by the main loop
+          bossIntroDelay = reinforcements ? 0.3 : 3.4; // on a fresh floor, after the title card fades
+        }
         // Enemy models arrive after the floor: compile their shaders before they're first drawn in a fight.
         void precompile();
         clearedShown = false;
@@ -148,8 +166,17 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       })
       .catch((err: unknown) => console.warn('Enemies failed to spawn.', err))
       .finally(() => {
+        spawningWave = false;
         if (f.warnings.length) console.info(`Floor "${f.spec.name}":`, f.warnings);
       });
+  };
+  const spawnFor = (f: Floor): void => {
+    const gen = ++generation;
+    waves = planWaves(spawnsForFloor(f.spec, progress.floor), progress.floor);
+    waveIndex = 0;
+    // Load every wave's models now, so reinforcements never wait on a download mid-fight.
+    void preloadEnemyModels(waves.flat().map((g) => models.resolve(g.enemy.model, 'enemy')).filter((m) => m !== undefined));
+    spawnWave(f, gen);
   };
   spawnFor(floor);
 
@@ -355,6 +382,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   const healthBars = new HealthBars(hud);
   const progressHud = new ProgressHud(hud);
   const unitFrame = new UnitFrame(hud);
+  const offscreen = new OffscreenMarkers(hud);
   const showTitle = (): void => progressHud.titleCard(progress.floor, floor.spec.name, floorSubtitle(floor.spec.biome, progress.bossFloor));
   let titleShown = false;
   const showProgress = (): void => {
@@ -450,6 +478,21 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     }
     if (steps === MAX_STEPS) accumulator = 0;
 
+    // Packs fight together: a fighting enemy wakes idle ones near it. The last two of a wave hunt
+    // the Incanter from anywhere, so a floor never ends in a search for stragglers.
+    if (!frozen) {
+      let alive = 0;
+      for (const e of enemies) if (e.alive) alive++;
+      for (const e of enemies) {
+        if (!e.alive) continue;
+        if (alive <= 2) e.hunting = true;
+        if (e.state !== 'chase' && e.state !== 'attack') continue;
+        for (const o of enemies) {
+          if (o !== e && o.state === 'idle' && o.physicsPosition.distanceToSquared(e.physicsPosition) < 144) o.alert();
+        }
+      }
+    }
+
     // Remove corpses that have finished sinking.
     if (enemies.some((e) => e.gone)) {
       for (const e of enemies) if (e.gone) e.dispose();
@@ -473,7 +516,16 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         healthBars.showBanner(null);
         cam.snapTo(incanter.position);
       }
-    } else if (hadEnemies && !clearedShown && enemies.every((e) => !e.alive)) {
+    } else if (hadEnemies && !clearedShown && !spawningWave && enemies.every((e) => !e.alive) && waveIndex < waves.length - 1) {
+      // Next wave: a short beat, then reinforcements burst in around the Incanter.
+      waveIndex++;
+      const last = waveIndex === waves.length - 1;
+      const bossNext = waves[waveIndex]?.some((g) => g.enemy.archetype === 'boss');
+      healthBars.showBanner(bossNext ? 'The guardian stirs…' : last ? 'Final wave' : `Wave ${waveIndex + 1}`);
+      clearedTimer = 2;
+      sfx.play('gate');
+      spawnWave(floor, generation);
+    } else if (hadEnemies && !clearedShown && !spawningWave && enemies.every((e) => !e.alive)) {
       clearedShown = true;
       clearedTimer = CLEARED_BANNER_TIME;
       healthBars.showBanner('Floor cleared: a gate opens');
@@ -560,6 +612,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
 
     healthBars.update(enemies, incanter.health, cam.camera, incanter.position);
     progressHud.updateBoss(enemies);
+    offscreen.update(enemies, cam.camera);
     castHud.update(dt, runner.resources);
     const alive = enemies.filter((e) => e.alive);
     debug.update(

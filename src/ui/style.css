@@ -1257,3 +1257,29 @@ kbd {
     animation: none;
   }
 }
+
+/* --- Off-screen enemy markers ---------------------------------------------------------------- */
+.offscreen-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.offscreen-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 14px solid var(--accent, #ff5a4a);
+  filter: drop-shadow(0 0 4px var(--accent, #ff5a4a)) drop-shadow(0 1px 1px #000);
+  opacity: 0.9;
+}
+
+.offscreen-boss {
+  border-top-width: 13px;
+  border-bottom-width: 13px;
+  border-left-width: 22px;
+}

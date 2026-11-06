@@ -4,6 +4,7 @@ import type { Input } from './input';
 import type { FollowCamera } from './camera';
 import { Health } from '../combat/health';
 import { emitCombat } from '../combat/events';
+import type { IncanterModel, IncanterPose } from './incanterModel';
 
 const RADIUS = 0.35;
 const HALF_HEIGHT = 0.5; // cylindrical half-height; total height = 2 * (HALF_HEIGHT + RADIUS) = 1.7 m
@@ -86,6 +87,14 @@ export class Incanter {
   private readonly knock = new THREE.Vector3();
   private hitFlash = 0;
   private readonly staff: THREE.Mesh;
+  /** Animated body once loaded; until then (or if it fails) the placeholder capsule shows. */
+  private model: IncanterModel | undefined;
+  private readonly placeholderParts: THREE.Object3D[] = [];
+  /** One-shot animation requested by gameplay since the last frame. */
+  private pendingPose: { pose: IncanterPose; duration?: number } | undefined;
+  private wasDead = false;
+  private wasDodging = false;
+  private lastTint = '';
 
   private readonly bodyMaterial: THREE.MeshStandardMaterial;
   private readonly visual = new THREE.Group();
@@ -131,7 +140,28 @@ export class Incanter {
     staff.castShadow = true;
     this.staff = staff;
     this.visual.add(torso, visor, staff);
+    this.placeholderParts.push(torso, visor, staff);
     this.object.add(this.visual);
+  }
+
+  /** Swap the placeholder capsule for the animated model. */
+  attachModel(model: IncanterModel): void {
+    for (const p of this.placeholderParts) p.visible = false;
+    this.visual.add(model.object);
+    model.object.position.y = -CENTER_Y;
+    this.model = model;
+  }
+
+  /** World position of the staff tip (falls back to chest height in front of the Incanter). */
+  staffTip(out = new THREE.Vector3()): THREE.Vector3 {
+    if (this.model) return this.model.staffTip(out);
+    return out.copy(this.position).addScaledVector(this.facing, 0.5).setY(this.position.y + 0.4);
+  }
+
+  /** Play the casting animation (and set the staff glow to the Incantation's colour). */
+  castPose(kind: 'cast' | 'channel' | 'strike', color?: string): void {
+    this.pendingPose = { pose: kind, duration: kind === 'strike' ? 0.4 : 0.55 };
+    if (color) this.model?.glow(color, 1.2);
   }
 
   get isGrounded(): boolean {
@@ -214,6 +244,7 @@ export class Incanter {
     if (away.lengthSq() < 1e-6) away.copy(this.facing).negate();
     this.knock.copy(away.normalize().multiplyScalar(knockback));
     this.hitFlash = HIT_FLASH;
+    if (!this.pendingPose && this.attackTimer <= 0) this.pendingPose = { pose: 'hit', duration: 0.35 };
     return true;
   }
 
@@ -315,8 +346,12 @@ export class Incanter {
     this.object.rotation.y = this.yaw;
     this.facing.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
 
-    // Dodge feedback: lean into the roll and glow. Hit: red flash. Dead: fallen over.
     const dodging = this.isDodging || this.isCastDashing;
+    if (this.model) {
+      this.animateModel(dt, dodging);
+      return;
+    }
+    // Placeholder feedback: lean into the roll and glow. Hit: red flash. Dead: fallen over.
     this.visual.scale.set(1, dodging ? 0.75 : 1, 1);
     this.visual.position.y = dodging ? -0.2 : 0;
     this.visual.rotation.x = this.alive ? 0 : -Math.PI / 2.2;
@@ -328,6 +363,28 @@ export class Incanter {
     // Staff swings forward during the basic attack.
     const swing = this.attackTimer > 0 ? Math.sin((1 - this.attackTimer / BASIC_ATTACK.swingTime) * Math.PI) : 0;
     this.staff.rotation.x = swing * 1.4;
+  }
+
+  private animateModel(dt: number, dodging: boolean): void {
+    const m = this.model!;
+    const dead = !this.alive;
+    if (dead && !this.wasDead) m.play('death', 1.1);
+    else if (!dead && this.wasDead) m.play('idle');
+    this.wasDead = dead;
+    if (!dead) {
+      if (dodging && !this.wasDodging) m.play('roll', this.isCastDashing ? Math.max(0.3, this.castDashTimer) : 0.42);
+      else if (this.pendingPose) m.play(this.pendingPose.pose, this.pendingPose.duration);
+      const speed = Math.hypot(this.velocity.x, this.velocity.z);
+      m.play(speed > 0.6 ? 'run' : 'idle');
+    }
+    this.pendingPose = undefined;
+    this.wasDodging = dodging;
+    const tint = this.hitFlash > 0 ? '#ff2a2a' : this.isWarded ? '#ffc23a' : this.isInvulnerable ? '#3a6cff' : '';
+    if (tint !== this.lastTint) {
+      m.tint(tint || null, this.hitFlash > 0 ? 0.8 : 0.45);
+      this.lastTint = tint;
+    }
+    m.update(dt, Math.hypot(this.velocity.x, this.velocity.z) / MOVE_SPEED);
   }
 
   /** Bring the Incanter back at the spawn point with full health. */
@@ -349,6 +406,7 @@ export class Incanter {
     this.facing.copy(dir);
     this.attackCooldown = BASIC_ATTACK.cooldown;
     this.attackTimer = BASIC_ATTACK.swingTime;
+    this.pendingPose = { pose: 'strike', duration: 0.4 };
     this.onBasicAttack?.({ origin: this.currPos.clone(), direction: dir });
   }
 

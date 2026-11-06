@@ -17,7 +17,7 @@ export interface EnemyVisual {
   dispose(): void;
 }
 
-interface Template {
+export interface Template {
   root: THREE.Group;
   clips: THREE.AnimationClip[];
   /** Native height and the y offset to put feet at 0. */
@@ -58,7 +58,7 @@ async function applyTextures(root: THREE.Group, paths: readonly string[]): Promi
   });
 }
 
-function loadTemplate(entry: ManifestModel): Promise<Template> {
+export function loadTemplate(entry: ManifestModel): Promise<Template> {
   let p = cache.get(entry.id);
   if (!p) {
     p = loader.loadAsync(assetUrl(entry.path)).then(async (root) => {
@@ -89,7 +89,7 @@ export async function createEnemyVisual(entry: ManifestModel | undefined, profil
   return placeholder(profile);
 }
 
-function pickClip(clips: THREE.AnimationClip[], patterns: string[]): THREE.AnimationClip | undefined {
+export function pickClip(clips: THREE.AnimationClip[], patterns: string[]): THREE.AnimationClip | undefined {
   for (const p of patterns) {
     const re = new RegExp(p, 'i');
     const c = clips.find((clip) => re.test(clip.name.replace(/^.*\|/, '')));

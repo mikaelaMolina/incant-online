@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createPhysicsWorld, FIXED_DT } from './physics';
 import { Input } from './input';
 import { FollowCamera } from './camera';
+import { loadIncanterModel } from './incanterModel';
 import { Incanter } from './player';
 import { loadManifest, ModelIndex } from './assets';
 import { buildFloor, type Floor } from './floorLoader';
@@ -91,6 +92,16 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   const incanter = new Incanter(world, input, cam);
   scene.add(incanter.object);
   incanter.setSpawn(floor.spawn);
+  // The animated wizard body loads in the background; the capsule stands in until then (or if it fails).
+  const wizard = models.resolve('rpg.wizard', 'character');
+  if (wizard) {
+    loadIncanterModel(wizard, 1.75)
+      .then((m) => {
+        incanter.attachModel(m);
+        void precompile();
+      })
+      .catch((err: unknown) => console.warn('Incanter model failed to load; keeping the placeholder.', err));
+  }
   cam.snapTo(incanter.position);
 
   // Colliders were just added; update the query pipeline before spawn checks and the first move.
@@ -141,6 +152,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   const onFx = (e: CastFx): void => {
     switch (e.kind) {
       case 'cast': {
+        const t = e.spec.type;
+        incanter.castPose(t === 'melee_combo' ? 'strike' : t === 'beam' || t === 'area' || t === 'buff' ? 'channel' : 'cast', e.spec.vfx.color);
         soundAt('cast');
         const accent = ELEMENT_ACCENT[e.spec.element];
         if (accent) soundAt(accent, undefined, 0.8);

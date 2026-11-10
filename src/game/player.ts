@@ -13,7 +13,13 @@ const CENTER_Y = HALF_HEIGHT + RADIUS;
 const MOVE_SPEED = 6; // m/s
 const ACCEL = 40; // m/s² toward target velocity (snappy but not instant)
 const GRAVITY = -25; // stronger than real for a grounded action feel
-const TURN_RATE = 18; // rad/s-ish smoothing toward aim
+const TURN_RATE = 14; // rad/s-ish smoothing toward the facing target
+/** Moving faster than this (m/s) counts as walking: the Incanter faces where it walks. */
+const FACE_MOVE_SPEED = 0.8;
+/** Standing still, the Incanter turns toward the mouse only if it moved this recently (ms). */
+const AIM_FRESH_MS = 1500;
+/** After a cast or strike, keep facing its direction this long (s) before turning back to the walk. */
+const ACTION_FACING_HOLD = 0.45;
 
 const DODGE_SPEED = 16; // m/s
 const DODGE_TIME = 0.22; // s  → ~3.5 m
@@ -84,6 +90,8 @@ export class Incanter {
   private attackQueued = false;
   private attackCooldown = 0;
   private attackTimer = 0;
+  /** Seconds left facing the direction of the last cast / strike. */
+  private actionFacing = 0;
   private readonly knock = new THREE.Vector3();
   private hitFlash = 0;
   private readonly staff: THREE.Mesh;
@@ -202,6 +210,7 @@ export class Incanter {
     if (dir.lengthSq() < 1e-6) return;
     this.yaw = Math.atan2(dir.x, dir.z);
     this.facing.set(dir.x, 0, dir.z).normalize();
+    this.actionFacing = ACTION_FACING_HOLD;
   }
 
   /** Incantation dash: move `distance` along `dir` over `duration` seconds, untouchable meanwhile. */
@@ -336,12 +345,21 @@ export class Incanter {
     this.position.lerpVectors(this.prevPos, this.currPos, alpha);
     this.object.position.copy(this.position);
 
-    // Face the aim point (not while swinging: the swing locked the direction).
-    const dx = this.aimPoint.x - this.position.x;
-    const dz = this.aimPoint.z - this.position.z;
-    if (this.alive && this.attackTimer <= 0 && dx * dx + dz * dz > 0.04) {
-      const target = Math.atan2(dx, dz);
-      this.yaw = dampAngle(this.yaw, target, TURN_RATE, dt);
+    // Facing, action-RPG style:
+    // - a strike or cast snaps to the aim and holds that direction briefly (see faceDirection);
+    // - walking faces the way you walk;
+    // - standing still faces the mouse, but only if it moved recently (a mouse left resting over
+    //   the HUD no longer pins the Incanter to one direction).
+    this.actionFacing = Math.max(0, this.actionFacing - dt);
+    if (this.alive && this.attackTimer <= 0 && this.actionFacing <= 0) {
+      const vx = this.velocity.x;
+      const vz = this.velocity.z;
+      const dx = this.aimPoint.x - this.position.x;
+      const dz = this.aimPoint.z - this.position.z;
+      let target: number | undefined;
+      if (vx * vx + vz * vz > FACE_MOVE_SPEED * FACE_MOVE_SPEED) target = Math.atan2(vx, vz);
+      else if (performance.now() - this.input.pointer.movedAt < AIM_FRESH_MS && dx * dx + dz * dz > 0.04) target = Math.atan2(dx, dz);
+      if (target !== undefined) this.yaw = dampAngle(this.yaw, target, TURN_RATE, dt);
     }
     this.object.rotation.y = this.yaw;
     this.facing.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
@@ -401,9 +419,8 @@ export class Incanter {
     const dir = new THREE.Vector3(this.aimPoint.x - this.currPos.x, 0, this.aimPoint.z - this.currPos.z);
     if (dir.lengthSq() < 1e-4) dir.copy(this.facing);
     dir.normalize();
-    // Snap to the aim so the swing goes where the player clicked.
-    this.yaw = Math.atan2(dir.x, dir.z);
-    this.facing.copy(dir);
+    // Snap to the aim so the swing goes where the player clicked (and hold it briefly).
+    this.faceDirection(dir);
     this.attackCooldown = BASIC_ATTACK.cooldown;
     this.attackTimer = BASIC_ATTACK.swingTime;
     this.pendingPose = { pose: 'strike', duration: 0.4 };

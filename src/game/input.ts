@@ -3,7 +3,7 @@ export class Input {
   private readonly held = new Set<string>();
   private readonly pressed = new Set<string>();
   /** Pointer position in normalised device coordinates (-1..1). */
-  readonly pointer = { x: 0, y: 0, active: false };
+  readonly pointer = { x: 0, y: 0, active: false, /** performance.now() of the last move */ movedAt: -Infinity };
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     window.addEventListener('keydown', this.onKeyDown);
@@ -74,6 +74,7 @@ export class Input {
     this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     this.pointer.active = true;
+    this.pointer.movedAt = performance.now();
   };
 }
 

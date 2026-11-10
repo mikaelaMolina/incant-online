@@ -3,10 +3,12 @@ import { fallbackResponse, type FallbackReason } from '../fallback/fallback';
 
 const ENDPOINT = '/api/interpret';
 /**
- * Per-attempt limit. Below the server's own 8 s budget on purpose: if the backend hangs, the
- * browser falls back itself in time for a floor to be built in under 10 s.
+ * Per-attempt limit: just above the server's own 8 s budget, so a slow but successful LLM answer
+ * (floors take 6–8 s) is never thrown away. The server always answers by 8 s (with a cached item
+ * if the LLM is slower); this only fires if the backend itself hangs, still in time for a floor to
+ * be built in under 10 s.
  */
-const CLIENT_TIMEOUT_MS = 7_000;
+const CLIENT_TIMEOUT_MS = 8_500;
 /** Only retry if the first attempt failed fast enough that a second can still fit the budget. */
 const RETRY_IF_ELAPSED_UNDER_MS = 4_000;
 

@@ -53,6 +53,7 @@ export async function callLlm({ apiKey, model, text, context, signal, fetchImpl 
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: user }],
       // Low effort for latency (Forge < 6 s p90). Sampling parameters are not accepted by current models.
+      // No `thinking` field: several current models reject `disabled`, and LLM_MODEL can change.
       output_config: { effort: 'low', format: { type: 'json_schema', schema: INTERPRET_JSON_SCHEMA } },
     }),
   });

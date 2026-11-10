@@ -11,8 +11,11 @@ import type { Utterance } from './pipeline';
 
 /** A final transcript repeating what an interim already cast is ignored within this window. */
 const INTERIM_DEDUPE_MS = 4000;
-/** Floor build target is < 10 s end to end; the request gets most of it, the build the rest. */
-const GATE_REQUEST_BUDGET_MS = 6000;
+/**
+ * Floor build target is < 10 s end to end; the request gets most of it, the build the rest.
+ * Covers the server's 8 s budget (LLM floors take 6–8 s; the server answers from its cache after that).
+ */
+const GATE_REQUEST_BUDGET_MS = 8500;
 /** At the gate, a second, explicit "build" request is only tried if the first came back this fast. */
 const GATE_REPHRASE_IF_UNDER_MS = 3500;
 /** Questions get an answer even at the gate ("what is this place?"). */

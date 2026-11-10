@@ -1396,6 +1396,133 @@ body {
   font-weight: 800;
 }
 
+/* Describe it / Choose it tabs. */
+.start-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.start-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border: var(--line);
+  border-radius: 12px;
+  background: var(--cream);
+  box-shadow: var(--drop-sm);
+  color: var(--ink);
+  font: 800 14px/1 var(--font-sans);
+  cursor: pointer;
+}
+
+.start-tab[aria-selected='true'] {
+  background: var(--ink);
+  color: var(--sun);
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+/* Choose it: picture cards for place, time, danger and people. */
+.start-chooser {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.start-choice {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.start-choice legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.start-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.start-choice-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.start-pick {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 76px;
+  padding: 8px 10px;
+  border: 2.5px solid var(--ink);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: 0 3px 0 var(--ink);
+  color: var(--ink);
+  font: 800 12px/1.1 var(--font-sans);
+  cursor: pointer;
+  transition: transform 0.06s, box-shadow 0.06s;
+}
+
+.start-pick:hover {
+  background: var(--cream);
+}
+
+.start-pick[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--sun);
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+.start-pick:focus-visible,
+.start-tab:focus-visible {
+  outline: 3px solid var(--sky);
+  outline-offset: 2px;
+}
+
+.start-chooser-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.start-chooser-preview {
+  flex: 1 1 260px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  font-style: italic;
+}
+
+.btn.start-build-choice {
+  height: 52px;
+  padding: 0 24px;
+  background: var(--ink);
+  color: var(--sun);
+  font-size: 17px;
+}
+
+.start-chooser :disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
 /* Forge / Recite / Build: three coloured blocks. */
 .start-steps {
   display: grid;
@@ -1518,6 +1645,10 @@ body {
 
   .start-world-row {
     flex-wrap: wrap;
+  }
+
+  .start-choice-pair {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .start-steps,

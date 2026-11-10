@@ -2,80 +2,119 @@
 
 **Say it. Cast it.**
 
-Incant Online is a browser-based, voice-first action RPG. You play an **Incanter** climbing **the Spire**. You don't pick spells from a menu: you *describe* them out loud ("a spinning fire slash that hits three times") and the Spire forges them into working abilities. Then you cast them by saying their names. When a floor is cleared, a gate opens, and you describe the next floor into being.
+Incant Online is a browser-based, voice-first action RPG. You play an **Incanter**, a hero whose words become power. You don't pick a world or spells from a menu: you **say them**. Describe the world you want and the game builds it in 3D. Describe a spell ("a spinning fire slash that hits three times") and it becomes a working ability with real hitboxes, damage and cooldowns. Then cast it by saying its name. Along the way you walk a peaceful village, talk to its people, take quests, and climb **the Spire** floor by floor, describing each new floor into being.
 
-Plain language becomes both **game logic** (Incantations with real hitboxes, damage, status effects, cooldowns and mana) and **3D places** (floors with lighting, props and enemies), in real time, in the browser, and it never breaks, whatever you say.
+Plain language becomes both **3D places** (lighting, scenery, monsters, villagers) and **working game logic** (Incantations the engine executes), in real time, in the browser, and the game never breaks, whatever you say.
 
-> TypeScript, Three.js and Rapier physics. Runs fully in a desktop browser; the only backend is one serverless function. **Best in Chrome or Edge.**
+> TypeScript, Three.js and Rapier physics in the browser; small serverless functions for the AI. **Best in Chrome or Edge.** Fully playable without any API key (mock mode).
 
 ---
 
 ## Contents
 
+- [For judges: a two-minute tour](#for-judges-a-two-minute-tour)
 - [What you can do](#what-you-can-do)
 - [The problem we're exploring](#the-problem-were-exploring)
 - [How AI is used](#how-ai-is-used)
+- [How this meets the brief](#how-this-meets-the-brief)
 - [Run it locally](#run-it-locally)
 - [How to play](#how-to-play)
 - [Browser support](#browser-support)
 - [Privacy](#privacy)
-- [Under the hood](#under-the-hood): how it works, the Arbiter, combat, LLM modes and fallbacks, project structure, scripts, testing, deploying, performance
+- [Under the hood](#under-the-hood): how it works, the Arbiter, combat, AI modes and fallbacks, project structure, scripts, testing, deploying, performance
 - [Roadmap](#roadmap)
 - [Credits and licence](#credits-and-licence)
 
 ---
 
+## For judges: a two-minute tour
+
+1. **Describe your world.** On the start screen, hold **V** (or the mic button) and say a place, type one and press **Build**, or open **Choose it** and pick a place, time of day, danger and who lives there.
+2. **Meet the village.** You arrive in *The Threshold*, a peaceful camp at the foot of the Spire, while your world is built in the background. Walk up to a villager (**WASD**) and talk to them: hold **V** and ask anything, or press **Enter** and type. The **Knight** gives you your first quest.
+3. **Enter your world.** Step through the glowing gate. Your described world is Floor 1. Fight with left click and keys **1–3**.
+4. **Invent a spell.** Hold **V**: *"a chain of lightning that bounces to four enemies"*. It lands on your bar; say its name to cast it.
+5. **Try to break it.** Type anything: *"kill everything instantly"*, *"turn enemies into frogs"*, *"what's the weather in Paris?"*, *"asdf"*. Every input ends in a world, a spell or an in-character answer, never an error.
+
+Prompts worth trying:
+
+| Where | Say or type | What happens |
+| --- | --- | --- |
+| Start screen | "a volcano fortress at dusk" | Your world: a cavern floor at dusk, built by the AI |
+| Village | "who are you?" / "what's beyond the gate?" | The villager answers in character, from their own story |
+| Anywhere | "a spinning fire attack that hits three times" | A new Incantation, balanced by the Arbiter |
+| Anywhere | "make it ice" · "add a stun" | Refines your last Incantation in place |
+| At a gate | "a misty forest at night with archers" | The next floor |
+| Anywhere | "kill everything instantly" | The strongest blast the rules allow, with an explanation |
+
 ## What you can do
 
-- **Forge Incantations by voice or text.** Describe an ability; it becomes a validated `IncantationSpec`, is balanced by the Arbiter, and lands on your Grimoire bar.
-- **Recite to cast.** Say an Incantation's name ("Frost Comet") and it fires immediately, matched locally. No network round-trip; it can fire from the live transcript before you finish speaking.
+- **Speak or choose your world.** Describe it in your own words, or build it from picture cards (where, when, danger, who lives there). Either way your words go to the AI, which builds the 3D floor.
+- **Begin with a story, not a fight.** The climb opens in a peaceful prologue village. The Arbiter, the Spire's voice, tells you where you are; four villagers (an Elder, a Villager, a Knight and a Wanderer) each know a different part of the story.
+- **Talk to NPCs, really.** Walk up to anyone and speak or type. With an API key, Claude plays each character in their own voice, from their own background and the story so far, and remembers your last few exchanges. Without one, they answer from their written dialogue.
+- **Take quests.** NPCs give you tasks: clear the next floor, defeat the guardian, gather healing orbs. Finishing one earns bonus experience and a full heal.
+- **Return to the village between climbs.** After every guardian (every third floor), the gate leads back to the village to rest, talk and take a new quest, then on up the Spire.
+- **Forge Incantations by voice or text.** Describe an ability; it becomes a validated `IncantationSpec`, balanced by the Arbiter, on your Grimoire bar.
+- **Recite to cast.** Say an Incantation's name ("Frost Comet") and it fires immediately, matched locally with no network round-trip, even from the live transcript before you finish speaking.
 - **Refine what you made.** "make it wider", "add a stun", "remove the burn", "make it ice". The Incantation keeps its slot and is re-balanced.
-- **Build floors by description.** "a cozy village at night", "build a frozen castle with archers". A new floor rises behind a "The Spire reshapes…" transition.
-- **Climb the Spire.** Defeat every enemy and a gate opens; step in and describe the next floor.
-- **Follow the story.** The Arbiter speaks narrative beats as you climb — five chapters from The Awakening to The Summit reveal the Spire's history, the First Speaker who built it, and why the Arbiter tests those who climb. The guide NPC on each floor shares lore if you talk to them.
-- **Talk to the guide.** A friendly NPC stands on each floor. Walk up and hold V (or type) to ask about the Spire, the First Speaker, the Arbiter, the guardians, or how to play — they answer in character, and know more the higher you climb.
-- **Fight with whatever you invent.** 7 delivery types × 7 shapes, multi-hit combos, chain lightning, burn / freeze / stun / slow / knockback / heal, wards and dashes, with glowing shape-and-element effects, sounds, damage numbers and screen shake.
-- **Ask for anything.** Off-topic, nonsense or impossible requests always end in a floor, an Incantation or an in-character reply from the Arbiter, never an error. "Kill everything instantly" gets the strongest blast the rules allow, and an explanation.
-- **Play without an API key.** Mock mode uses a local keyword parser that produces the same JSON as the LLM.
+- **Climb.** Clear a floor and a gate opens; describe the next floor into being. Monsters fit each place, every third floor ends with a named guardian, and a five-chapter story unfolds as you climb.
+- **Hear the world.** The Arbiter and the villagers speak in a natural AI voice (ElevenLabs), with the browser's voice as a fallback.
+- **Ask for anything.** Off-topic, nonsense or impossible requests always end in a floor, an Incantation or an in-character reply.
 
 ## The problem we're exploring
 
-Language models are good at understanding what people mean, but letting one *write game code* at runtime is slow, unsafe and fragile: a single bad answer can crash the game or break its balance. We wanted to know: **can plain spoken language drive both a playable 3D world and real game mechanics, in real time, without ever letting the model break the game?**
+Language models are good at understanding what people mean, but letting one *write game code* at runtime is slow, unsafe and fragile: a single bad answer can crash the game or break its balance. We wanted to know: **can plain spoken language drive both a playable 3D world and real game mechanics, in real time, without ever letting the model break the game?** And can the same language make a game world feel alive: places you name, people you can actually talk to?
 
 Our answer is a strict division of labour:
 
-1. **The model only fills in data.** It never writes code. It fills fixed JSON shapes (`IncantationSpec`, `FloorSpec`) using structured output.
+1. **The model only fills in data.** It never writes code. It fills fixed JSON shapes (`IncantationSpec`, `FloorSpec`) using structured output, and can only use 3D models and monsters the game already has.
 2. **Everything is validated and repaired.** Shared zod schemas clamp numbers to range, map unknown values to the nearest valid one ("flames" → fire, "bolt" → orb) and fill defaults, on the server and again in the browser.
 3. **A deterministic referee has the last word.** The Arbiter scores the power of every Incantation, sets its cooldown and mana, bans instant kills and long invulnerability, and explains changes in one sentence. Balance doesn't depend on the model behaving.
 4. **The engine is generic.** One runner executes *any* valid spec: every type, shape, hit count, radius, chain and status effect. A new idea needs no new code.
-5. **There is always a fallback.** Timeouts, bad JSON, rate limits or no key at all end in a mock-parser result, a pre-forged Incantation or pre-built floor, or an in-character reply.
-6. **The fast path is local.** Casting by name never touches the network, so combat stays responsive while the model works on something else.
+5. **There is always a fallback.** Timeouts, bad JSON, rate limits or no key at all end in a mock-parser result, a pre-forged Incantation or pre-built floor, a written NPC line, or an in-character reply.
+6. **The fast path is local, the slow path is hidden.** Casting by name never touches the network. Your world is built while you explore the village, so you never wait on a loading screen for it.
 
 ## How AI is used
 
-AI does the *understanding*; deterministic code does the *deciding*.
+AI does the *understanding* and the *talking*; deterministic code does the *deciding*.
 
-### 1. Interpret: words → game data (LLM)
+### 1. Interpret: words → game data (Claude)
 
-Everything you say that isn't a spell name or a fixed command goes to `/api/interpret`. There an LLM (Claude, through the Anthropic Messages API) reads it and answers with JSON in one fixed shape: **forge** an Incantation, **build** a floor, or **reply** in character. The system prompt carries the schema, the allowed values, the prop and enemy models that exist, and six worked examples. The model never writes code, and it can only pick props and enemies the game already has.
+Everything you say that isn't a spell name, a fixed command or a conversation goes to `/api/interpret`. Claude (Anthropic Messages API, `claude-haiku-5-5` by default, for speed) answers with JSON in one fixed shape: **forge** an Incantation, **build** a floor, or **reply** in character. The system prompt carries the schema, the allowed values, the prop and monster models that exist, the current story chapter, and six worked examples. Floors arrive in about 5 s; Incantations in about 2 s.
 
-- Its answer is validated with zod on the server and again in the browser; out-of-range numbers are clamped and unknown values mapped to the nearest valid one.
-- "Make it…" requests are sent with your last Incantation and the current floor, so the model changes only what you asked for.
-- Impossible asks are steered, not refused: turning foes into frogs becomes a stun, stopping time becomes a freeze, each with a sentence explaining why.
-- **Without a key** (mock mode) a local keyword parser produces the same JSON, so the game is fully playable offline. **If the model fails**, is slow or rate-limited, the game answers from 10 pre-forged Incantations and 3 pre-built floors, choosing the closest match to what you asked.
+- The answer is validated with zod on the server and again in the browser.
+- "Make it…" requests are sent with your last Incantation and the current floor, so only what you asked for changes.
+- Impossible asks are steered, not refused: turning foes into frogs becomes a stun, stopping time a freeze, each with a sentence explaining why.
 
-### 2. The Arbiter: the model proposes, rules decide (not AI)
+### 2. NPC conversation (Claude)
 
-The Arbiter is plain, deterministic code that runs on **every** Incantation after the model, whoever produced it. It scores its power (`P = d × h × (1 + r/4) × (1 + 0.5c) + E`), sets the cooldown and mana cost from that score, caps or swaps forbidden effects (instant kills, long invulnerability, oversized heals), and explains any change in one sentence: *"The Spire resists such power: cooldown raised to 60 s."* This is what makes it safe to let a language model invent game mechanics: whatever it proposes, the game stays balanced.
+Talking to a villager or a floor's guide goes to `/api/talk`. Claude plays that character, briefed with their written background (what they know, how they speak) and the current chapter of the story, with your last few exchanges as memory. Replies are at most two short spoken sentences and never break character; off-topic questions are deflected in the character's own voice. Without a key, or if the call fails, the NPC answers from its written dialogue.
 
-### 3. Voice: speaking and being answered
+### 3. The Arbiter: the model proposes, rules decide (not AI)
 
-- **Speech in**: the browser's speech recognition (Web Speech API) turns push-to-talk audio into text, live. Spell names are matched locally with fuzzy search (Fuse.js), so a slightly misheard "Blazing Cycle On" still casts *Blazing Cyclone*, within milliseconds.
-- **Speech out**: the Arbiter speaks with a cloud voice (ElevenLabs text-to-speech through `/api/tts` when `ELEVENLABS_API_KEY` is set; fixed lines are pre-recorded with `npm run voices`) or, without one, the most natural voice the browser offers (`speechSynthesis`; Edge's neural voices are the best). It falls silent the moment you hold the talk key. The voice is AI-generated, not a human.
+Plain, deterministic code that runs on **every** Incantation after the model, whoever produced it. It scores power (`P = d × h × (1 + r/4) × (1 + 0.5c) + E`), sets cooldown and mana from that score, caps or swaps forbidden effects, and explains any change in one sentence: *"The Spire resists such power: cooldown raised to 60 s."*
+
+### 4. Voice: speaking and being answered
+
+- **Speech in**: the browser's speech recognition (Web Speech API), push-to-talk, live. Spell names are matched locally with fuzzy search (Fuse.js), so a misheard "Blazing Cycle On" still casts *Blazing Cyclone*.
+- **Speech out**: the Arbiter and the NPCs speak with an ElevenLabs AI voice through `/api/tts`. Fixed lines (the prologue, villagers' dialogue, story beats) are **pre-recorded** with `npm run voices`, so they cost nothing at runtime; new lines are generated once and cached. Without a key, the most natural voice your browser has is used (Edge's neural voices are the best). Everyone falls silent the moment you hold the talk key. **The voices are AI-generated, not human.**
 
 ### Built with AI, too
 
-This codebase was written with the help of Claude Code, an AI coding assistant by Anthropic. All AI components (Claude Code, the Anthropic Messages API, browser speech services) and every third-party library and asset are listed with provider and licence in [CREDITS.md](CREDITS.md).
+This codebase was written with the help of Claude Code, an AI coding assistant by Anthropic. Every AI component (Claude Code, the Anthropic Messages API, ElevenLabs, the browser speech services) and every third-party library and asset is listed with provider and licence in [CREDITS.md](CREDITS.md).
+
+## How this meets the brief
+
+| Requirement | How Incant Online meets it |
+| --- | --- |
+| Runs fully in a desktop web browser; backend may be serverless | The whole game runs in the browser (WebGL2). The backend is three small Vercel serverless functions: `/api/interpret`, `/api/talk`, `/api/tts`. |
+| Plain language becomes **both** 3D scenes **and** working logic | Described places become 3D floors (`FloorSpec`: biome, lighting, scenery, monsters). Described abilities become executable Incantations (`IncantationSpec`) with real hitboxes, damage, status effects and cooldowns. |
+| Judges may type any prompt, including off-topic ones | Every input ends in a floor, an Incantation or an in-character reply. Failures, timeouts and rate limits fall back to cached content, never an error page. Checked by `npm run judge-test` (ten judge-style prompts) and unit tests. |
+| Only permissive dependencies and assets | MIT, Apache-2.0, BSD, ISC, Zlib and CC0 only. The Anthropic SDK and Tailwind were rejected for transitive licences outside that list; the APIs are called over plain HTTP. All 3D models, sounds and NPC characters are CC0. |
+| Credit every third-party and AI component | [CREDITS.md](CREDITS.md): every library, asset pack, AI service (Claude API, ElevenLabs, browser speech) and the AI coding assistant, with source and licence. |
+| No secrets in the repo | API keys live only in `.env` (git-ignored) and the host's environment variables, are read only by the serverless functions, and never reach the browser. |
+| Privacy | Push-to-talk only. The start screen and this README say that browser speech recognition may send audio to the browser vendor; the backend never stores audio. |
+| Original IP | All names, characters, places, story and dialogue are original. |
+| Open licence | [MIT](LICENSE). |
 
 ## Run it locally
 
@@ -88,94 +127,78 @@ npm install
 npm run dev            # http://localhost:5173 (also serves /api)
 ```
 
-That's it: with no API key the game runs in **mock mode** (a "Mock mode" label shows top-right) and is fully playable.
+With no keys the game runs in **mock mode** (a "Mock mode" label shows top right) and is fully playable: a local keyword parser builds worlds and spells, NPCs speak their written lines, and the browser provides the voice.
 
-To use Claude for interpretation instead:
+To switch on the AI:
 
 ```bash
 cp .env.example .env   # git-ignored
-# then set ANTHROPIC_API_KEY=... in .env and restart npm run dev
+# set ANTHROPIC_API_KEY (and optionally ELEVENLABS_API_KEY), then restart npm run dev
 ```
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | *(empty)* | Server-side only. Empty → mock mode. |
+| `ANTHROPIC_API_KEY` | *(empty)* | Claude for worlds, spells and NPC conversation. Empty → mock mode. |
 | `LLM_MODEL` | `claude-haiku-5-5` | Model used in llm mode (a fast model, for latency). |
 | `LLM_MODE` | *(unset)* | `mock` forces mock mode even with a key. |
+| `ELEVENLABS_API_KEY` | *(empty)* | The AI voice for the Arbiter and NPCs. Empty → the browser's voice. |
+| `TTS_VOICE` / `TTS_MODEL` | Eldrin (`6WwXjDDEMyNmFG95zycZ`) / `eleven_flash_v2_5` | ElevenLabs voice and model. |
 
-Keys are only read by the serverless function and are never sent to the browser.
+Keys are only read by the serverless functions and are never sent to the browser. Other commands: `npm test`, `npm run judge-test`, `npm run build` (type-check, production build, API check), `npm run voices` (pre-record fixed lines).
 
-Other useful commands: `npm test` (unit and integration tests), `npm run judge-test` (ten judge-style prompts end to end), `npm run build` (type-check, production build, API check). `npm run preview` serves the production build without `/api`, so it plays in its offline fallback mode.
+Open the game at **http://localhost** (or HTTPS): browsers only allow the microphone on secure origins, so voice input does not work from a LAN IP address.
 
 ## How to play
 
-1. Open the page and say **"I speak, I enter"** (hold V while speaking), or press Enter to skip voice.
-2. Fight with the staff and the three starter Incantations on keys **1–3**.
-3. Hold **V** and describe new Incantations; say their names to cast them.
-4. Clear the floor, walk into the gate, and describe the next floor.
-5. Climb. Each kill gives experience; levels raise your health and mana (never spell damage, so the Arbiter's balance holds). Defeated monsters drop health and mana orbs. Every third floor is guarded by a named boss, and each floor up is a little tougher.
+1. **Describe or choose your world** on the start screen (hold V and speak, type and press Build, or use Choose it).
+2. **Explore the village.** Talk to the four villagers; the Knight gives your first quest. The Arbiter tells the story of the Threshold.
+3. **Step through the gate** into your world (Floor 1). Fight with the staff and the three starter Incantations on keys **1–3**.
+4. **Forge new Incantations** by describing them; cast them by saying their names.
+5. **Clear the floor**, step into the gate and describe the next floor. Each floor has a guide you can talk to, often with a quest.
+6. **After every guardian** (floors 3, 6, 9…) the gate takes you back to the village to rest and take a new quest.
 
-Monsters fit the floor: skeletons and ghosts in ruins, treants in forests, yetis on ice, cacti and crabs in the desert. Name a creature ("a castle full of ghosts", "a cave with a dragon") and it appears.
+Kills give experience; levels raise health and mana (never spell damage, so the Arbiter's balance holds). Monsters drop health and mana orbs. Monsters fit the place: skeletons and ghosts in ruins, treants in forests, yetis on ice. Name a creature ("a cave with a dragon") and it appears.
 
 ### Controls
 
 | Input | Action |
 | --- | --- |
-| W A S D | Move (relative to the camera) |
-| Mouse | Aim (the Incanter faces the cursor) |
-| Left click | Staff strike (short arc in front of you) |
-| Space | Dodge (brief invulnerability: roll through arrows and slams) |
-| 1 – 6 (or numpad) | Cast the Incantation in that Grimoire bar slot |
-| Hold V (or the mic button) | Push-to-talk: speak, then let go |
+| W A S D | Move (up, left, down, right on screen). The Incanter faces where it walks. |
+| Mouse | Aim strikes and Incantations (the Incanter turns to the aim when it attacks or casts) |
+| Left click | Staff strike |
+| Space | Dodge (brief invulnerability) |
+| 1 – 6 (or numpad) | Cast the Incantation in that Grimoire slot |
+| Hold V (or the mic button) | Push-to-talk: speak, then let go. Near an NPC, you talk to them. |
 | Enter | Type instead of speaking (Enter again sends, Esc cancels) |
-| M (or the button top right) | Sound on/off (effects and the Arbiter's voice) |
-| F3 | Toggle the performance overlay (on by default in `npm run dev`) |
+| M (or the button top right) | Sound and voices on/off |
+| F3 | Performance overlay (on by default in `npm run dev`) |
 
 ### The HUD
 
-- **Grimoire bar** (left): six slots with mana cost, cooldown and a cooldown sweep. Slots 1–3 start with *Blazing Cyclone* (fire spin, burn), *Thunder Chain* (lightning that leaps between foes, stun) and *Frost Comet* (ice bolts that burst and freeze).
-- **Unit frame** (bottom left): the Incanter's portrait and level, health and mana. Mana regenerates; every Incantation's cost is set by the Arbiter.
-- **Experience** (bottom edge), **floor number** (top) and a **boss bar** while a guardian lives.
-- **Transcript** (bottom): what you said and what the Arbiter answered.
+- **Floor label** (top left): *Prologue*, *Village* or *Floor N*, with the floor's name; the **quest tracker** below it.
+- **Grimoire bar** (left): six slots with mana cost, cooldown and a cooldown sweep.
+- **Unit frame** (bottom left): level, health and mana.
+- **Transcript** (bottom): what you said, what the Arbiter answered, and NPC lines under the NPC's name.
+- **NPC tags**: a name tag over a villager when you are close enough to talk.
 - **Mode label** (top right): "Mock mode" without a key, "Offline: cached Incantations" if the backend can't be reached.
-- **Feedback**: damage numbers in the spell's colour, a trailing chunk on the health bar when you're hit, a red edge at low health, a cooldown sweep and a "ready" pop on each slot. Screen shake, camera look-ahead toward your aim and a field-of-view kick on dashes; all motion effects switch off when your system asks for reduced motion.
-
-### Things to say
-
-| You say | What happens |
-| --- | --- |
-| "a spinning fire attack that hits three times" | Forges *Blazing Cyclone* (melee spin, burn) into the next free slot |
-| "Blazing Cyclone" / "cast Frost Comet" | Recites: casts instantly, no network call |
-| "make it wider" · "add a stun" · "make it ice" | Refines your last Incantation in place |
-| "a chain of lightning that bounces to four enemies" | Forges a chain Incantation |
-| "heal me" | Forges a light healing ward |
-| "build a misty forest at night with archers" | Builds a new floor |
-| "put a dragon on a castle" | A castle floor with a dragon boss |
-| "make it night" | Refines the current floor |
-| "open Grimoire" · "close Grimoire" · "next floor" | System commands (local) |
-| "who are you?" (near the guide NPC) | Talk to the guide: they share lore about the Spire, the First Speaker, the Arbiter, and the guardians |
-| "kill everything instantly" | The Arbiter refuses instant death and grants the strongest blast it allows |
-| "a spell that turns enemies into frogs" | The closest allowed effect (a stun), with a line explaining why |
-| "what is this game?" | An in-character explanation of how to play |
-| "asdf" | An in-character reply, never an error |
 
 ## Browser support
 
 | Browser (desktop) | Status |
 | --- | --- |
-| **Chrome, Edge** | Recommended. Everything works: 3D (WebGL2), voice input (Web Speech API), the spoken Arbiter, sound. |
-| Firefox | Plays fully with the **text box** (Enter). Firefox has no built-in speech recognition, so holding V explains that voice is unavailable and asks you to type. |
-| Safari | Not tested. It should run with WebGL2; voice input and some sounds (Ogg) may not work. |
+| **Chrome, Edge** | Recommended. Everything works: 3D (WebGL2), voice input (Web Speech API), voices, sound. |
+| Firefox | Plays fully with the text box (Enter). Firefox has no built-in speech recognition, so holding V asks you to type. |
+| Safari | Not tested. |
 | Phones and tablets | Not supported: the game needs a keyboard and mouse. |
 
-Requirements: **WebGL2** (without it the page shows "The Spire could not awaken"), Web Audio for sound, and a microphone for voice (optional; typing always works). Graphics quality adapts automatically: the game starts at full quality and steps down (anti-aliasing, then resolution) if your GPU can't hold about 50 fps.
+Requirements: **WebGL2**, Web Audio for sound, and a microphone for voice (optional; typing always works). Graphics quality adapts automatically if your GPU can't hold about 50 fps.
 
 ## Privacy
 
 - The microphone is **push-to-talk only** (hold V or the mic button) and closes as soon as you let go.
 - Browser speech recognition **may send your audio to your browser vendor** (e.g. Google or Microsoft) to turn it into text.
-- Our backend **never stores audio**. Only the text of what you said is sent to `/api/interpret`, and in llm mode on to the model provider (Anthropic).
-- With the cloud voice on, the Arbiter's own lines (text, never your audio) are sent to ElevenLabs to be spoken. The Arbiter's voice is AI-generated, not a human.
+- Our backend **never stores audio**. Only the *text* of what you said is sent: to `/api/interpret` or `/api/talk`, and in llm mode on to the model provider (Anthropic).
+- With the AI voice on, the Arbiter's and NPCs' own lines (text, never your audio) are sent to ElevenLabs to be spoken. **The voices are AI-generated, not human.**
 - API keys live only in server-side environment variables and are never sent to the browser.
 - The game keeps two settings in your browser's local storage (sound and voice on/off) and nothing else.
 
@@ -191,26 +214,36 @@ flowchart LR
   P --> R{"Intent router"}
   R -->|"name matches the Grimoire"| C["Recite: cast locally"]
   R -->|"fixed phrase"| S["System command"]
+  R -->|"near an NPC"| TALK["POST /api/talk"]
   R -->|"refine / gate / anything else"| API["POST /api/interpret"]
-  API --> M{"LLM_MODE"}
+  TALK --> NPC["Claude as the NPC, or written dialogue"] --> SAY["Transcript + voice (/api/tts)"]
+  API --> M{"mode"}
   M -->|"mock"| MP["Keyword parser"]
   M -->|"llm"| LLM["Claude, structured JSON"]
   MP --> Z["zod InterpretResponse"]
   LLM --> Z
   Z -->|"forge"| A["Arbiter"] --> G["Grimoire bar"] --> C
-  Z -->|"build"| F["Floor loader + enemies"]
-  Z -->|"reply"| T["Transcript + spoken line"]
+  Z -->|"build"| F["Floor loader + monsters + guide"]
+  Z -->|"reply"| SAY
   C --> RUN["Incantation runner + VFX"]
 ```
+
+**The climb**: start screen (describe or choose a world; it starts building in the background) → **prologue village** (floor 0: no enemies, four villagers, the Arbiter's narration, an open gate) → your world (floor 1) → each cleared floor opens a gate where you describe the next → after every guardian floor, back to the **village** (no climb, full rest, new quest) → on up the Spire.
 
 **Voice routing** (in this order, `src/voice/intentRouter.ts`):
 
 1. **Recite.** Fuse.js match against Grimoire names (threshold 0.4). Cast instantly, no network.
 2. **System command.** "open/close Grimoire", "next floor".
-3. **Refine.** Starts with "make it", "add", "remove"…: sent with the last Incantation and the current floor as context.
-4. **Talk.** Near the guide NPC → in-character dialogue about the Spire's lore (local keyword match).
+3. **Refine.** Starts with "make it", "add", "remove"…: sent with the last Incantation and the current floor.
+4. **Talk.** Near an NPC → `/api/talk` (Claude plays the NPC; written dialogue as fallback).
 5. **Gate.** While standing in an open gate, anything else describes the next floor.
-6. **Everything else** → `/api/interpret` → forge, build or reply (with story context for lore-aware replies).
+6. **Everything else** → `/api/interpret` → forge, build or reply (with the current story chapter as context).
+
+### Story, NPCs and quests
+
+- **Story** (`src/game/story.ts`): five chapters (The Awakening → The Summit, then the Endless Spire), story beats at milestone floors, chapter-aware floor subtitles, the prologue narration, and lore passed to the model so replies fit the chapter.
+- **NPCs** (`src/game/npc.ts`): animated low-poly characters (Quaternius, CC0) that idle, turn to face you, show a name tag when you're near, and greet you. Four villagers in the village; one guide on each combat floor.
+- **Quests** (`src/game/quests.ts`, pure and tested): one active quest at a time, offered after an NPC's greeting: clear the next floor (the village Knight), defeat the guardian, clear the floor or gather three orbs (floor guides). Rewards scale with the floor.
 
 ### Data shapes
 
@@ -294,57 +327,55 @@ Blazing Cyclone above scores P ≈ 113 → cooldown 9 s, 23 mana, accepted (a re
 | line | long strip |
 | orb | a ball ahead of you (or an explosion) |
 
-Status effects on enemies: **burn** (damage over time), **freeze / stun** (can't move or attack; interrupts wind-ups), **slow** (half speed), **knockback**. Every type × shape combination is tested against a real physics world (`src/combat/incantationRunner.test.ts`).
+Status effects on enemies: **burn**, **freeze / stun**, **slow**, **knockback**. Every type × shape combination is tested against a real physics world (`src/combat/incantationRunner.test.ts`).
 
-VFX (`src/vfx`) are presets by shape (arcs, spikes, rings, shockwaves, beams, orbs, bolts, auras), coloured by element and spec, using emissive (HDR) materials, one pooled particle cloud (max 2,400 particles, one draw call) and a bloom pass tuned so only spell effects glow.
+Visuals (`src/vfx`, `src/game/atmosphere.ts`): shape presets coloured by element with HDR materials and one pooled particle cloud; bloom, neutral tone mapping, a light colour grade and vignette in one pass; a gradient sky dome with sun glow and stars; drifting ambient particles per biome (fireflies, snow, dust, embers); a rim light so characters stand out.
 
-## LLM modes and robustness
+## AI modes and robustness
 
-| Mode | When | What interprets the words |
-| --- | --- | --- |
-| **mock** | No `ANTHROPIC_API_KEY`, or `LLM_MODE=mock` | Local keyword parser (`api/_lib/mock/`) |
-| **llm** | Key set | Claude via the Messages API (raw HTTP, structured JSON output, low effort for latency) |
+| Mode | When | Worlds and spells | NPCs | Voice |
+| --- | --- | --- | --- | --- |
+| **mock** | No `ANTHROPIC_API_KEY`, or `LLM_MODE=mock` | Local keyword parser (`api/_lib/mock/`) | Written dialogue | ElevenLabs if its key is set, else the browser |
+| **llm** | Key set | Claude, structured JSON, low effort | Claude playing the NPC | same |
 
-Both modes return the same `InterpretResponse` and take the same path: zod validation on the server, again in the browser, then the Arbiter. Switching to the real model only means setting the key. The system prompt includes the schema, allowed values and six example pairs **generated by the mock parser**, so both modes agree.
+Both modes return the same `InterpretResponse` and take the same path: zod validation on the server, again in the browser, then the Arbiter. The system prompt's six example pairs are **generated by the mock parser**, so both modes agree.
 
-Safeguards on `/api/interpret`: 300-character input cap, per-IP rate limit (20 requests / 10 min), 8 s timeout, and one retry on bad JSON.
+Safeguards: 300-character input cap; per-IP rate limits (`/api/interpret` 20, `/api/talk` 40, `/api/tts` 60 requests per 10 min); timeouts (8 s interpret, 6 s talk and voice); one retry on bad JSON.
 
 ### When something fails
 
-`src/fallback` holds **10 pre-forged Incantations** (already balanced: the Arbiter accepts them unchanged; together they cover every type, shape and element) and **3 pre-built floors** (forest, castle and ice, none of them the starting arena). They are used automatically, on the server and in the browser:
+`src/fallback` holds **10 pre-forged Incantations** (covering every type, shape and element) and **3 pre-built floors**. They are used automatically:
 
-| Failure | Detected by | What the player gets |
-| --- | --- | --- |
-| The LLM call fails (error, refusal, bad JSON twice) | server | the closest cached item, with an in-character line |
-| The LLM is too slow (8 s) | server | the same, "the Spire took too long to listen" |
-| Too many requests (20 / 10 min per IP) | server | the same, "the Spire grows weary of your voice" |
-| `/api` can't be reached | browser | the same, worked out in the browser; the label shows "Offline: cached Incantations" |
-| `/api` hangs | browser (7 s per attempt, 6 s at the gate) | the same, in time for a floor to be built in under 10 s |
-| The host answers 429 | browser | the same, at once, without retrying |
+| Failure | What the player gets |
+| --- | --- |
+| The model call fails, refuses or returns bad JSON twice | the closest cached item, with an in-character line |
+| The model is too slow (8 s) | the same: "the Spire took too long to listen" |
+| Too many requests | the same: "the Spire grows weary of your voice" |
+| `/api` can't be reached or hangs (browser waits 8.5 s) | the same, worked out in the browser; the label shows "Offline: cached Incantations" |
+| NPC conversation fails | the NPC's written answer |
+| The AI voice fails | the browser's voice for that line |
 
-The mock parser decides only *what* was asked for: a place gets a cached floor (the closest biome), an ability gets the closest cached Incantation (element, then type and shape), "make it…" refines the player's own Incantation or floor locally instead of replacing it, and chat gets an in-character reply. A fallback never hands out an Incantation already in the Grimoire or the floor the Incanter is standing on. Every fallback still goes through zod and the Arbiter like any other answer.
-
-Impossible or forbidden asks are steered, not refused: *"kill everything instantly"* becomes the strongest blast the Arbiter permits, *"turn enemies into frogs"* becomes a stun, each with one in-character sentence explaining the change.
+Impossible or forbidden asks are steered, not refused: *"kill everything instantly"* becomes the strongest blast the Arbiter permits, *"turn enemies into frogs"* a stun, each with one in-character sentence explaining the change.
 
 ## Project structure
 
 ```text
 src/
-  game/      scene, Incanter, camera, input, floor loader, gate, story, NPC
+  game/      scene, Incanter, camera, input, floor loader, gate, atmosphere, story, NPCs, quests, progression
   combat/    cast planning, Incantation runner, hit detection, status effects, mana, Grimoire
   enemies/   archetypes, state machine, spawner
-  voice/     push-to-talk, speech input, intent router, command router, narrator (TTS)
+  voice/     push-to-talk, speech input, intent and command routers, narrator (voice out), fixed lines
   arbiter/   power score and balancing rules (pure functions + tests)
-  vfx/       palettes, materials, particles, shape presets, bloom
-  ui/        HUD, Grimoire bar and panel, transcript, start screen, transition
+  vfx/       palettes, materials, particles, shape presets, post-processing
+  ui/        start screen, HUD, Grimoire bar and panel, transcript, quest tracker, transition
   schemas/   zod: IncantationSpec, EnemySpec, FloorSpec, InterpretResponse, manifest
-  fallback/  cached Incantations and floors
+  fallback/  cached Incantations and floors, the prologue village
 api/
-  interpret.ts       Vercel function: GET → { mode }, POST → InterpretResponse
-  _lib/              shared backend code: mode, rate limit, LLM client and prompt
-  _lib/mock/         the mock-mode keyword parser
-public/assets/       CC0 low-poly models (Kenney, Quaternius) + manifest.json
-scripts/             manifest builder, API ESM check, judge test
+  interpret.ts  talk.ts  tts.ts   Vercel functions
+  _lib/         shared backend code: modes, rate limits, Claude client and prompt, NPC talk, ElevenLabs voice
+  _lib/mock/    the mock-mode keyword parser
+public/assets/   CC0 models (Kenney, Quaternius), sounds, pre-recorded voice lines, manifest.json
+scripts/         manifest builder, NPC model packer, voice pre-recorder, API ESM check, judge test
 ```
 
 ## Scripts
@@ -353,68 +384,62 @@ scripts/             manifest builder, API ESM check, judge test
 | --- | --- |
 | `npm run dev` | Dev server with hot reload; also serves `/api/*` from the same function files |
 | `npm run build` | Type-check, production build into `dist/`, and the API ESM check |
-| `npm run preview` | Serve the production build |
+| `npm run preview` | Serve the production build (without `/api`: plays in offline fallback mode) |
 | `npm test` | Unit and integration tests (Vitest) |
-| `npm run typecheck` | TypeScript only |
-| `npm run judge-test` | Sends ten "judge-style" prompts to `/api/interpret` and checks every one ends in a valid floor, Incantation or reply. `-- --url https://…` tests a deployment; extra arguments are your own prompts |
-| `npm run voices` | Pre-records the Arbiter's fixed lines with the ElevenLabs voice into `public/assets/voice/` (`ELEVENLABS_API_KEY` from `.env`). Only new or changed lines are recorded; `-- --force` re-records all |
-| `npm run check:api` | Runs `/api` under plain Node ESM the way Vercel does (catches import problems before deploy) |
+| `npm run judge-test` | Ten judge-style prompts to `/api/interpret`; each must end in a valid floor, Incantation or reply. `-- --url https://…` tests a deployment |
+| `npm run voices` | Pre-records fixed lines with the ElevenLabs voice into `public/assets/voice/`; only new or changed lines (`-- --force` for all) |
+| `npm run check:api` | Runs `/api` under plain Node ESM the way Vercel does |
 | `npm run manifest` | Regenerate `public/assets/manifest.json` after changing asset packs |
+| `node scripts/pack-npc-models.mjs` | Convert the NPC characters to slim GLBs (only Idle, Walk, Victory animations) |
 
 ## Testing
 
 ```bash
-npm test             # ~230 unit and integration tests
+npm test             # ~300 unit and integration tests
 npm run judge-test   # end to end over HTTP against a local dev server
 ```
 
-Highlights:
-
-- **Arbiter**: the required Blazing Cyclone case, clamps, bans and the cooldown and mana formulas.
-- **Combat**: every type × shape lands damage in a real Rapier world; chains split 100% / 50% / 50%; mana, cooldown, heal, ward and dash.
-- **Voice routing**: recite threshold and false positives, casting from interim transcripts, refine keeps the bar slot (even when renamed), system commands, the gate.
-- **Robustness**: mock-parser answers to judge-style prompts; cached floors and Incantations are valid and use real assets; request time budgets.
+Highlights: the Arbiter (including the required Blazing Cyclone case); every combat type × shape in a real physics world; voice routing (recite, refine, gate, talk); the start-screen flow (world prepared in the background, entered through the village gate, questions answered); the prologue and quests; `/api/talk` and `/api/tts` request shapes and every fallback; cached content validity.
 
 ## Deploying
 
-The app is a static Vite build plus one Vercel serverless function (`api/interpret.ts`).
+A static Vite build plus three Vercel serverless functions (`api/interpret.ts`, `api/talk.ts`, `api/tts.ts`).
 
 1. Import the repo into Vercel (framework preset: Vite; build command `npm run build`; output `dist`).
-2. Optionally set `ANTHROPIC_API_KEY` (and `LLM_MODEL`) in Project Settings → Environment Variables to switch on llm mode.
+2. In Project Settings → Environment Variables, set `ANTHROPIC_API_KEY` (llm mode) and `ELEVENLABS_API_KEY` (AI voice). Both are optional.
 3. Check it: `npm run judge-test -- --url https://your-deployment.vercel.app`.
 
-> Status: the API is verified to run under plain Node ESM (`npm run check:api`), but the first Vercel deployment and the real-LLM path have not been tested end to end yet.
+> Status: the functions are verified to run under plain Node ESM (`npm run check:api`) and the AI paths have been tested live from a local dev server; the first Vercel deployment has not been done yet.
 
 ## Performance
 
-Measured on an Intel Iris Xe laptop GPU (Chromium, 1280×720, through WSL's Direct3D 12 layer, which is slower than Chrome on Windows), production build for loading, mock mode:
+Earlier measurements (Intel Iris Xe laptop GPU, Chromium, 1280×720, production build, mock mode):
 
 | Target | Budget | Measured |
 | --- | --- | --- |
 | Frame rate, exploring | 60 fps (30 minimum) | 55–60 fps |
-| Frame rate, heavy combat (a spell every 300 ms) | 60 fps (30 minimum) | 25–105 fps depending on floor and quality level; occasional GPU stalls of 100–500 ms on this driver |
-| Draw calls (whole frame, bloom included) | < 150 | 66–141 |
-| Particles | < 3,000 | ≤ 380 (hard cap 2,400) |
-| First load (to playable) | < 8 s | 3.7–5.6 s typical, one cold outlier at 10 s |
-| Total download | < 25 MB | 6.8 MB (JS 1.9, models 1.7, textures 2.6, sounds 0.6) |
+| Frame rate, heavy combat | 60 fps (30 minimum) | 25–105 fps depending on floor and quality level |
+| Draw calls | < 150 | 66–141 on combat floors; **160–200 in the village** (59 props plus 4 NPCs: over budget, to trim) |
+| Particles | < 3,000 | ≤ 680 including ambient particles (hard cap 2,400 for effects) |
+| First load (to playable) | < 8 s | 3.7–5.6 s typical |
+| Total download | < 25 MB | 6.8 MB at first load; NPC models (0.4–0.7 MB each) and voice lines load only when used |
 | Recite → cast | < 500 ms | under 40 ms (local, no network) |
-| Floor build | < 10 s | 3–8 s, including the backend timing out |
+| Floor build (llm mode) | < 10 s | ~5 s for the model; hidden behind the village on the first floor |
 
-How: instanced props; one pooled particle system; shared effect geometries and **pooled effect materials** (disposing them made the GPU recompile shaders mid-fight); shaders compiled in the background before the first frame and when enemies arrive, plus a hidden warm-up draw of every effect shader on the start screen and behind floor changes; fixed-step physics with interpolation; **adaptive quality** that starts at 4× MSAA and steps down (2× MSAA, none, then 85% and 75% resolution) if the median frame stays under ~50 fps, applying changes on the start screen or behind the floor-change curtain rather than mid-fight. Press F3 for the live overlay (fps, draw calls, triangles, particles, quality level).
+How: instanced props; pooled particles and effect materials; shaders compiled before they're needed; fixed-step physics with interpolation; adaptive quality (MSAA, then resolution) applied off-fight. Press F3 for the live overlay. These figures predate the latest lighting and NPC work and will be re-measured.
 
 ## Roadmap
 
+- First Vercel deployment and a full pass on the deployed AI paths.
+- Trim the village to under 150 draw calls.
 - Judgement card: show the Arbiter's verdict when an Incantation is forged.
-- More spoken Arbiter lines (forge verdicts).
 - `/api/stt` for browsers without built-in speech recognition (until then the game asks you to type).
-- First Vercel deployment and a real-LLM test pass.
-- Performance on more GPUs (measured so far on an Intel Iris Xe), boss phases, demo video.
-- Story: quest hooks tied to story beats (e.g. a named NPC on a specific floor who sends the Incanter to find something), branching dialogue, and story-driven floor names that the LLM weaves into the narrative.
+- Performance on more GPUs, boss phases, demo video.
 
 ## Credits and licence
 
 Code: [MIT](LICENSE) © 2026 Mikaela Molina.
 
-3D models: CC0 packs by [Kenney](https://kenney.nl) and [Quaternius](https://quaternius.com). Sound effects: CC0 packs by rubberduck, artisticdude and Kenney (via OpenGameArt). Libraries: Three.js (MIT), Rapier (Apache-2.0), postprocessing (Zlib), Fuse.js (Apache-2.0), zod (MIT) and others. Full list with sources and licences: [CREDITS.md](CREDITS.md).
+3D models: CC0 packs by [Kenney](https://kenney.nl) and [Quaternius](https://quaternius.com) (scenery, monsters, the Incanter, NPC villagers). Sound effects: CC0 packs by rubberduck, artisticdude and Kenney. Voice: ElevenLabs (AI-generated). Libraries: Three.js (MIT), Rapier (Apache-2.0), postprocessing (Zlib), Fuse.js (Apache-2.0), zod (MIT), Basecoat (MIT), Lucide (ISC) and others. AI: Claude (Anthropic) in the game, Claude Code in development. Full list with sources and licences: [CREDITS.md](CREDITS.md).
 
-Incant Online is an original work. All names, characters and places in it are original.
+Incant Online is an original work. All names, characters, places, story and dialogue in it are original.

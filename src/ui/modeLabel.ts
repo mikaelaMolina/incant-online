@@ -16,7 +16,8 @@ export class ModeLabel {
   private readonly el = document.createElement('div');
 
   constructor(parent: HTMLElement) {
-    this.el.className = 'mode-label';
+    this.el.className = 'badge mode-label';
+    this.el.dataset.variant = 'outline';
     this.el.hidden = true;
     parent.appendChild(this.el);
   }
@@ -26,5 +27,6 @@ export class ModeLabel {
     this.el.textContent = TEXT[mode];
     this.el.title = TITLE[mode];
     this.el.dataset.mode = mode;
+    this.el.dataset.variant = mode === 'offline' ? 'destructive' : 'outline';
   }
 }

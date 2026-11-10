@@ -14,14 +14,16 @@ export class CommandBar {
     this.el.hidden = true;
 
     this.micButton.type = 'button';
-    this.micButton.className = 'mic-button';
+    this.micButton.className = 'btn mic-button';
+    this.micButton.dataset.variant = 'secondary';
+    this.micButton.dataset.size = 'icon';
     this.micButton.innerHTML = MIC_ICON;
     this.micButton.setAttribute('aria-label', 'Hold to speak (or hold V)');
     this.micButton.title = voiceSupported ? 'Hold to speak (or hold V)' : 'Voice is not available in this browser';
     this.micButton.disabled = !voiceSupported;
 
     this.input.type = 'text';
-    this.input.className = 'command-input';
+    this.input.className = 'input command-input';
     this.input.maxLength = MAX_UTTERANCE_LENGTH;
     this.input.placeholder = voiceSupported ? 'Hold V to speak, or press Enter to type…' : 'Press Enter to type…';
     this.input.setAttribute('aria-label', 'Speak to the Spire');

@@ -10,7 +10,7 @@ export class CastHud {
   private readonly manaText: HTMLSpanElement;
   private readonly slotsEl = document.createElement('div');
   private readonly toast = document.createElement('div');
-  private slots: { spec: IncantationSpec; el: HTMLDivElement; shade: HTMLDivElement; time: HTMLSpanElement; cooling: boolean }[] = [];
+  private slots: { spec: IncantationSpec; el: HTMLDivElement; shade: HTMLDivElement; time: HTMLElement; cooling: boolean }[] = [];
   private toastTimer = 0;
   private lastMana = -1;
 
@@ -23,7 +23,7 @@ export class CastHud {
     this.manaEl = mana;
     this.manaText = mana.querySelector('.hp-player-text') as HTMLSpanElement;
 
-    this.slotsEl.className = 'cast-slots';
+    this.slotsEl.className = 'item-group cast-slots';
     hud.appendChild(this.slotsEl);
 
     this.toast.className = 'cast-toast';
@@ -39,35 +39,40 @@ export class CastHud {
       const key = String(i + 1);
       if (!spec) {
         const empty = document.createElement('div');
-        empty.className = 'cast-slot cast-empty';
-        empty.innerHTML = `<span class="cast-key">${key}</span><span class="cast-name">—</span>`;
+        empty.className = 'item cast-slot cast-empty';
+        empty.dataset.size = 'sm';
+        empty.innerHTML = `<figure class="cast-key"><span class="cast-key-num">${key}</span></figure><section><h3 class="cast-name">Empty</h3></section>`;
         this.slotsEl.appendChild(empty);
         return;
       }
       const el = document.createElement('div');
-      el.className = 'cast-slot';
-      el.style.setProperty('--accent', spec.vfx.color);
+      el.className = 'item cast-slot';
+      el.dataset.size = 'sm';
+      el.dataset.variant = 'outline';
+      el.style.setProperty('--spell', spec.vfx.color);
       el.title = `${spec.flavor}\n${spec.type} · ${spec.shape} · ${spec.element} · ${spec.hits}×${spec.damage_per_hit}` +
         (spec.status_effect.kind !== 'none' ? ` · ${spec.status_effect.kind}` : '') +
         (spec.chain_targets ? ` · chains ${spec.chain_targets}` : '');
       // Round icon: the key number on the Incantation's colour, with the cooldown sweep inside.
-      const keyEl = document.createElement('span');
+      const keyEl = document.createElement('figure');
       keyEl.className = 'cast-key';
       const keyNum = document.createElement('span');
       keyNum.className = 'cast-key-num';
       keyNum.textContent = key;
-      const name = document.createElement('span');
-      name.className = 'cast-name';
-      name.textContent = spec.name;
-      const cost = document.createElement('span');
-      cost.className = 'cast-cost';
-      cost.textContent = `${spec.mana_cost} mana · ${spec.cooldown} s`;
       const shade = document.createElement('div');
       shade.className = 'cast-shade';
-      const time = document.createElement('span');
-      time.className = 'cast-time';
       keyEl.append(shade, keyNum);
-      el.append(keyEl, name, cost, time);
+      const body = document.createElement('section');
+      const name = document.createElement('h3');
+      name.className = 'cast-name';
+      name.textContent = spec.name;
+      const cost = document.createElement('p');
+      cost.className = 'cast-cost';
+      cost.textContent = `${spec.mana_cost} mana · ${spec.cooldown} s`;
+      body.append(name, cost);
+      const time = document.createElement('aside');
+      time.className = 'cast-time';
+      el.append(keyEl, body, time);
       this.slotsEl.appendChild(el);
       this.slots.push({ spec, el, shade, time, cooling: false });
     });

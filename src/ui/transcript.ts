@@ -28,7 +28,8 @@ export class Transcript {
     const line = document.createElement('div');
     line.className = `transcript-line transcript-${kind}`;
     const who = document.createElement('span');
-    who.className = 'transcript-who';
+    who.className = 'badge transcript-who';
+    who.dataset.variant = kind === 'you' ? 'outline' : 'secondary';
     who.textContent = kind === 'you' ? 'You' : 'The Arbiter';
     const body = document.createElement('span');
     body.textContent = text; // never innerHTML: this is player / model text

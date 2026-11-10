@@ -62,7 +62,7 @@ export class HealthBars {
       if (!bar) {
         const el = document.createElement('div');
         el.className = 'hp-enemy';
-        el.style.setProperty('--accent', e.profile.color);
+        el.style.setProperty('--tint', e.profile.color);
         el.innerHTML = `<span class="hp-name"></span><div class="hp-track"><div class="hp-fill"></div></div>`;
         (el.querySelector('.hp-name') as HTMLSpanElement).textContent = displayName(e.spec.id);
         this.layer.appendChild(el);

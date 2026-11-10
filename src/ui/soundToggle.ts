@@ -1,6 +1,8 @@
-const SPEAKER = '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/>';
-const ICON_ON = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${SPEAKER}<path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
-const ICON_OFF = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${SPEAKER}<path d="M16 9.5l5 5M21 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+import { Volume2, VolumeX } from 'lucide';
+import { icon } from './icons';
+
+const ICON_ON = icon(Volume2, 16);
+const ICON_OFF = icon(VolumeX, 16);
 
 /** Round top-right icon button (and the M key) to mute sound effects and the Arbiter's voice. */
 export class SoundToggle {
@@ -8,7 +10,9 @@ export class SoundToggle {
 
   constructor(parent: HTMLElement, muted: boolean, onToggle: () => boolean) {
     this.el.type = 'button';
-    this.el.className = 'sound-toggle';
+    this.el.className = 'btn sound-toggle';
+    this.el.dataset.variant = 'outline';
+    this.el.dataset.size = 'icon';
     this.el.addEventListener('click', () => this.set(onToggle()));
     window.addEventListener('keydown', (e) => {
       if (e.code !== 'KeyM' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;

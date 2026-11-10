@@ -1,3 +1,6 @@
+import { LoaderCircle } from 'lucide';
+import { icon } from './icons';
+
 /**
  * "The Spire reshapes…" curtain shown while a floor is being generated and built.
  * Fades in over the game, shows the floor's name once known, fades out when the floor is ready.
@@ -19,6 +22,7 @@ export class ReshapeTransition {
     this.sub.className = 'reshape-sub';
     const rune = document.createElement('div');
     rune.className = 'reshape-rune';
+    rune.innerHTML = icon(LoaderCircle, 40);
     this.el.append(rune, this.title, this.sub);
     parent.appendChild(this.el);
   }

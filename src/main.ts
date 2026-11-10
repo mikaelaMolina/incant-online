@@ -1,3 +1,7 @@
+// shadcn/ui-style components (Basecoat, MIT) as prebuilt plain CSS: no Tailwind build step. The
+// full bundle is not in the package's export map, so it is imported by path. Our styles come
+// after it and are unlayered, so they win over its cascade layers.
+import '../node_modules/basecoat-css/dist/basecoat.cdn.css';
 import './ui/style.css';
 import { startGame, type GameController } from './game/game';
 import { SpeechInput } from './voice/speechInput';

@@ -29,7 +29,7 @@ export class ProgressHud {
 
     this.floorEl.className = 'floor-label';
 
-    this.bossEl.className = 'boss-bar';
+    this.bossEl.className = 'card boss-bar';
     this.bossEl.hidden = true;
     this.bossEl.innerHTML = '<span class="boss-name"></span><div class="boss-track"><div class="boss-lag"></div><div class="boss-fill"></div></div>';
     this.bossName = this.bossEl.querySelector('.boss-name') as HTMLSpanElement;
@@ -66,13 +66,14 @@ export class ProgressHud {
   }
 
   setFloor(floor: number, name: string, boss: boolean): void {
-    // Two-tone header: "Floor 3 · " in the accent colour, the name in bold white.
+    // Header: "Floor 3 · " muted, the floor name in the foreground colour.
     const strong = document.createElement('strong');
     strong.textContent = name;
     this.floorEl.replaceChildren(`Floor ${floor} · `, strong);
     if (boss) {
       const tag = document.createElement('span');
-      tag.className = 'floor-tag';
+      tag.className = 'badge floor-tag';
+      tag.dataset.variant = 'destructive';
       tag.textContent = 'Guardian floor';
       this.floorEl.appendChild(tag);
     }
@@ -83,7 +84,7 @@ export class ProgressHud {
   titleCard(floor: number, name: string, subtitle: string): void {
     this.titleEl.innerHTML = '';
     const parts: [string, string][] = [
-      ['title-card-floor', `Floor ${floor}`],
+      ['badge title-card-floor', `Floor ${floor}`],
       ['title-card-name', name],
       ['title-card-sub', subtitle],
     ];
@@ -93,9 +94,6 @@ export class ProgressHud {
       d.textContent = text;
       this.titleEl.appendChild(d);
     }
-    const rule = document.createElement('div');
-    rule.className = 'title-card-rule';
-    this.titleEl.appendChild(rule);
     this.titleEl.hidden = false;
     this.titleEl.classList.remove('title-card-on');
     void this.titleEl.offsetWidth;

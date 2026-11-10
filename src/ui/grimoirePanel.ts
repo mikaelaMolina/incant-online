@@ -1,28 +1,37 @@
+import { X } from 'lucide';
 import type { Grimoire } from '../combat/grimoire';
 import { summary } from '../voice/commandRouter';
+import { icon } from './icons';
 
 /** Full Grimoire listing, opened with "open Grimoire" (or typed), closed with "close Grimoire" or ×. */
 export class GrimoirePanel {
   private readonly el = document.createElement('div');
-  private readonly list = document.createElement('div');
+  private readonly list = document.createElement('section');
 
   constructor(parent: HTMLElement) {
-    this.el.className = 'grimoire-panel';
+    this.el.className = 'card grimoire-panel';
     this.el.hidden = true;
     this.el.setAttribute('role', 'dialog');
     this.el.setAttribute('aria-label', 'Grimoire');
-    const close = document.createElement('button');
-    close.className = 'grimoire-close';
-    close.type = 'button';
-    close.textContent = '×';
-    close.setAttribute('aria-label', 'Close the Grimoire');
-    close.addEventListener('click', () => this.show(false));
+
+    const header = document.createElement('header');
     const title = document.createElement('h2');
     title.textContent = 'Grimoire';
     const hint = document.createElement('p');
     hint.className = 'grimoire-hint';
     hint.textContent = 'Say a name to recite it, or press its number. Only six fit on the bar; every Incantation here can still be recited.';
-    this.el.append(close, title, hint, this.list);
+    const close = document.createElement('button');
+    close.className = 'btn card-action grimoire-close';
+    close.type = 'button';
+    close.dataset.variant = 'ghost';
+    close.dataset.size = 'icon-sm';
+    close.innerHTML = icon(X, 16);
+    close.setAttribute('aria-label', 'Close the Grimoire');
+    close.addEventListener('click', () => this.show(false));
+    header.append(title, hint, close);
+
+    this.list.className = 'item-group grimoire-list';
+    this.el.append(header, this.list);
     parent.appendChild(this.el);
   }
 
@@ -39,22 +48,30 @@ export class GrimoirePanel {
     for (const j of grimoire.all) {
       const spec = j.incantation;
       const row = document.createElement('div');
-      row.className = 'grimoire-entry';
-      row.style.setProperty('--accent', spec.vfx.color);
+      row.className = 'item grimoire-entry';
+      row.dataset.variant = 'outline';
+      row.dataset.size = 'sm';
+      row.style.setProperty('--spell', spec.vfx.color);
       const slot = grimoire.bar.indexOf(j);
-      const cells: [string, string][] = [
-        ['grimoire-slot', slot >= 0 ? String(slot + 1) : '·'],
-        ['grimoire-name', spec.name],
+      const badge = document.createElement('figure');
+      badge.className = 'grimoire-slot';
+      badge.textContent = slot >= 0 ? String(slot + 1) : '·';
+      const body = document.createElement('section');
+      const name = document.createElement('h3');
+      name.className = 'grimoire-name';
+      name.textContent = spec.name;
+      body.appendChild(name);
+      for (const [cls, text] of [
         ['grimoire-stats', summary(spec)],
         ['grimoire-flavor', spec.flavor],
-      ];
-      for (const [cls, text] of cells) {
+      ] as const) {
         if (!text) continue;
-        const span = document.createElement('span');
-        span.className = cls;
-        span.textContent = text;
-        row.appendChild(span);
+        const p = document.createElement('p');
+        p.className = cls;
+        p.textContent = text;
+        body.appendChild(p);
       }
+      row.append(badge, body);
       this.list.appendChild(row);
     }
   }

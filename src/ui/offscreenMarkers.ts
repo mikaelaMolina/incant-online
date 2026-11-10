@@ -54,7 +54,7 @@ export class OffscreenMarkers {
       }
       el.hidden = false;
       el.classList.toggle('offscreen-boss', e.spec.archetype === 'boss');
-      el.style.setProperty('--accent', e.profile.color);
+      el.style.setProperty('--tint', e.profile.color);
       el.style.transform = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, -50%) rotate(${angle.toFixed(3)}rad)`;
       used++;
     }

@@ -29,6 +29,8 @@ Every third-party component, asset and AI service used in Incant Online. Only MI
 | zod | 4.6.7 | Schemas and validation (FloorSpec, EnemySpec, asset manifest) | MIT | https://github.com/colinhacks/zod |
 | fuse.js | 7.5.0 | Fuzzy matching of spoken Incantation names when reciting (no dependencies of its own) | Apache-2.0 | https://github.com/krisk/Fuse |
 | postprocessing | 6.39.6 | Bloom pass for glowing Incantation VFX (no dependencies of its own) | Zlib | https://github.com/pmndrs/postprocessing |
+| basecoat-css | 1.1.0 | shadcn/ui-style UI components (button, card, badge, item, input, kbd) as prebuilt plain CSS; the bundle carries Tailwind CSS output (MIT). No dependencies of its own | MIT | https://github.com/hunvreus/basecoat |
+| lucide | 1.71.0 | UI icons (mic, sound, close, spell steps, loading spinner), tree-shaken. No dependencies of its own | ISC | https://github.com/lucide-icons/lucide |
 | vitest | 5.1.0 | Unit tests (dev only) | MIT | https://github.com/vitest-dev/vitest |
 | @types/node | 24.19.2 | Node types for the dev API middleware in vite.config.ts (dev only) | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped |
 | vite | 7.3.7 | Dev server and bundler (dev only) | MIT | https://github.com/vitejs/vite |
@@ -73,6 +75,8 @@ Every third-party component, asset and AI service used in Incant Online. Only MI
 | why-is-node-running 3.2.1 | MIT |
 
 `GLTFLoader`, `FBXLoader` (with its bundled fflate) and `SkeletonUtils` are part of the three package (`three/addons`, MIT).
+
+The UI follows the look of shadcn/ui (MIT, https://github.com/shadcn-ui/ui) through Basecoat. Not used: Tailwind CSS as a build step, because Tailwind v4 depends on `lightningcss` (MPL-2.0), which is outside the allowed licences; Basecoat's prebuilt CSS needs no build step.
 
 Not used: `@anthropic-ai/sdk` (Apache-2.0) was evaluated and removed because it depends on `fast-sha256` (Unlicense), which is outside the allowed licences; the Messages API is called over plain HTTP instead.
 

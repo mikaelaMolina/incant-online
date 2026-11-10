@@ -47,7 +47,10 @@ export async function buildFloor(spec: FloorSpec, ctx: FloorContext): Promise<Fl
   scene.background = sky;
   scene.fog = new THREE.FogExp2(sky.getHex(), fogDensity(spec.lighting.fog_density));
 
-  const hemi = new THREE.HemisphereLight(spec.lighting.ambient_color, biome.bounce, time.hemiIntensity);
+  // The floor's ambient colour (often chosen by the LLM) steers the mood, blended half-way with the
+  // biome's own sky so a muddy pick can't grey out the whole floor.
+  const ambient = new THREE.Color(spec.lighting.ambient_color).lerp(sky, 0.5);
+  const hemi = new THREE.HemisphereLight(ambient, biome.bounce, time.hemiIntensity);
   const sun = new THREE.DirectionalLight(time.sunColor, time.sunIntensity);
   const elev = THREE.MathUtils.degToRad(time.sunElevation);
   sun.position.set(Math.cos(elev) * 0.6, Math.sin(elev), Math.cos(elev) * 0.8).multiplyScalar(20);
@@ -55,8 +58,12 @@ export async function buildFloor(spec: FloorSpec, ctx: FloorContext): Promise<Fl
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.05;
+  sun.shadow.radius = 3; // softer shadow edges (PCF filtering)
   Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 60 });
-  group.add(hemi, sun, sun.target);
+  // Cool back light from the opposite side: outlines the Incanter and enemies against the ground.
+  const rim = new THREE.DirectionalLight(time.rimColor, time.rimIntensity);
+  rim.position.set(-sun.position.x, sun.position.y * 0.6, -sun.position.z);
+  group.add(hemi, sun, sun.target, rim);
 
   // --- Ground + boundary ---------------------------------------------------------------------
   const ground = makeGround(half, biome.ground, biome.groundVariation, spec.name);

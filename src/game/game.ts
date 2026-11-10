@@ -27,6 +27,8 @@ import { CACHED_INCANTATIONS } from '../fallback/cache';
 import { judge } from '../arbiter/arbiter';
 import { Vfx } from '../vfx/presets';
 import { PostFx } from '../vfx/bloom';
+import { Atmosphere } from './atmosphere';
+import { BIOMES, TIMES } from './biomes';
 import { CastHud } from '../ui/castHud';
 import { DamageNumbers } from '../ui/damageNumbers';
 import { sfx, type SoundId } from '../audio/sfx';
@@ -96,6 +98,11 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
 
   const scene = new THREE.Scene();
   let floor: Floor = await buildFloor(STARTING_ARENA, { scene, world, models });
+  // Sky dome and ambient motes: created once, re-tinted for every floor.
+  const atmosphere = new Atmosphere(scene);
+  const tintAtmosphere = (): void =>
+    atmosphere.setFloor(BIOMES[floor.spec.biome], TIMES[floor.spec.lighting.time_of_day], floor.sun.position, scene.background as THREE.Color);
+  tintAtmosphere();
 
   const input = new Input(canvas);
   const cam = new FollowCamera(window.innerWidth / window.innerHeight);
@@ -603,6 +610,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     floor.sun.position.copy(incanter.position).add(sunOffset);
     floor.sun.target.position.copy(incanter.position);
 
+    atmosphere.update(dt, cam.camera, incanter.position, renderer.domElement.height);
     postFx.render(dt);
     if (removeWarm && --warmFrames <= 0) {
       removeWarm();
@@ -664,6 +672,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
           floor = await buildFloor(STARTING_ARENA, { scene, world, models });
         }
         sunOffset = floor.sun.position.clone();
+        tintAtmosphere();
         incanter.revive();
         incanter.setSpawn(floor.spawn);
         world.step(); // update the query pipeline before spawn checks

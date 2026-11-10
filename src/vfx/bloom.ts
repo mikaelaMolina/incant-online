@@ -1,10 +1,22 @@
 import * as THREE from 'three';
-import { BloomEffect, EffectComposer, EffectPass, RenderPass } from 'postprocessing';
+import {
+  BloomEffect,
+  BrightnessContrastEffect,
+  EffectComposer,
+  EffectPass,
+  HueSaturationEffect,
+  RenderPass,
+  ToneMappingEffect,
+  ToneMappingMode,
+  VignetteEffect,
+} from 'postprocessing';
 
 /**
- * Bloom pass. Renders into a half-float buffer so HDR colours (> 1.0) survive; the threshold sits
- * above what sunlit scenery reaches, so only Incantation VFX (pushed to 2–6× in materials.ts),
- * the Incanter's visor and particles glow.
+ * Post-processing: bloom, then a filmic look. Renders into a half-float buffer so HDR colours
+ * (> 1.0) survive; the bloom threshold sits above what sunlit scenery reaches, so only Incantation
+ * VFX (pushed to 2–6× in materials.ts), glowing motes and particles bloom. After bloom: neutral
+ * tone mapping (keeps hues, rolls off highlights instead of clipping), a touch of saturation and
+ * contrast, and a soft vignette. All effects merge into one fullscreen pass.
  */
 export const BLOOM_THRESHOLD = 1.6;
 
@@ -26,7 +38,16 @@ export class PostFx {
       // 5 MIP levels instead of 8: looks the same at game resolutions, ~6 fewer draw calls a frame.
       levels: 5,
     });
-    this.composer.addPass(new EffectPass(camera, this.bloom));
+    this.composer.addPass(
+      new EffectPass(
+        camera,
+        this.bloom,
+        new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }),
+        new HueSaturationEffect({ saturation: 0.12 }),
+        new BrightnessContrastEffect({ contrast: 0.08 }),
+        new VignetteEffect({ offset: 0.32, darkness: 0.5 }),
+      ),
+    );
   }
 
   /** The buffer the scene is drawn into (shaders compile per target: see precompile in game.ts). */

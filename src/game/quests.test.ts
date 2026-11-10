@@ -8,6 +8,11 @@ describe('quests', () => {
     expect(q).toMatchObject({ kind: 'clear_floor', floor: 1, giver: 'Knight' });
   });
 
+  it('back in the village after a guardian, the Knight sends you up the next floor', () => {
+    expect(questOffer('Knight', 3, false, true)).toMatchObject({ kind: 'clear_floor', floor: 4 });
+    expect(questOffer('Elder', 3, false, true)).toBeUndefined();
+  });
+
   it('guides ask for the guardian on guardian floors, otherwise a clear or orbs', () => {
     expect(questOffer('Wanderer', 3, true)?.kind).toBe('defeat_guardian');
     expect(questOffer('Wanderer', 2, false)?.kind).toBe('gather_orbs');

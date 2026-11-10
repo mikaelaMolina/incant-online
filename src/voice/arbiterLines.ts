@@ -1,6 +1,6 @@
 import { REPLIES } from '../../api/_lib/mock/interpreter.js';
 import { stripForSpeech } from './speechText.js';
-import { STORY_BEATS, STORY_CHAPTERS, GUIDE_LINES, PROLOGUE_NARRATION, PROLOGUE_NPC_DIALOGUE } from '../game/story.js';
+import { STORY_BEATS, STORY_CHAPTERS, GUIDE_LINES, PROLOGUE_NARRATION, PROLOGUE_NPC_DIALOGUE, VILLAGE_RETURN } from '../game/story.js';
 
 /**
  * Every fixed line the Arbiter speaks. These are pre-recorded once with the cloud voice
@@ -31,6 +31,7 @@ export function prebakedLines(): string[] {
     ...STORY_CHAPTERS.filter((c) => c.start <= PREBAKE_UP_TO_FLOOR).map((c) => c.intro),
     ...GUIDE_LINES.map((g) => g.line),
     PROLOGUE_NARRATION,
+    VILLAGE_RETURN,
     ...PROLOGUE_NPC_DIALOGUE.flatMap((d) => [d.greeting, ...d.lines.map((l) => l.line)]),
   ];
   return [...new Set(lines)];

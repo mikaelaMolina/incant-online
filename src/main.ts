@@ -24,7 +24,8 @@ import { Narrator } from './voice/narrator';
 import { ARBITER_LINES } from './voice/arbiterLines';
 import { sfx } from './audio/sfx';
 import { SoundToggle } from './ui/soundToggle';
-import { PROLOGUE_NARRATION, guideGreeting, guideReply, prologueGreeting, prologueReply } from './game/story';
+import { PROLOGUE_NARRATION, VILLAGE_RETURN, guideGreeting, guideReply, prologueGreeting, prologueReply } from './game/story';
+import { STARTING_ARENA } from './fallback/floors';
 import { PROLOGUE_FLOOR } from './game/npc';
 import { QuestLog, type Quest } from './game/quests';
 import { QuestTracker } from './ui/questTracker';
@@ -167,7 +168,9 @@ if (canvas && hud) {
    * What an NPC answers: Claude playing the NPC (/api/talk, llm mode), or their written dialogue
    * (mock mode, offline, slow or failed). Never throws.
    */
-  const npcReply = async (text: string, role: string, floorNumber: number): Promise<string> => {
+  const npcReply = async (text: string, role: string, floorNumber: number, village: boolean): Promise<string> => {
+    // Villagers (prologue or a rest between climbs) speak as the village; a floor's guide as an echo.
+    if (village) floorNumber = PROLOGUE_FLOOR;
     const written = (): string => (floorNumber === PROLOGUE_FLOOR ? prologueReply(text, role) : guideReply(text, floorNumber));
     const key = `${floorNumber}:${role}`;
     const history = talkHistory.get(key) ?? [];
@@ -227,7 +230,7 @@ if (canvas && hud) {
       nearGuide: () => g.nearGuide(),
       talk: async (text: string) => {
         const role = g.nearestNpcRole() || 'Wanderer';
-        npcSay(role, await npcReply(text, role, g.floorNumber()));
+        npcSay(role, await npcReply(text, role, g.floorNumber(), g.inVillage()));
       },
     });
 
@@ -246,10 +249,28 @@ if (canvas && hud) {
     g.hooks.onGateOpen = () =>
       arbiter(`Floor ${g.floorNumber()} falls silent. A gate opens: step into it and speak the next floor into being.`, ARBITER_LINES.gateOpen);
     g.hooks.onBossAwake = (name) => arbiter(`${name} guards this floor. Unmake it, Incanter.`, ARBITER_LINES.bossAwake);
+    /** After each guardian: back to the Threshold to rest, talk and take a quest, then climb on. */
+    const villageVisited = new Set<number>();
+    const visitVillage = async (afterFloor: number): Promise<void> => {
+      villageVisited.add(afterFloor);
+      gatePrompt.show(false);
+      questLog.leftFloor(afterFloor);
+      questTracker.show(questLog.active);
+      sfx.play('reshape');
+      reshape.show(STARTING_ARENA.name);
+      await g.loadFloor(STARTING_ARENA, { village: true });
+      await reshape.hide();
+      arbiter(VILLAGE_RETURN);
+    };
     g.hooks.onGateEnter = () => {
-      // The village gate leads into the world described on the start screen.
+      // The prologue's gate leads into the world described on the start screen.
       if (g.floorNumber() === PROLOGUE_FLOOR && r.hasPreparedWorld) {
         void r.enterPreparedWorld();
+        return;
+      }
+      // A cleared guardian floor's gate leads back to the village first.
+      if (g.isGuardianFloor() && !villageVisited.has(g.floorNumber())) {
+        void visitVillage(g.floorNumber());
         return;
       }
       gatePrompt.show(true);
@@ -262,10 +283,11 @@ if (canvas && hud) {
     };
     g.hooks.onGuideEnter = (role) => {
       const floorNumber = g.floorNumber();
-      const greeting = floorNumber === PROLOGUE_FLOOR ? prologueGreeting(role) : guideGreeting(floorNumber);
+      const village = g.inVillage();
+      const greeting = village ? prologueGreeting(role) : guideGreeting(floorNumber);
       npcSay(role, greeting);
       // An NPC with a task offers it once the greeting has been said.
-      const offer = questLog.offerFrom(role, floorNumber, g.isGuardianFloor());
+      const offer = questLog.offerFrom(role, floorNumber, g.isGuardianFloor(), village);
       if (offer) {
         window.setTimeout(() => {
           if (g.floorNumber() !== floorNumber || questLog.active) return;

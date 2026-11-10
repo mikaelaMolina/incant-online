@@ -154,6 +154,12 @@ export const PROLOGUE_TITLE = 'Where every climb begins';
  * The Arbiter's opening narration in the village: the story before the first battle. The player
  * walks the camp, talks to its people, and steps through the gate when ready.
  */
+/** The village again, between climbs (after each guardian). */
+export const VILLAGE_SUBTITLE = 'A place to rest between climbs';
+/** The Arbiter's line when the Incanter returns to the village after a guardian. */
+export const VILLAGE_RETURN =
+  'The guardian falls, and the Spire lets you rest. The Threshold keeps its fires lit for you. Speak with its people, then step through the gate and describe the floor beyond.';
+
 export const PROLOGUE_NARRATION =
   'At the foot of the Spire, the last camp of the old world keeps its fires lit. Its people remember what the tower was. Walk among them, hear what they know, and when you are ready, step through the gate. The world you spoke waits beyond it.';
 

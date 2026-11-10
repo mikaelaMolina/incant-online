@@ -38,14 +38,18 @@ export function rewardFor(kind: QuestKind, floor: number): number {
 
 /**
  * The quest an NPC offers, if any.
- * - In the prologue village (floor 0) the Knight sends you to clear the first floor.
+ * - In the village (the prologue, or a rest after a guardian) the Knight sends you to clear the next floor.
  * - On a combat floor its guide asks you to defeat the guardian (guardian floors), or alternately
  *   to clear the floor or gather healing orbs.
  */
-export function questOffer(giver: string, floor: number, guardianFloor: boolean): Quest | undefined {
-  if (floor === 0) {
+export function questOffer(giver: string, floor: number, guardianFloor: boolean, village = false): Quest | undefined {
+  if (floor === 0 || village) {
+    // In the village (the prologue, or a rest after a guardian) the Knight sends you up the next floor.
     if (giver !== 'Knight') return undefined;
-    return make('clear_floor', giver, 1, 'Clear the first floor', 'Before you go, a task: clear every foe on the first floor beyond the gate. Do it, and the Spire will know your name.');
+    if (floor === 0) {
+      return make('clear_floor', giver, 1, 'Clear the first floor', 'Before you go, a task: clear every foe on the first floor beyond the gate. Do it, and the Spire will know your name.');
+    }
+    return make('clear_floor', giver, floor + 1, 'Clear the next floor', 'Rested? Good. The next floor waits, and so does its host. Clear every foe on it, and I will see you rewarded.');
   }
   if (guardianFloor) {
     return make('defeat_guardian', giver, floor, 'Defeat the guardian', 'A guardian holds this floor. Unmake it, Incanter, and I will give you what strength I have left.');
@@ -77,9 +81,9 @@ export class QuestLog {
   readonly completed: Quest[] = [];
 
   /** The quest this NPC would give now (none while another is active or it was already given). */
-  offerFrom(giver: string, floor: number, guardianFloor: boolean): Quest | undefined {
+  offerFrom(giver: string, floor: number, guardianFloor: boolean, village = false): Quest | undefined {
     if (this.active) return undefined;
-    const q = questOffer(giver, floor, guardianFloor);
+    const q = questOffer(giver, floor, guardianFloor, village);
     return q && !this.offered.has(q.id) ? q : undefined;
   }
 
@@ -104,7 +108,7 @@ export class QuestLog {
     return q;
   }
 
-  /** Leaving a floor abandons a quest that belonged to it (the prologue's quest targets floor 1). */
+  /** Leaving a floor abandons a quest that belonged to it (a village quest targets the next floor). */
   leftFloor(floor: number): void {
     if (this.active && this.active.floor === floor) this.active = undefined;
   }

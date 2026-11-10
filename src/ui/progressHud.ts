@@ -65,11 +65,12 @@ export class ProgressHud {
     this.xpPopTimer = window.setTimeout(() => this.xpPopEl.classList.remove('xp-pop-on'), 1200);
   }
 
-  setFloor(floor: number, name: string, boss: boolean): void {
+  /** `label` replaces "Floor N" (e.g. "Village"). */
+  setFloor(floor: number, name: string, boss: boolean, label?: string): void {
     // Block header: "Floor 3" on yellow, the floor name on a paper block beside it.
     const strong = document.createElement('strong');
     strong.textContent = name;
-    this.floorEl.replaceChildren(floor === 0 ? 'Prologue' : `Floor ${floor}`, strong);
+    this.floorEl.replaceChildren(label ?? (floor === 0 ? 'Prologue' : `Floor ${floor}`), strong);
     if (boss) {
       const tag = document.createElement('span');
       tag.className = 'badge floor-tag';
@@ -81,10 +82,10 @@ export class ProgressHud {
   }
 
   /** Big centred card when a floor begins: "FLOOR 3", its name, and a subtitle. */
-  titleCard(floor: number, name: string, subtitle: string): void {
+  titleCard(floor: number, name: string, subtitle: string, label?: string): void {
     this.titleEl.innerHTML = '';
     const parts: [string, string][] = [
-      ['badge title-card-floor', floor === 0 ? 'Prologue' : `Floor ${floor}`],
+      ['badge title-card-floor', label ?? (floor === 0 ? 'Prologue' : `Floor ${floor}`)],
       ['title-card-name', name],
       ['title-card-sub', subtitle],
     ];

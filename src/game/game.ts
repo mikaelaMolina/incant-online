@@ -5,7 +5,7 @@ import { FollowCamera } from './camera';
 import { loadIncanterModel } from './incanterModel';
 import { Incanter } from './player';
 import { Progression, XP_FOR, planWaves, spawnsForFloor, xpToNext } from './progression';
-import { storySubtitle, storyLineForFloor } from './story';
+import { VILLAGE_SUBTITLE, storySubtitle, storyLineForFloor } from './story';
 import { preloadEnemyModels } from '../enemies/enemyModel';
 import { GuideNpc, PROLOGUE_FLOOR, guideSpawnPoint, npcModel, npcsForFloor } from './npc';
 import { UnitFrame } from '../ui/unitFrame';
@@ -56,7 +56,13 @@ export interface GameController {
    * Never rejects: if the floor can't be built, the starting arena is loaded instead.
    * Resolves with the floor actually loaded.
    */
-  loadFloor(spec: FloorSpec): Promise<FloorSpec>;
+  /**
+   * Replace the current floor. `village`: the Threshold between climbs (after a guardian): the
+   * floor count doesn't climb, there are no enemies, the villagers are back and the Incanter rests.
+   */
+  loadFloor(spec: FloorSpec, opts?: { village?: boolean }): Promise<FloorSpec>;
+  /** In the village: the prologue (floor 0) or a rest between climbs. */
+  inVillage(): boolean;
   /** How high the Incanter has climbed (1 = the first floor). */
   floorNumber(): number;
   /** The floor currently loaded, e.g. as context for "make it night". */
@@ -129,6 +135,9 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   const progress = new Progression();
   // The climb starts in the prologue: the peaceful village at the Spire's base (floor 0).
   progress.floor = PROLOGUE_FLOOR;
+  /** Back in the village between climbs (after a guardian). The prologue is floor 0. */
+  let inVillage = false;
+  const inVillageNow = (): boolean => inVillage || progress.floor === PROLOGUE_FLOOR;
   const pickups = new Pickups(scene);
   scene.add(incanter.object);
   incanter.setSpawn(floor.spawn);
@@ -200,7 +209,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   };
   const spawnFor = (f: Floor): void => {
     const gen = ++generation;
-    waves = planWaves(spawnsForFloor(f.spec, progress.floor), progress.floor);
+    // The village is peaceful, even when the floor count is a guardian floor's.
+    waves = inVillageNow() ? [] : planWaves(spawnsForFloor(f.spec, progress.floor), progress.floor);
     waveIndex = 0;
     // Load every wave's models now, so reinforcements never wait on a download mid-fight.
     void preloadEnemyModels(waves.flat().map((g) => models.resolve(g.enemy.model, 'enemy')).filter((m) => m !== undefined));
@@ -339,8 +349,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   }
   function spawnGuide(): void {
     removeGuide();
-    const prologue = progress.floor === PROLOGUE_FLOOR;
-    for (const def of npcsForFloor(progress.floor)) {
+    const prologue = inVillageNow();
+    for (const def of npcsForFloor(prologue ? PROLOGUE_FLOOR : progress.floor)) {
       // The village NPCs stand where the prologue places them; a floor's guide stands near the spawn.
       const spot = prologue ? def.position : guideSpawnPoint(floor.spawn, floor.halfExtent, floor.spec.name);
       const npc = new GuideNpc(scene, hud, spot, incanter.feetY, def.role);
@@ -442,12 +452,15 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   const progressHud = new ProgressHud(hud);
   const unitFrame = new UnitFrame(hud);
   const offscreen = new OffscreenMarkers(hud);
-  const showTitle = (): void => progressHud.titleCard(progress.floor, floor.spec.name, storySubtitle(floor.spec.biome, progress.bossFloor, progress.floor));
+  const showTitle = (): void =>
+    inVillage
+      ? progressHud.titleCard(progress.floor, floor.spec.name, VILLAGE_SUBTITLE, 'Village')
+      : progressHud.titleCard(progress.floor, floor.spec.name, storySubtitle(floor.spec.biome, progress.bossFloor, progress.floor));
   let titleShown = false;
   const showProgress = (): void => {
     unitFrame.setLevel(progress.level);
     progressHud.setXp(progress.level, progress.xpFraction, progress.xp, xpToNext(progress.level));
-    progressHud.setFloor(progress.floor, floor.spec.name, progress.bossFloor);
+    progressHud.setFloor(progress.floor, floor.spec.name, progress.bossFloor && !inVillage, inVillage ? 'Village' : undefined);
   };
   showProgress();
   /** A kill: experience, maybe a level, and orbs to pick up. */
@@ -719,7 +732,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       pendingQuality = undefined;
       input.clear();
     },
-    async loadFloor(spec) {
+    async loadFloor(spec, opts = {}) {
       loading = true;
       quality.reset();
       if (pendingQuality) applyQuality(pendingQuality);
@@ -731,7 +744,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         hadEnemies = false;
         clearedTimer = 0;
         // Leaving through the open gate climbs a floor; reshaping the current floor does not.
-        if (gate) progress.floor++;
+        if (gate && !opts.village) progress.floor++;
+        inVillage = !!opts.village;
         pickups.clear();
         healthBars.showBanner(null);
         projectiles.clear();
@@ -759,8 +773,13 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         // After the reshape curtain lifts; floor 1 (built from the start screen) gets its title on entry.
         if (titleShown) window.setTimeout(showTitle, 450);
         // Story beat: the Arbiter speaks a narrative line when a floor with a beat loads.
-        const beat = storyLineForFloor(progress.floor);
+        const beat = inVillage ? undefined : storyLineForFloor(progress.floor);
         if (beat && titleShown) hooks.onStoryBeat?.(beat);
+        if (inVillage) {
+          // A rest between climbs: fully restored.
+          incanter.health.heal(incanter.health.max);
+          runner.resources.mana = runner.resources.max;
+        }
       } finally {
         loading = false;
         input.clear();
@@ -777,7 +796,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     atGate: () => inGate,
     nearGuide: () => nearGuide,
     nearestNpcRole: () => nearestNpcRole,
-    isGuardianFloor: () => progress.bossFloor,
+    isGuardianFloor: () => progress.bossFloor && !inVillage,
+    inVillage: inVillageNow,
     grantReward(xp) {
       gainXp(xp);
       incanter.health.heal(incanter.health.max);

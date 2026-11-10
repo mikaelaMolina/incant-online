@@ -7,7 +7,7 @@ import { startGame, type GameController } from './game/game';
 import { SpeechInput } from './voice/speechInput';
 import { PushToTalk } from './voice/pushToTalk';
 import { UtterancePipeline } from './voice/pipeline';
-import { isAwakeningPhrase, AWAKENING_PHRASE } from './voice/utterance';
+import { isAwakeningPhrase } from './voice/utterance';
 import { StartScreen } from './ui/startScreen';
 import { CommandBar } from './ui/commandBar';
 import { Transcript } from './ui/transcript';
@@ -87,14 +87,40 @@ if (canvas && hud) {
   ptt.bindButton(startScreen.micButton);
   commandBar.onSubmit = (text) => pipeline.submit(text, 'text');
 
-  // Start screen: listen for the awakening phrase.
+  // Start screen: the player's first words describe the world that becomes floor 1. Typed words,
+  // quick picks and speech all arrive through the pipeline, like in the game.
+  let pendingWorld: string | undefined;
+  let worldBuilding = false;
+  const describeWorld = (text: string): void => {
+    if (worldBuilding) return;
+    startScreen?.showHeard(`“${text}”`);
+    startScreen?.setBusy(true);
+    if (!router) {
+      pendingWorld = text; // built as soon as the Spire has loaded
+      startScreen?.setStatus('Almost ready…');
+      return;
+    }
+    const r = router;
+    worldBuilding = true;
+    startScreen?.setStatus('The Spire listens…');
+    void r.buildWorld(text).then((built) => {
+      worldBuilding = false;
+      if (built) {
+        startScreen?.enter(true); // normally already entered when the floor loaded, under the curtain
+        return;
+      }
+      // A question got an answer instead (shown on the start screen): ask for a place again.
+      startScreen?.setBusy(false);
+      startScreen?.setStatus('Describe a place to enter.');
+    });
+  };
+  startScreen.onWorld = (text) => pipeline.submit(text, 'text');
   pipeline.setHandler((u) => {
     if (isAwakeningPhrase(u.text)) {
-      startScreen?.showHeard(`“${u.text}”`);
-      startScreen?.enter();
-    } else {
-      startScreen?.showHeard(`“${u.text}”: the Spire waits for the awakening phrase, “${AWAKENING_PHRASE}”.`);
+      startScreen?.showHeard(`“${u.text}”: the Spire hears you. Now describe your world.`);
+      return;
     }
+    describeWorld(u.text);
   });
 
   let game: GameController | undefined;
@@ -120,27 +146,17 @@ if (canvas && hud) {
     narrator.speak(text);
   };
 
-  startScreen.onEnter = () => {
-    commandBar?.show();
-    if (!speech.supported) transcript?.add('spire', NO_VOICE_MESSAGE);
-    game?.setPaused(false);
-    // The Arbiter sets the goal once: climb, speak, survive.
-    arbiter('Welcome, Incanter. The Spire rises floor upon floor, and a guardian waits on every third. Speak new Incantations into being, say their names to cast them, and climb.');
-    const g = game;
-    if (!g) return;
-    // In the game: everything said or typed is shown, then routed (forge / build / reply).
-    g.hooks.onBarCast = (spec) => grimoire.touch(spec.name);
-    g.hooks.onGateOpen = () => arbiter(`Floor ${g.floorNumber()} falls silent. A gate opens: step into it and speak the next floor into being.`);
-    g.hooks.onBossAwake = (name) => arbiter(`${name} guards this floor. Unmake it, Incanter.`);
-    g.hooks.onGateEnter = () => {
-      gatePrompt.show(true);
-      arbiter('Describe the floor that lies beyond.');
-    };
-    g.hooks.onGateLeave = () => gatePrompt.show(false);
-    router = new CommandRouter({
+  /** The router needs the game; it exists before entering so the start screen can build floor 1. */
+  const makeRouter = (g: GameController): CommandRouter =>
+    new CommandRouter({
       grimoire,
       currentFloor: () => g.currentFloor(),
-      loadFloor: (spec) => g.loadFloor(spec),
+      loadFloor: async (spec) => {
+        const loaded = await g.loadFloor(spec);
+        // Floor 1 from the start screen: enter now, while the reshape curtain still covers it.
+        if (startScreen?.visible) startScreen.enter(true);
+        return loaded;
+      },
       cast: (spec) => g.castIncantation(spec),
       showGrimoire: (open) => {
         if (open !== grimoirePanel.visible) sfx.play(open ? 'open' : 'close');
@@ -150,7 +166,7 @@ if (canvas && hud) {
       onRecite: (name, ms, fromInterim) => {
         if (import.meta.env.DEV) console.debug(`recite ${name}: ${ms.toFixed(1)} ms${fromInterim ? ' (interim)' : ''}`);
       },
-      say: (text) => transcript?.add('spire', text),
+      say: (text) => (inGame() ? transcript?.add('spire', text) : startScreen?.showHeard(text)),
       speak: (text) => narrator.speak(text),
       reshape: (on, subtitle) => {
         if (on && !reshape.visible) sfx.play('reshape');
@@ -160,10 +176,30 @@ if (canvas && hud) {
       onFloorBuilt: (name, ms) => {
         if (import.meta.env.DEV) console.debug(`floor ${name}: ${(ms / 1000).toFixed(2)} s from words to playable`);
       },
-      thinking: (on) => transcript?.setInterim(on ? 'The Spire weighs your words…' : null),
+      thinking: (on) => {
+        if (inGame()) transcript?.setInterim(on ? 'The Spire weighs your words…' : null);
+        else if (on) startScreen?.setStatus('The Spire weighs your words…');
+      },
       onMode: (r) => modeLabel.set(r.offline ? 'offline' : (r.mode ?? 'offline')),
     });
+
+  startScreen.onEnter = () => {
+    commandBar?.show();
+    if (!speech.supported) transcript?.add('spire', NO_VOICE_MESSAGE);
+    game?.setPaused(false);
+    arbiter('Welcome, Incanter. Clear each floor, speak new Incantations, and climb. A guardian waits on every third floor.');
+    const g = game;
     const r = router;
+    if (!g || !r) return;
+    // In the game: everything said or typed is shown, then routed (forge / build / reply).
+    g.hooks.onBarCast = (spec) => grimoire.touch(spec.name);
+    g.hooks.onGateOpen = () => arbiter(`Floor ${g.floorNumber()} falls silent. A gate opens: step into it and speak the next floor into being.`);
+    g.hooks.onBossAwake = (name) => arbiter(`${name} guards this floor. Unmake it, Incanter.`);
+    g.hooks.onGateEnter = () => {
+      gatePrompt.show(true);
+      arbiter('Describe the floor that lies beyond.');
+    };
+    g.hooks.onGateLeave = () => gatePrompt.show(false);
     pipeline.setHandler((u) => {
       transcript?.add('you', u.text);
       void r.handle(u);
@@ -174,7 +210,13 @@ if (canvas && hud) {
     .then((g) => {
       game = g;
       g.setBar(grimoire.bar.map((j) => j?.incantation));
+      router = makeRouter(g);
       startScreen?.setReady();
+      if (pendingWorld !== undefined) {
+        const text = pendingWorld;
+        pendingWorld = undefined;
+        describeWorld(text);
+      }
     })
     .catch((err: unknown) => {
       console.error(err);

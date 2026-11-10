@@ -1295,21 +1295,38 @@ body {
   letter-spacing: -0.02em;
 }
 
-.start-awaken {
+/* "Describe your world": mic, text box, Build, quick picks. */
+.start-world {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 600px;
+}
+
+.start-world-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  align-self: flex-start;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding: 10px 18px 10px 10px;
-  border: var(--line);
-  border-radius: calc(var(--radius) + 4px);
-  background: var(--paper);
-  box-shadow: var(--drop-sm);
+  gap: 10px;
+}
+
+.input.start-world-input {
+  flex: 1;
+  min-width: 0;
+  height: 56px;
+  padding: 0 16px;
+  font-size: 17px;
+}
+
+.btn.start-build {
+  height: 56px;
+  padding: 0 24px;
+  background: var(--ink);
+  color: var(--sun);
+  font-size: 17px;
 }
 
 .btn.mic-large {
+  flex: none;
   width: 56px;
   height: 56px;
   padding: 0;
@@ -1326,41 +1343,51 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
-  color: var(--muted-foreground);
 }
 
-.start-phrase {
-  margin: 4px 0 0;
-  font-size: 22px;
+.start-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
   font-weight: 900;
+}
+
+.badge.start-quick-pick {
+  padding: 4px 12px;
+  background: var(--paper);
+  box-shadow: 0 2px 0 var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.06s, box-shadow 0.06s;
+}
+
+.badge.start-quick-pick:hover {
+  background: var(--cream);
+}
+
+.badge.start-quick-pick:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+.start-world :disabled {
+  opacity: 0.55;
+  cursor: progress;
 }
 
 .start-heard {
   min-height: 1.4em;
   margin: -6px 0 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
-  font-style: italic;
 }
 
 .start-heard:empty {
   display: none;
-}
-
-.start-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 16px;
-}
-
-.btn.start-enter {
-  height: 50px;
-  padding: 0 24px;
-  background: var(--paper);
-  font-size: 16px;
 }
 
 .start-status {
@@ -1487,6 +1514,10 @@ body {
 @media (max-width: 700px) {
   .start-art {
     display: none;
+  }
+
+  .start-world-row {
+    flex-wrap: wrap;
   }
 
   .start-steps,

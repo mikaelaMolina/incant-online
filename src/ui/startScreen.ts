@@ -1,23 +1,30 @@
 import { Castle, Flame, ShieldCheck, Sparkles, WandSparkles } from 'lucide';
 import { icon } from './icons';
 import { MIC_ICON } from './micIcon';
-import { AWAKENING_PHRASE } from '../voice/utterance';
+import { MAX_UTTERANCE_LENGTH } from '../voice/utterance';
 import type { VoiceMode, VoiceState } from '../voice/speechInput';
 
+/** One-click starting worlds: still the player's words, just pre-written. */
+const QUICK_WORLDS = ['a frozen castle', 'a misty forest at night', 'desert ruins at dusk'] as const;
+
 /**
- * Title screen. Say the awakening phrase (hold V or the mic button) or press Enter to begin.
- * Carries the microphone explanation and the privacy notice required by CLAUDE.md.
+ * Title screen. The player enters by speaking (hold V or the mic) or typing the world they want;
+ * that description builds floor 1. Carries the microphone explanation and the privacy notice
+ * required by CLAUDE.md.
  */
 export class StartScreen {
   readonly el = document.createElement('section');
   readonly micButton: HTMLButtonElement;
-  private readonly enterButton: HTMLButtonElement;
+  private readonly input: HTMLInputElement;
+  private readonly buildButton: HTMLButtonElement;
   private readonly heard: HTMLParagraphElement;
   private readonly status: HTMLParagraphElement;
   private readonly permission: HTMLSpanElement;
-  private ready = false;
   private entering = false;
+  private busy = false;
   onEnter: (() => void) | undefined;
+  /** The player described a world (typed, or a quick pick). Spoken words arrive through the voice pipeline. */
+  onWorld: ((text: string) => void) | undefined;
 
   constructor(parent: HTMLElement, voiceMode: VoiceMode) {
     this.el.className = 'start-screen';
@@ -41,22 +48,21 @@ export class StartScreen {
         <section class="card start-hero">
           <div class="start-art" aria-hidden="true">${icon(Sparkles, 64)}</div>
           <h1>Say it.<br />Cast it.</h1>
-          ${
-            voice
-              ? `<div class="start-awaken">
-                   <button type="button" class="btn mic-button mic-large" aria-label="Hold to speak">${MIC_ICON}</button>
-                   <div>
-                     <span class="start-hold">Hold <kbd class="kbd">V</kbd> and say</span>
-                     <p class="start-phrase">“${AWAKENING_PHRASE}”</p>
-                   </div>
-                 </div>
-                 <p class="start-heard" aria-live="polite"></p>`
-              : `<p class="start-heard" aria-live="polite">No voice in this browser. Type instead.</p>`
-          }
-          <div class="start-actions">
-            <button type="button" class="btn start-enter" data-size="lg">Play without voice</button>
-            <p class="start-status" aria-live="polite">Loading…</p>
-          </div>
+          <form class="start-world" autocomplete="off">
+            <label class="start-hold" for="start-world-input">${voice ? 'Hold <kbd class="kbd">V</kbd> and describe your world, or type it' : 'Describe your world'}</label>
+            <div class="start-world-row">
+              ${voice ? `<button type="button" class="btn mic-button mic-large" aria-label="Hold to speak">${MIC_ICON}</button>` : ''}
+              <input id="start-world-input" class="input start-world-input" type="text" spellcheck="false"
+                maxlength="${MAX_UTTERANCE_LENGTH}" placeholder="a volcano fortress at dusk…" />
+              <button type="submit" class="btn start-build" data-size="lg">Build</button>
+            </div>
+            <div class="start-quick">
+              <span>Try</span>
+              ${QUICK_WORLDS.map((w) => `<button type="button" class="badge start-quick-pick">${w}</button>`).join('')}
+            </div>
+          </form>
+          <p class="start-heard" aria-live="polite">${voice ? '' : 'No voice in this browser. Type instead.'}</p>
+          <p class="start-status" aria-live="polite">Loading…</p>
         </section>
 
         <div class="start-steps">
@@ -85,15 +91,26 @@ export class StartScreen {
     parent.appendChild(this.el);
 
     this.micButton = (this.el.querySelector('.mic-large') as HTMLButtonElement | null) ?? document.createElement('button');
-    this.enterButton = this.el.querySelector('.start-enter') as HTMLButtonElement;
+    this.input = this.el.querySelector('.start-world-input') as HTMLInputElement;
+    this.buildButton = this.el.querySelector('.start-build') as HTMLButtonElement;
     this.heard = this.el.querySelector('.start-heard') as HTMLParagraphElement;
     this.status = this.el.querySelector('.start-status') as HTMLParagraphElement;
     this.permission = this.el.querySelector('.start-permission') as HTMLSpanElement;
 
-    this.enterButton.addEventListener('click', () => this.enter());
-    window.addEventListener('keydown', this.onKey);
+    const form = this.el.querySelector('.start-world') as HTMLFormElement;
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.submit(this.input.value);
+    });
+    this.input.addEventListener('keydown', (e) => e.stopPropagation()); // typing never moves the Incanter
+    for (const pick of this.el.querySelectorAll<HTMLButtonElement>('.start-quick-pick')) {
+      pick.addEventListener('click', () => {
+        this.input.value = pick.textContent ?? '';
+        this.submit(this.input.value);
+      });
+    }
     void this.showPermissionState();
-    this.enterButton.focus();
+    this.input.focus();
   }
 
   get visible(): boolean {
@@ -101,9 +118,18 @@ export class StartScreen {
   }
 
   setReady(): void {
-    this.ready = true;
-    this.status.textContent = 'Ready.';
-    if (this.entering) this.finish();
+    if (!this.busy) this.status.textContent = 'Ready. Describe your world to enter.';
+  }
+
+  setStatus(text: string): void {
+    this.status.textContent = text;
+  }
+
+  /** While a world is being built: inputs off so one description at a time goes through. */
+  setBusy(busy: boolean): void {
+    this.busy = busy;
+    for (const el of [this.input, this.buildButton, ...this.el.querySelectorAll<HTMLButtonElement>('.start-quick-pick')]) el.disabled = busy;
+    if (!busy) this.input.focus();
   }
 
   setVoiceState(state: VoiceState): void {
@@ -116,30 +142,27 @@ export class StartScreen {
     this.heard.textContent = text;
   }
 
-  /** Begin (awakening phrase said, Enter pressed or button clicked). */
-  enter(): void {
+  /** Leave the title screen. `instant` when the reshape curtain already covers it. */
+  enter(instant = false): void {
     if (this.entering) return;
     this.entering = true;
-    if (this.ready) this.finish();
-    else this.status.textContent = 'Almost ready…';
-  }
-
-  private finish(): void {
-    window.removeEventListener('keydown', this.onKey);
     if (this.el.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
-    this.el.classList.add('leaving');
-    window.setTimeout(() => {
+    if (instant) {
       this.el.hidden = true;
-    }, 450);
+    } else {
+      this.el.classList.add('leaving');
+      window.setTimeout(() => {
+        this.el.hidden = true;
+      }, 450);
+    }
     this.onEnter?.();
   }
 
-  private readonly onKey = (e: KeyboardEvent): void => {
-    if (e.key === 'Enter' && !e.repeat && document.activeElement !== this.micButton) {
-      e.preventDefault();
-      this.enter();
-    }
-  };
+  private submit(raw: string): void {
+    const text = raw.trim();
+    if (!text || this.busy) return;
+    this.onWorld?.(text);
+  }
 
   private async showPermissionState(): Promise<void> {
     try {

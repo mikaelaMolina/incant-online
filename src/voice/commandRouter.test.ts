@@ -208,6 +208,27 @@ describe('build intent', () => {
   });
 });
 
+describe('the start screen (floor 1 from the player\'s words)', () => {
+  it('a described world becomes floor 1', async () => {
+    const { router, floor } = setup();
+    expect(await router.buildWorld('a frozen castle under the stars')).toBe(true);
+    expect(floor().name).not.toBe(STARTING_ARENA.name);
+  });
+
+  it('gibberish still ends in a world (cached floor), never an error', async () => {
+    const { router, floor } = setup();
+    expect(await router.buildWorld('blorp zzzt qq')).toBe(true);
+    expect(floor().name).not.toBe(STARTING_ARENA.name);
+  });
+
+  it('a question is answered and the player stays on the start screen', async () => {
+    const { router, floor, said } = setup();
+    expect(await router.buildWorld('what is this place?')).toBe(false);
+    expect(floor().name).toBe(STARTING_ARENA.name);
+    expect(said.length).toBe(1);
+  });
+});
+
 describe('the gate', () => {
   it('anything described at the gate builds the next floor', async () => {
     const { router, floor, curtain } = setup({ atGate: true });

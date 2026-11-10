@@ -172,6 +172,18 @@ export class CommandRouter {
   }
 
   /**
+   * Start screen: the player's words build floor 1, exactly like at a gate (asked again
+   * explicitly, then a cached floor). Resolves true once a floor is loaded; false when the words
+   * were a question (answered instead) or another description is still being built.
+   */
+  async buildWorld(text: string): Promise<boolean> {
+    if (this.busy) return false;
+    const before = this.deps.currentFloor();
+    await this.gateBuild(text, performance.now());
+    return this.deps.currentFloor() !== before;
+  }
+
+  /**
    * At the gate: the words describe the next floor. The curtain goes up straight away; if the
    * Spire answers with something other than a floor, it is asked once more explicitly, then a
    * cached floor stands in. A plain question still gets its answer.

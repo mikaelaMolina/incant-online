@@ -630,7 +630,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       paused = p;
       if (!p && !titleShown) {
         titleShown = true;
-        showTitle();
+        window.setTimeout(showTitle, 900); // after the start screen / reshape curtain clears
       }
       quality.reset();
       if (pendingQuality) applyQuality(pendingQuality);
@@ -671,7 +671,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         warmEffects(); // behind the curtain
         spawnFor(floor);
         showProgress();
-        window.setTimeout(showTitle, 450); // after the reshape curtain lifts
+        // After the reshape curtain lifts; floor 1 (built from the start screen) gets its title on entry.
+        if (titleShown) window.setTimeout(showTitle, 450);
       } finally {
         loading = false;
         input.clear();

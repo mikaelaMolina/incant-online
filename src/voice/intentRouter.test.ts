@@ -79,7 +79,7 @@ describe('system commands', () => {
   });
 });
 
-describe('classify (CLAUDE.md order)', () => {
+describe('classify (routing order)', () => {
   it('recite → command → refine → talk → interpret', () => {
     expect(classify('Frost Comet', ctx()).kind).toBe('recite');
     expect(classify('open grimoire', ctx()).kind).toBe('command');

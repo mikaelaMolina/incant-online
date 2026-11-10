@@ -20,7 +20,7 @@ const blazingCyclone = {
 };
 
 describe('Arbiter', () => {
-  it('Blazing Cyclone (CLAUDE.md): P ≈ 113, cooldown 9, mana 23, accepted', () => {
+  it('Blazing Cyclone (design spec example): P ≈ 113, cooldown 9, mana 23, accepted', () => {
     const j = judge(blazingCyclone);
     expect(j.power).toBeCloseTo(113.25, 2);
     expect(Math.round(j.power)).toBe(113);

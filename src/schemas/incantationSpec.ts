@@ -13,7 +13,7 @@ export type Element = (typeof ELEMENTS)[number];
 export type StatusKind = (typeof STATUS_KINDS)[number];
 export type Particles = (typeof PARTICLES)[number];
 
-/** Field ranges from CLAUDE.md. Shared by the schema, the Arbiter and the LLM prompt. */
+/** Field ranges from the design spec. Shared by the schema, the Arbiter and the LLM prompt. */
 export const RANGES = {
   hits: [1, 5],
   radius: [1, 8],
@@ -21,7 +21,7 @@ export const RANGES = {
   chain_targets: [0, 5],
   cooldown: [1, 60],
   status_duration: [0, 10],
-  /** Not in CLAUDE.md: our cap for burn / heal per second. */
+  /** Not in the design spec: our cap for burn / heal per second. */
   status_dps: [0, 30],
   mana_cost: [0, 999],
 } as const;
@@ -109,7 +109,7 @@ export const Vfx = z.preprocess(
 );
 
 /**
- * IncantationSpec (CLAUDE.md). Lenient like FloorSpec: clamped numbers, nearest enums.
+ * IncantationSpec. Lenient like FloorSpec: clamped numbers, nearest enums.
  * Fails only for non-objects. mana_cost is overwritten by the Arbiter.
  */
 export const IncantationSpec = z.preprocess(

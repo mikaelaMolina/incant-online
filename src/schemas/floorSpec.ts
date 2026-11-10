@@ -132,7 +132,7 @@ const FloorSpecObject = z
   });
 
 /**
- * FloorSpec (CLAUDE.md). Fails only if the input is not an object at all;
+ * FloorSpec. Fails only if the input is not an object at all;
  * every field inside is clamped / mapped / defaulted.
  */
 export const FloorSpec = z.preprocess(

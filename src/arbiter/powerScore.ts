@@ -1,9 +1,9 @@
 import type { IncantationSpec, Shape } from '../schemas/incantationSpec';
 
-/** Shapes whose radius counts toward power (CLAUDE.md: spin, cone, circle). */
+/** Shapes whose radius counts toward power (spin, cone, circle). */
 export const AREA_SHAPES: readonly Shape[] = ['spin', 'cone', 'circle'];
 
-/** Effect term E of the power score (CLAUDE.md). */
+/** Effect term E of the power score. */
 export function effectPower(spec: Pick<IncantationSpec, 'status_effect'>): number {
   const { kind, dps, duration } = spec.status_effect;
   switch (kind) {

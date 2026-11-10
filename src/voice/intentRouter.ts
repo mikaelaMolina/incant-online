@@ -2,7 +2,7 @@ import Fuse from 'fuse.js';
 import { levenshtein } from '../schemas/fuzzy';
 
 /**
- * Voice routing (CLAUDE.md), as a pure classifier. Order of checks:
+ * Voice routing, as a pure classifier. Order of checks:
  * 1. Recite: Fuse.js match against Grimoire names (threshold 0.4) → cast locally.
  * 2. System command: fixed phrases → local.
  * 3. Refine: starts with "make it", "add", "remove", … → /api/interpret with context.

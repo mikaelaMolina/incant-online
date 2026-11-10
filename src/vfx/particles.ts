@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Particles } from '../schemas/incantationSpec';
 
-/** Hard cap from CLAUDE.md is 3,000 particles; stay under it. */
+/** The performance budget is 3,000 particles; stay under it. */
 export const MAX_PARTICLES = 2400;
 
 interface KindParams {

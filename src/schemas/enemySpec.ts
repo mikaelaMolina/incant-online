@@ -13,7 +13,7 @@ export const EnemyPhase = z.preprocess(
 );
 
 /**
- * EnemySpec (CLAUDE.md). Ranges below are our own, chosen for a 1.7 m Incanter in 30–60 m floors.
+ * EnemySpec. Ranges below are our own, chosen for a 1.7 m Incanter in 30–60 m floors.
  * `model` is a manifest id; it is resolved against the manifest by the enemy loader.
  */
 export const EnemySpec = z.preprocess(

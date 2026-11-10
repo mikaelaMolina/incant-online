@@ -3,7 +3,7 @@
 // Run with: npm run manifest
 //
 // - Only packs listed in PACKS are scanned, and each pack's License.txt must say CC0,
-//   otherwise the script fails (CLAUDE.md hard rule 4).
+//   otherwise the script fails (only permissive licences are allowed).
 // - GLB sizes come from the files' accessor bounds composed with the node transforms.
 // - baseScale converts each pack's units to metres (Incanter = 1.7 m tall).
 

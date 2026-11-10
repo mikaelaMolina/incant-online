@@ -1,4 +1,4 @@
-/** Per-IP sliding-window limiter (CLAUDE.md: 20 requests / 10 min). In-memory: per server instance. */
+/** Per-IP sliding-window limiter (20 requests / 10 min). In-memory: per server instance. */
 export const RATE_LIMIT = { requests: 20, windowMs: 10 * 60 * 1000 } as const;
 
 /** A separate limiter per endpoint, so Arbiter voice lines never use up the /api/interpret budget. */

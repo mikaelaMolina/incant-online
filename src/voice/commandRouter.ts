@@ -60,7 +60,7 @@ export interface RouterDeps {
 }
 
 /**
- * Routes in-game utterances (CLAUDE.md voice routing):
+ * Routes in-game utterances (voice routing order):
  * recite (local, instant) → system command (local) → refine → talk → /api/interpret.
  * Local routes never wait for a network request in flight, so you can cast while forging.
  */

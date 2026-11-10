@@ -89,7 +89,7 @@ function choiceGroup(name: string, title: string, list: Choice[], selected: stri
 /**
  * Title screen. The player enters by speaking (hold V or the mic) or typing the world they want;
  * that description builds floor 1. Carries the microphone explanation and the privacy notice
- * required by CLAUDE.md.
+ * required for submission (push-to-talk; audio may go to the browser vendor; never stored).
  */
 export class StartScreen {
   readonly el = document.createElement('section');

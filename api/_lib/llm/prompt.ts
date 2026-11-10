@@ -7,7 +7,7 @@ import { ENEMY_MODEL_IDS } from '../../../src/schemas/monsters.js';
 const ENEMY_MODELS = ENEMY_MODEL_IDS;
 
 /**
- * Example pairs (CLAUDE.md asks for 4-6), produced by the mock parser so both modes agree.
+ * Example pairs (4-6 of them), produced by the mock parser so both modes agree.
  * Chosen to cover the cases a judge tries first: a normal ability, a place, a creature with no
  * model, an impossible ability (nearest allowed + a sentence) and a question about the game.
  */

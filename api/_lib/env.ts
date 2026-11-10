@@ -7,7 +7,7 @@ export function serverEnv(): Env {
   return (globalThis as { process?: { env?: Env } }).process?.env ?? {};
 }
 
-/** Fast model by default, for low latency (CLAUDE.md). Override with LLM_MODEL. */
+/** Fast model by default, for low latency. Override with LLM_MODEL. */
 export const DEFAULT_LLM_MODEL = 'claude-haiku-5-5';
 
 export interface ModeConfig {

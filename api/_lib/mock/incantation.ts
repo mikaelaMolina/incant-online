@@ -250,7 +250,7 @@ function flavorFor(hits: number, shape: Shape, element: Element): string {
 
 /**
  * Requests the Spire cannot grant as said. Each maps to the closest allowed Incantation
- * (CLAUDE.md: map unknown values to the nearest valid one; the Arbiter bans instant kills)
+ * (design spec: map unknown values to the nearest valid one; the Arbiter bans instant kills)
  * plus one in-character sentence explaining the change.
  */
 /** Turning foes into creatures (or stone). Elements ("turns enemies into ice") are not transformations. */

@@ -42,7 +42,7 @@ const ResponseObject = z.object({
 });
 
 /**
- * InterpretResponse (CLAUDE.md): { intent, incantation?, floor?, reply? } plus backend metadata.
+ * InterpretResponse: { intent, incantation?, floor?, reply? } plus backend metadata.
  * The intent is made consistent with the payload: "forge" needs an Incantation, "build" a floor,
  * and anything without either becomes a "reply" (with a default line if empty).
  */

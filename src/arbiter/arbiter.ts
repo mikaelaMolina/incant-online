@@ -1,14 +1,14 @@
 import { IncantationSpec, RANGES } from '../schemas/incantationSpec';
 import { damageMultiplier, effectPower, powerScore } from './powerScore';
 
-/** Cooldown seconds per point of power (CLAUDE.md rule 3). */
+/** Cooldown seconds per point of power (Arbiter rule 3). */
 export const POWER_PER_COOLDOWN_SECOND = 14;
 export const MAX_COOLDOWN = 60;
 export const MANA_PER_POWER = 0.2;
 
 /**
  * Rule 2 ("ban instant kills, invulnerability over 3 s and self-buffs over +50%") mapped onto the
- * fields IncantationSpec actually has. These thresholds are ours, not CLAUDE.md's:
+ * fields IncantationSpec actually has. These thresholds are ours, not the design spec's:
  * - instant kill: single-cast burst d × h × (1 + 0.5c) above this is cut back
  * - invulnerability: a self-buff that freezes/stuns (untouchable) lasts at most 3 s
  * - self-buff +50%: a healing buff restores at most half of the Incanter's 100 HP

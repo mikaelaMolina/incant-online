@@ -51,7 +51,7 @@ src/
   schemas/   zod: IncantationSpec, EnemySpec, FloorSpec, InterpretResponse
   fallback/  cached Incantations and floors used when the API fails
   game/      scene, player, camera, input, floor loader, gate, story, NPC
-api/         interpret.ts, talk.ts, stt.ts (Vercel functions); api/_lib/ holds shared backend code (not deployed as functions)
+api/         interpret.ts, talk.ts, tts.ts, stt.ts (Vercel functions); api/_lib/ holds shared backend code (not deployed as functions)
   _lib/mock/ the MOCK-mode keyword parser
 public/assets/
 README.md  CREDITS.md  LICENSE
@@ -194,7 +194,7 @@ Done (see git log):
 
 9f. RPG overhaul: animated Wizard Incanter (`src/game/incanterModel.ts`), hit-stop / squash / death bursts, progression (`src/game/progression.ts`: XP, levels raise HP/mana only, floor counter, enemy scaling, a guardian boss every third floor), health/mana orb drops, unit frame + XP strip + boss bar + floor title cards, spoken Arbiter intro, CC0 Quaternius monsters per biome (`src/schemas/monsters.ts`, shared by mock, prompt and client).
 
-9g. Storyline + prologue village: narrative engine (`src/game/story.ts`, five chapters, story beats at milestone floors, chapter-aware subtitles, story-aware LLM context). The climb starts in a peaceful prologue (floor 0, "The Threshold": a camp with no enemies) with four villagers (Elder, Villager, Knight, Wanderer; Quaternius CC0 models, `src/game/npc.ts`) who greet you and answer in character (`prologueReply`), and the Arbiter's prologue narration. The world described or chosen on the start screen is built in the background (`CommandRouter.prepareWorld`) and the village gate (open from the start) leads into it as floor 1 (`enterPreparedWorld`). Each combat floor has one guide NPC (`guideReply`). NPC lines are shown under the NPC's name and spoken in the Arbiter's voice.
+9g. Storyline + prologue village: narrative engine (`src/game/story.ts`, five chapters, story beats at milestone floors, chapter-aware subtitles, story-aware LLM context). The climb starts in a peaceful prologue (floor 0, "The Threshold": a camp with no enemies) with four villagers (Elder, Villager, Knight, Wanderer; Quaternius CC0 models, `src/game/npc.ts`) who greet you and answer in character (`prologueReply`), and the Arbiter's prologue narration. The world described or chosen on the start screen is built in the background (`CommandRouter.prepareWorld`) and the village gate (open from the start) leads into it as floor 1 (`enterPreparedWorld`). Each combat floor has one guide NPC (`guideReply`). NPC lines are shown under the NPC's name and spoken in the Arbiter's voice. Talking (`/api/talk`, `api/_lib/talk.ts`): in llm mode Claude plays the NPC, briefed with its written dialogue and the chapter lore, with the last few exchanges as memory (6 s timeout, 40 requests / 10 min per IP); mock mode and any failure answer from the written dialogue.
 
 Next:
 9b. Judgement card UI (show the Arbiter's verdict when an Incantation is forged).

@@ -13,7 +13,7 @@ import { pathToFileURL } from 'node:url';
 import { transformWithEsbuild } from 'vite';
 
 const ROOT = new URL('..', import.meta.url).pathname;
-const ENTRIES = ['api/interpret.ts', 'api/tts.ts'];
+const ENTRIES = ['api/interpret.ts', 'api/tts.ts', 'api/talk.ts'];
 const IMPORT_RE = /(?:import|export)\s[^'"]*?from\s+['"](\.[^'"]+)['"]/g;
 
 const out = mkdtempSync(join(tmpdir(), 'incant-api-'));
@@ -90,7 +90,10 @@ try {
   if (ttsInfo.enabled !== false || ttsPost.status !== 204) {
     throw new Error(`unexpected /api/tts without a key: GET ${JSON.stringify(ttsInfo)}, POST ${ttsPost.status}`);
   }
-  console.log(`check:api: ok (${seen.size} files run under plain Node ESM; GET → ${mode.mode}, POST → ${body.intent} "${body.incantation.name}"; tts → off without a key)`);
+  const talkMod = await import(pathToFileURL(join(out, 'api/talk.js')).href);
+  const talkRes = await (await talkMod.POST(new Request('http://localhost/api/talk', { method: 'POST', body: JSON.stringify({ text: 'hello', role: 'Elder', floor: 0 }) }))).json();
+  if (talkRes.mode !== 'mock' || typeof talkRes.reply !== 'string' || !talkRes.reply) throw new Error(`unexpected /api/talk: ${JSON.stringify(talkRes)}`);
+  console.log(`check:api: ok (${seen.size} files run under plain Node ESM; GET → ${mode.mode}, POST → ${body.intent} "${body.incantation.name}"; tts → off without a key; talk → written reply)`);
 } catch (err) {
   console.error('check:api: the function failed under plain Node ESM:\n ', err instanceof Error ? err.message : err);
   process.exitCode = 1;

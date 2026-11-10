@@ -73,3 +73,45 @@ export async function callLlm({ apiKey, model, text, context, signal, fetchImpl 
     throw new LlmError(`unparseable JSON (stop_reason ${body.stop_reason ?? 'unknown'})`, true);
   }
 }
+
+export interface TextCall {
+  apiKey: string;
+  model: string;
+  system: string;
+  /** Earlier turns (oldest first), then the new user message last. */
+  messages: { role: 'user' | 'assistant'; content: string }[];
+  maxTokens: number;
+  signal: AbortSignal;
+  fetchImpl?: typeof fetch | undefined;
+}
+
+/**
+ * A short plain-text reply (NPC conversation). Same raw-HTTP call as callLlm, without a JSON
+ * schema. Returns the text, or throws; the caller falls back.
+ */
+export async function callClaudeText({ apiKey, model, system, messages, maxTokens, signal, fetchImpl = fetch }: TextCall): Promise<string> {
+  const res = await fetchImpl(ANTHROPIC_URL, {
+    method: 'POST',
+    signal,
+    headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': ANTHROPIC_VERSION },
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      cache_control: { type: 'ephemeral' },
+      system,
+      messages,
+      // Low effort: conversation should feel immediate. No `thinking` field (see callLlm).
+      output_config: { effort: 'low' },
+    }),
+  });
+  if (!res.ok) throw new LlmError(`Anthropic API ${res.status}`, res.status === 429 || res.status >= 500);
+  const body = (await res.json()) as MessagesResponse;
+  if (body.stop_reason === 'refusal') throw new LlmError('refusal', false);
+  const text = body.content
+    ?.filter((b) => b.type === 'text')
+    .map((b) => b.text ?? '')
+    .join('')
+    .trim();
+  if (!text) throw new LlmError('no text in response', true);
+  return text;
+}

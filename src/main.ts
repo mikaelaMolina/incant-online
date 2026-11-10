@@ -156,9 +156,33 @@ if (canvas && hud) {
     transcript?.add('npc', text, name);
     narrator.speak(text);
   };
-  /** What an NPC answers: their written dialogue (prologue villagers, or a floor's guide). */
-  const npcReply = async (text: string, role: string, floorNumber: number): Promise<string> =>
-    floorNumber === PROLOGUE_FLOOR ? prologueReply(text, role) : guideReply(text, floorNumber);
+  /** Recent exchanges per NPC (by floor and role), so a conversation has memory. */
+  const talkHistory = new Map<string, { who: 'player' | 'npc'; text: string }[]>();
+  /**
+   * What an NPC answers: Claude playing the NPC (/api/talk, llm mode), or their written dialogue
+   * (mock mode, offline, slow or failed). Never throws.
+   */
+  const npcReply = async (text: string, role: string, floorNumber: number): Promise<string> => {
+    const written = (): string => (floorNumber === PROLOGUE_FLOOR ? prologueReply(text, role) : guideReply(text, floorNumber));
+    const key = `${floorNumber}:${role}`;
+    const history = talkHistory.get(key) ?? [];
+    let reply: string;
+    try {
+      const spec = game?.currentFloor();
+      const res = await fetch('/api/talk', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text, role, floor: floorNumber, floorName: spec?.name, biome: spec?.biome, history }),
+        signal: AbortSignal.timeout(7000),
+      });
+      const body = (await res.json()) as { reply?: unknown };
+      reply = res.ok && typeof body.reply === 'string' && body.reply.trim() ? body.reply : written();
+    } catch {
+      reply = written();
+    }
+    talkHistory.set(key, [...history, { who: 'player' as const, text }, { who: 'npc' as const, text: reply }].slice(-6));
+    return reply;
+  };
 
   /** The router needs the game; it exists before entering so the start screen can build floor 1. */
   const makeRouter = (g: GameController): CommandRouter =>

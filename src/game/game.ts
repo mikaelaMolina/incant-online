@@ -4,8 +4,10 @@ import { Input } from './input';
 import { FollowCamera } from './camera';
 import { loadIncanterModel } from './incanterModel';
 import { Incanter } from './player';
-import { Progression, XP_FOR, floorSubtitle, planWaves, spawnsForFloor, xpToNext } from './progression';
+import { Progression, XP_FOR, planWaves, spawnsForFloor, xpToNext } from './progression';
+import { storySubtitle, storyLineForFloor } from './story';
 import { preloadEnemyModels } from '../enemies/enemyModel';
+import { GuideNpc, PROLOGUE_FLOOR, guideSpawnPoint, npcModel, npcsForFloor } from './npc';
 import { UnitFrame } from '../ui/unitFrame';
 import { OffscreenMarkers } from '../ui/offscreenMarkers';
 import { Pickups, type PickupKind } from './pickups';
@@ -65,6 +67,10 @@ export interface GameController {
   setBar(slots: readonly (IncantationSpec | undefined)[]): void;
   /** Is the Incanter standing in the open gate (describing the next floor)? */
   atGate(): boolean;
+  /** Is the Incanter close enough to an NPC to talk to them? */
+  nearGuide(): boolean;
+  /** The role of the nearest NPC (e.g. "Elder"), for dialogue routing. */
+  nearestNpcRole(): string;
   /** Event callbacks set by the UI layer. */
   readonly hooks: GameHooks;
 }
@@ -79,6 +85,11 @@ export interface GameHooks {
   onGateLeave?: () => void;
   /** A floor guardian has appeared. */
   onBossAwake?: (name: string) => void;
+  /** A story beat plays when a floor loads (narrative line from the Arbiter). */
+  onStoryBeat?: (line: string) => void;
+  /** The Incanter stepped near / away from an NPC. `role` is which NPC (e.g. "Elder"). */
+  onGuideEnter?: (role: string) => void;
+  onGuideLeave?: () => void;
 }
 
 /** Load the first floor and start rendering. Resolves once the floor is playable (paused). */
@@ -108,6 +119,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   const cam = new FollowCamera(window.innerWidth / window.innerHeight);
   const incanter = new Incanter(world, input, cam);
   const progress = new Progression();
+  // The climb starts in the prologue: the peaceful village at the Spire's base (floor 0).
+  progress.floor = PROLOGUE_FLOOR;
   const pickups = new Pickups(scene);
   scene.add(incanter.object);
   incanter.setSpawn(floor.spawn);
@@ -185,7 +198,6 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     void preloadEnemyModels(waves.flat().map((g) => models.resolve(g.enemy.model, 'enemy')).filter((m) => m !== undefined));
     spawnWave(f, gen);
   };
-  spawnFor(floor);
 
   // Incantations: runner (logic), VFX presets, bloom, HUD.
   const vfx = new Vfx(scene);
@@ -297,6 +309,11 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   // The gate to the next floor: opens when the floor is cleared.
   let gate: Gate | undefined;
   let inGate = false;
+  // NPCs on this floor: one guide on combat floors, several in the prologue village.
+  let npcs: GuideNpc[] = [];
+  let nearGuide = false;
+  /** The role of the nearest NPC, for dialogue routing. */
+  let nearestNpcRole = '';
   function openGate(): void {
     if (gate) return;
     const me = incanter.physicsPosition;
@@ -312,6 +329,30 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     if (inGate) hooks.onGateLeave?.();
     inGate = false;
   }
+  function spawnGuide(): void {
+    removeGuide();
+    const prologue = progress.floor === PROLOGUE_FLOOR;
+    for (const def of npcsForFloor(progress.floor)) {
+      // The village NPCs stand where the prologue places them; a floor's guide stands near the spawn.
+      const spot = prologue ? def.position : guideSpawnPoint(floor.spawn, floor.halfExtent, floor.spec.name);
+      const npc = new GuideNpc(scene, hud, spot, incanter.feetY, def.role);
+      if (def.yaw !== undefined) npc.object.rotation.y = def.yaw;
+      const entry = npcModel(def, models);
+      if (entry) void npc.loadModel(entry);
+      npcs.push(npc);
+    }
+  }
+  function removeGuide(): void {
+    for (const n of npcs) n.dispose();
+    npcs = [];
+    nearGuide = false;
+    nearestNpcRole = '';
+  }
+  // The first floor's enemies and NPCs. Started only here, after the gate, hooks and effects above
+  // exist: a floor with no enemies (the prologue village) opens its gate as soon as the empty wave
+  // resolves, which can happen during startup.
+  spawnFor(floor);
+  spawnGuide();
   const castIncantation = (spec: IncantationSpec): CastOutcome => {
     runner.setTargets(enemies);
     const outcome = runner.cast(spec);
@@ -374,6 +415,9 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         warpToGate: () => {
           if (gate) incanter.setSpawn(gate.position);
         },
+        /** Move the Incanter to (x, z) (dev only: also moves the respawn point). */
+        warpTo: (x: number, z: number) => incanter.setSpawn(new THREE.Vector3(x, floor.spawn.y, z)),
+        npcs: () => npcs.map((n) => ({ role: n.role, x: n.object.position.x, z: n.object.position.z })),
         particles: () => vfx.particles.count,
         activeCasts: () => runner.activeCasts,
         aim: () => ({ x: incanter.aimPoint.x, z: incanter.aimPoint.z }),
@@ -390,7 +434,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   const progressHud = new ProgressHud(hud);
   const unitFrame = new UnitFrame(hud);
   const offscreen = new OffscreenMarkers(hud);
-  const showTitle = (): void => progressHud.titleCard(progress.floor, floor.spec.name, floorSubtitle(floor.spec.biome, progress.bossFloor));
+  const showTitle = (): void => progressHud.titleCard(progress.floor, floor.spec.name, storySubtitle(floor.spec.biome, progress.bossFloor, progress.floor));
   let titleShown = false;
   const showProgress = (): void => {
     unitFrame.setLevel(progress.level);
@@ -559,6 +603,20 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         else hooks.onGateLeave?.();
       }
     }
+    // NPCs: face the player, show/hide badges.
+    if (npcs.length && !frozen) {
+      let anyNear = false;
+      let nearRole = '';
+      for (const npc of npcs) {
+        const isNear = npc.update(dt, incanter.position, cam.camera);
+        if (isNear) { anyNear = true; nearRole = npc.role; }
+      }
+      const wasNear = nearGuide;
+      nearGuide = anyNear;
+      nearestNpcRole = nearRole;
+      if (nearGuide && !wasNear) hooks.onGuideEnter?.(nearRole);
+      else if (!nearGuide && wasNear) hooks.onGuideLeave?.();
+    }
     // Feedback from this frame's combat: damage numbers, hurt flash, deaths.
     for (const ev of drainCombat()) {
       if (ev.kind === 'damage') {
@@ -665,6 +723,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         vfx.clear();
         closeGate();
         floor.dispose();
+        removeGuide();
         try {
           floor = await buildFloor(spec, { scene, world, models });
         } catch (err) {
@@ -679,9 +738,13 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         cam.snapTo(incanter.position);
         warmEffects(); // behind the curtain
         spawnFor(floor);
+        spawnGuide();
         showProgress();
         // After the reshape curtain lifts; floor 1 (built from the start screen) gets its title on entry.
         if (titleShown) window.setTimeout(showTitle, 450);
+        // Story beat: the Arbiter speaks a narrative line when a floor with a beat loads.
+        const beat = storyLineForFloor(progress.floor);
+        if (beat && titleShown) hooks.onStoryBeat?.(beat);
       } finally {
         loading = false;
         input.clear();
@@ -696,6 +759,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       castHud.setSlots(bar);
     },
     atGate: () => inGate,
+    nearGuide: () => nearGuide,
+    nearestNpcRole: () => nearestNpcRole,
     hooks,
   };
 }

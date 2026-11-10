@@ -1,5 +1,6 @@
 import { REPLIES } from '../../api/_lib/mock/interpreter.js';
 import { stripForSpeech } from './speechText.js';
+import { STORY_BEATS, STORY_CHAPTERS, GUIDE_LINES } from '../game/story.js';
 
 /**
  * Every fixed line the Arbiter speaks. These are pre-recorded once with the cloud voice
@@ -17,9 +18,15 @@ export const ARBITER_LINES = {
   heardNothing: 'The Spire heard nothing. Speak, Incanter.',
 } as const;
 
-/** All lines worth pre-recording: the Arbiter's own lines and the mock parser's in-character replies. */
+/** All lines worth pre-recording: the Arbiter's own lines, story beats, and the mock parser's in-character replies. */
 export function prebakedLines(): string[] {
-  const lines = [...Object.values(ARBITER_LINES), ...Object.values(REPLIES).flat()];
+  const lines = [
+    ...Object.values(ARBITER_LINES),
+    ...Object.values(REPLIES).flat(),
+    ...STORY_BEATS.map((b) => b.line),
+    ...STORY_CHAPTERS.map((c) => c.intro),
+    ...GUIDE_LINES.map((g) => g.line),
+  ];
   return [...new Set(lines)];
 }
 

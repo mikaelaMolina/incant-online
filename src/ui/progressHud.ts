@@ -69,7 +69,7 @@ export class ProgressHud {
     // Block header: "Floor 3" on yellow, the floor name on a paper block beside it.
     const strong = document.createElement('strong');
     strong.textContent = name;
-    this.floorEl.replaceChildren(`Floor ${floor}`, strong);
+    this.floorEl.replaceChildren(floor === 0 ? 'Prologue' : `Floor ${floor}`, strong);
     if (boss) {
       const tag = document.createElement('span');
       tag.className = 'badge floor-tag';
@@ -84,7 +84,7 @@ export class ProgressHud {
   titleCard(floor: number, name: string, subtitle: string): void {
     this.titleEl.innerHTML = '';
     const parts: [string, string][] = [
-      ['badge title-card-floor', `Floor ${floor}`],
+      ['badge title-card-floor', floor === 0 ? 'Prologue' : `Floor ${floor}`],
       ['title-card-name', name],
       ['title-card-sub', subtitle],
     ];

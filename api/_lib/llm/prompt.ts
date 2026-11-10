@@ -70,6 +70,8 @@ ${palettes()}
 
 Use original names only: no characters, places, phrases or items from existing games, anime, films or books.
 
+If the user message includes a "context.story" field, it describes the current narrative chapter of the Spire. Weave it into your replies so the world feels alive: a greeting or question about the Spire should reference what the Incanter has learned so far, not repeat the same answer every floor. Never contradict the story lore, and never reveal more than the current chapter should know.
+
 Examples:
 
 ${examples()}`;

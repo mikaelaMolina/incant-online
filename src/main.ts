@@ -14,7 +14,7 @@ import { Transcript } from './ui/transcript';
 import { NO_VOICE_MESSAGE, voiceErrorMessage } from './ui/voiceMessages';
 import { ModeLabel } from './ui/modeLabel';
 import { fetchBackendMode } from './voice/interpretClient';
-import { CommandRouter } from './voice/commandRouter';
+import { CommandRouter, looksLikeQuestion } from './voice/commandRouter';
 import { Grimoire } from './combat/grimoire';
 import { TEST_INCANTATIONS } from './combat/testIncantations';
 import { GrimoirePanel } from './ui/grimoirePanel';
@@ -24,6 +24,8 @@ import { Narrator } from './voice/narrator';
 import { ARBITER_LINES } from './voice/arbiterLines';
 import { sfx } from './audio/sfx';
 import { SoundToggle } from './ui/soundToggle';
+import { PROLOGUE_NARRATION, guideGreeting, guideReply, prologueGreeting, prologueReply } from './game/story';
+import { PROLOGUE_FLOOR } from './game/npc';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const hud = document.querySelector<HTMLElement>('#hud');
@@ -88,32 +90,31 @@ if (canvas && hud) {
   ptt.bindButton(startScreen.micButton);
   commandBar.onSubmit = (text) => pipeline.submit(text, 'text');
 
-  // Start screen: the player's first words describe the world that becomes floor 1. Typed words,
-  // quick picks and speech all arrive through the pipeline, like in the game.
+  // Start screen: the player's first words describe their world. It is built in the background
+  // while they explore the prologue village; the village gate leads into it (floor 1). Typed
+  // words, quick picks, chosen settings and speech all arrive through the pipeline.
   let pendingWorld: string | undefined;
-  let worldBuilding = false;
   const describeWorld = (text: string): void => {
-    if (worldBuilding) return;
     startScreen?.showHeard(`“${text}”`);
-    startScreen?.setBusy(true);
     if (!router) {
-      pendingWorld = text; // built as soon as the Spire has loaded
+      pendingWorld = text; // handled as soon as the Spire has loaded
+      startScreen?.setBusy(true);
       startScreen?.setStatus('Almost ready…');
       return;
     }
     const r = router;
-    worldBuilding = true;
-    startScreen?.setStatus('The Spire listens…');
-    void r.buildWorld(text).then((built) => {
-      worldBuilding = false;
-      if (built) {
-        startScreen?.enter(true); // normally already entered when the floor loaded, under the curtain
-        return;
-      }
-      // A question got an answer instead (shown on the start screen): ask for a place again.
-      startScreen?.setBusy(false);
-      startScreen?.setStatus('Describe a place to enter.');
-    });
+    if (looksLikeQuestion(text)) {
+      // A question gets an answer on the start screen; the player then describes a place.
+      startScreen?.setBusy(true);
+      void r.answer(text).then(() => {
+        startScreen?.setBusy(false);
+        startScreen?.setStatus('Describe a place to enter.');
+      });
+      return;
+    }
+    r.prepareWorld(text);
+    startScreen?.setBusy(true);
+    startScreen?.enter();
   };
   startScreen.onWorld = (text) => pipeline.submit(text, 'text');
   pipeline.setHandler((u) => {
@@ -150,17 +151,22 @@ if (canvas && hud) {
     narrator.speak(spoken);
   };
 
+  /** An NPC's line: shown under their name and spoken (same voice as the Arbiter). */
+  const npcSay = (name: string, text: string): void => {
+    transcript?.add('npc', text, name);
+    narrator.speak(text);
+  };
+  /** What an NPC answers: their written dialogue (prologue villagers, or a floor's guide). */
+  const npcReply = async (text: string, role: string, floorNumber: number): Promise<string> =>
+    floorNumber === PROLOGUE_FLOOR ? prologueReply(text, role) : guideReply(text, floorNumber);
+
   /** The router needs the game; it exists before entering so the start screen can build floor 1. */
   const makeRouter = (g: GameController): CommandRouter =>
     new CommandRouter({
       grimoire,
       currentFloor: () => g.currentFloor(),
-      loadFloor: async (spec) => {
-        const loaded = await g.loadFloor(spec);
-        // Floor 1 from the start screen: enter now, while the reshape curtain still covers it.
-        if (startScreen?.visible) startScreen.enter(true);
-        return loaded;
-      },
+      floorNumber: () => g.floorNumber(),
+      loadFloor: (spec) => g.loadFloor(spec),
       cast: (spec) => g.castIncantation(spec),
       showGrimoire: (open) => {
         if (open !== grimoirePanel.visible) sfx.play(open ? 'open' : 'close');
@@ -185,13 +191,20 @@ if (canvas && hud) {
         else if (on) startScreen?.setStatus('The Spire weighs your words…');
       },
       onMode: (r) => modeLabel.set(r.offline ? 'offline' : (r.mode ?? 'offline')),
+      nearGuide: () => g.nearGuide(),
+      talk: async (text: string) => {
+        const role = g.nearestNpcRole() || 'Wanderer';
+        npcSay(role, await npcReply(text, role, g.floorNumber()));
+      },
     });
 
   startScreen.onEnter = () => {
     commandBar?.show();
     if (!speech.supported) transcript?.add('spire', NO_VOICE_MESSAGE);
     game?.setPaused(false);
+    // The prologue: the Arbiter's welcome, then the story of the village before the first battle.
     arbiter(ARBITER_LINES.welcome);
+    window.setTimeout(() => arbiter(PROLOGUE_NARRATION), 7500);
     const g = game;
     const r = router;
     if (!g || !r) return;
@@ -201,10 +214,24 @@ if (canvas && hud) {
       arbiter(`Floor ${g.floorNumber()} falls silent. A gate opens: step into it and speak the next floor into being.`, ARBITER_LINES.gateOpen);
     g.hooks.onBossAwake = (name) => arbiter(`${name} guards this floor. Unmake it, Incanter.`, ARBITER_LINES.bossAwake);
     g.hooks.onGateEnter = () => {
+      // The village gate leads into the world described on the start screen.
+      if (g.floorNumber() === PROLOGUE_FLOOR && r.hasPreparedWorld) {
+        void r.enterPreparedWorld();
+        return;
+      }
       gatePrompt.show(true);
       arbiter(ARBITER_LINES.gateEnter);
     };
     g.hooks.onGateLeave = () => gatePrompt.show(false);
+    g.hooks.onStoryBeat = (line) => {
+      // Story beats are spoken with a delay so they don't overlap the floor title card or gate line.
+      window.setTimeout(() => arbiter(line), 2000);
+    };
+    g.hooks.onGuideEnter = (role) => {
+      const prologue = g.floorNumber() === PROLOGUE_FLOOR;
+      npcSay(role, prologue ? prologueGreeting(role) : guideGreeting(g.floorNumber()));
+    };
+    g.hooks.onGuideLeave = () => {};
     pipeline.setHandler((u) => {
       transcript?.add('you', u.text);
       void r.handle(u);

@@ -668,6 +668,11 @@ body {
   background: var(--paper);
 }
 
+.transcript-npc .transcript-who {
+  background: var(--leaf);
+  color: var(--ink);
+}
+
 .transcript-interim {
   align-self: flex-end;
   padding: 4px 10px;
@@ -1109,6 +1114,29 @@ body {
   font-size: 16px;
   font-weight: 900;
   text-align: center;
+}
+
+/* --- NPC talk badge (floats over the guide NPC's head) -------------------------------------- */
+.npc-talk-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  font: 900 13px/1 var(--font-sans);
+  color: var(--ink);
+  background: var(--sky);
+  border: 2.5px solid var(--ink);
+  border-radius: 6px;
+  padding: 5px 10px;
+  box-shadow: 2px 2px 0 var(--ink);
+  white-space: nowrap;
+  animation: npc-badge-pulse 1.8s ease-in-out infinite;
+  /* translate applied by JS to position over the NPC head */
+}
+
+@keyframes npc-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 /* --- Damage numbers, hurt feedback, off-screen markers -------------------------------------- */

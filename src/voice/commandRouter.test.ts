@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockInterpret } from '../../api/_lib/mock/interpreter';
 import { parseInterpretResponse } from '../schemas/interpret';
-import { CommandRouter, type RouterDeps } from './commandRouter';
+import { CommandRouter, looksLikeQuestion, type RouterDeps } from './commandRouter';
 import { Grimoire, GRIMOIRE_BAR_SIZE } from '../combat/grimoire';
 import { TEST_INCANTATIONS } from '../combat/testIncantations';
 import { STARTING_ARENA } from '../fallback/floors';
@@ -36,6 +36,7 @@ function setup(opts: { atGate?: boolean } = {}) {
   const deps: RouterDeps = {
     grimoire,
     currentFloor: () => floor,
+    floorNumber: () => 1,
     loadFloor: async (f) => {
       floor = f;
     },
@@ -208,22 +209,36 @@ describe('build intent', () => {
   });
 });
 
-describe('the start screen (floor 1 from the player\'s words)', () => {
-  it('a described world becomes floor 1', async () => {
-    const { router, floor } = setup();
-    expect(await router.buildWorld('a frozen castle under the stars')).toBe(true);
+describe('the start screen: the world is prepared, the village gate enters it', () => {
+  it('a described world is built in the background and entered through the village gate', async () => {
+    const { router, floor, curtain } = setup();
+    router.prepareWorld('a frozen castle under the stars');
+    expect(router.hasPreparedWorld).toBe(true);
+    expect(floor().name).toBe(STARTING_ARENA.name); // still in the village
+    expect(await router.enterPreparedWorld()).toBe(true);
     expect(floor().name).not.toBe(STARTING_ARENA.name);
+    expect(curtain[0]).toBe('up:The Spire listens…');
+    expect(curtain.at(-1)).toBe('down');
+    expect(router.hasPreparedWorld).toBe(false);
   });
 
   it('gibberish still ends in a world (cached floor), never an error', async () => {
     const { router, floor } = setup();
-    expect(await router.buildWorld('blorp zzzt qq')).toBe(true);
+    router.prepareWorld('blorp zzzt qq');
+    expect(await router.enterPreparedWorld()).toBe(true);
     expect(floor().name).not.toBe(STARTING_ARENA.name);
   });
 
-  it('a question is answered and the player stays on the start screen', async () => {
+  it('without a prepared world the village gate does nothing special', async () => {
+    const { router } = setup();
+    expect(await router.enterPreparedWorld()).toBe(false);
+  });
+
+  it('a question is answered and builds nothing', async () => {
     const { router, floor, said } = setup();
-    expect(await router.buildWorld('what is this place?')).toBe(false);
+    expect(looksLikeQuestion('what is this place?')).toBe(true);
+    expect(looksLikeQuestion('a frozen castle')).toBe(false);
+    await router.answer('what is this place?');
     expect(floor().name).toBe(STARTING_ARENA.name);
     expect(said.length).toBe(1);
   });

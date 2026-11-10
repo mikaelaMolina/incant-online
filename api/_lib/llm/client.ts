@@ -22,7 +22,7 @@ export interface LlmCall {
   apiKey: string;
   model: string;
   text: string;
-  context?: { incantation?: unknown; floor?: unknown } | undefined;
+  context?: { incantation?: unknown; floor?: unknown; storyContext?: string | undefined } | undefined;
   signal: AbortSignal;
   fetchImpl?: typeof fetch;
 }
@@ -33,8 +33,8 @@ interface MessagesResponse {
 }
 
 export async function callLlm({ apiKey, model, text, context, signal, fetchImpl = fetch }: LlmCall): Promise<unknown> {
-  const user = context && (context.incantation !== undefined || context.floor !== undefined)
-    ? JSON.stringify({ player: text, context })
+  const user = context && (context.incantation !== undefined || context.floor !== undefined || context.storyContext)
+    ? JSON.stringify({ player: text, context: { incantation: context.incantation, floor: context.floor, ...(context.storyContext ? { story: context.storyContext } : {}) } })
     : JSON.stringify({ player: text });
 
   const res = await fetchImpl(ANTHROPIC_URL, {

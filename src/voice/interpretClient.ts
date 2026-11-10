@@ -17,6 +17,8 @@ export type BackendMode = LlmMode | 'offline';
 export interface InterpretContext {
   incantation?: unknown;
   floor?: unknown;
+  /** Current chapter lore, so the LLM gives story-aware replies in llm mode. */
+  storyContext?: string;
 }
 
 /** GET /api/interpret → which mode the backend runs in. "offline" if it can't be reached. */

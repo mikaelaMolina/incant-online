@@ -1,7 +1,7 @@
 const MAX_LINES = 4;
 const LINE_LIFETIME_MS = 9000;
 
-export type LineKind = 'you' | 'spire';
+export type LineKind = 'you' | 'spire' | 'npc';
 
 /** Live transcript above the command bar: interim speech while listening, then recent lines. */
 export class Transcript {
@@ -24,13 +24,14 @@ export class Transcript {
     this.interim.textContent = text ?? '';
   }
 
-  add(kind: LineKind, text: string): void {
+  /** `name` labels an NPC's line (e.g. "Elder"). */
+  add(kind: LineKind, text: string, name?: string): void {
     const line = document.createElement('div');
     line.className = `transcript-line transcript-${kind}`;
     const who = document.createElement('span');
     who.className = 'badge transcript-who';
     who.dataset.variant = kind === 'you' ? 'outline' : 'secondary';
-    who.textContent = kind === 'you' ? 'You' : 'The Arbiter';
+    who.textContent = kind === 'you' ? 'You' : kind === 'npc' ? (name ?? 'Stranger') : 'The Arbiter';
     const body = document.createElement('span');
     body.textContent = text; // never innerHTML: this is player / model text
     line.append(who, body);

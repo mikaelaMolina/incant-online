@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { Progression, isBossFloor, spawnsForFloor, statsFor, xpToNext, MAX_LEVEL } from './progression';
-import { STARTING_ARENA } from '../fallback/floors';
+import { parseFloorSpec, type FloorSpec } from '../schemas/floorSpec';
+import forestFloorJson from '../fallback/floor-forest.json';
+
+// A combat floor with described enemies (the starting arena is now the peaceful prologue village).
+const parsed = parseFloorSpec(forestFloorJson);
+if (!parsed.ok) throw new Error(parsed.error);
+const COMBAT_FLOOR: FloorSpec = parsed.value;
 
 describe('Progression', () => {
   it('levels up when XP passes the threshold, carrying the remainder', () => {
@@ -31,17 +37,17 @@ describe('Progression', () => {
 
 describe('spawnsForFloor', () => {
   it('floor 1 is unchanged and has no added boss', () => {
-    expect(spawnsForFloor(STARTING_ARENA, 1, 'x')).toEqual(STARTING_ARENA.spawns);
+    expect(spawnsForFloor(COMBAT_FLOOR, 1, 'x')).toEqual(COMBAT_FLOOR.spawns);
   });
 
   it('higher floors are tougher', () => {
-    const hp1 = spawnsForFloor(STARTING_ARENA, 1, 'x')[0]!.enemy.hp;
-    const hp4 = spawnsForFloor(STARTING_ARENA, 4, 'x')[0]!.enemy.hp;
+    const hp1 = spawnsForFloor(COMBAT_FLOOR, 1, 'x')[0]!.enemy.hp;
+    const hp4 = spawnsForFloor(COMBAT_FLOOR, 4, 'x')[0]!.enemy.hp;
     expect(hp4).toBeGreaterThan(hp1);
   });
 
   it('boss floors gain exactly one named boss', () => {
-    const spawns = spawnsForFloor(STARTING_ARENA, 3, 'monster.boss');
+    const spawns = spawnsForFloor(COMBAT_FLOOR, 3, 'monster.boss');
     const bosses = spawns.filter((g) => g.enemy.archetype === 'boss');
     expect(bosses).toHaveLength(1);
     expect(bosses[0]!.count).toBe(1);
@@ -53,7 +59,7 @@ describe('spawnsForFloor', () => {
 describe('planWaves', () => {
   it('a normal floor has the described enemies, then fewer reinforcements', async () => {
     const { planWaves } = await import('./progression');
-    const waves = planWaves(STARTING_ARENA.spawns, 1);
+    const waves = planWaves(COMBAT_FLOOR.spawns, 1);
     expect(waves).toHaveLength(2);
     const total = (w: (typeof waves)[number]) => w.reduce((a, g) => a + g.count, 0);
     expect(total(waves[1]!)).toBeLessThan(total(waves[0]!));
@@ -61,7 +67,7 @@ describe('planWaves', () => {
   });
   it('the boss arrives in the last wave', async () => {
     const { planWaves } = await import('./progression');
-    const waves = planWaves(spawnsForFloor(STARTING_ARENA, 3), 3);
+    const waves = planWaves(spawnsForFloor(COMBAT_FLOOR, 3), 3);
     expect(waves[0]!.some((g) => g.enemy.archetype === 'boss')).toBe(false);
     expect(waves.at(-1)!.some((g) => g.enemy.archetype === 'boss')).toBe(true);
   });

@@ -32,6 +32,8 @@ Plain language becomes both **game logic** (Incantations with real hitboxes, dam
 - **Refine what you made.** "make it wider", "add a stun", "remove the burn", "make it ice". The Incantation keeps its slot and is re-balanced.
 - **Build floors by description.** "a cozy village at night", "build a frozen castle with archers". A new floor rises behind a "The Spire reshapes…" transition.
 - **Climb the Spire.** Defeat every enemy and a gate opens; step in and describe the next floor.
+- **Follow the story.** The Arbiter speaks narrative beats as you climb — five chapters from The Awakening to The Summit reveal the Spire's history, the First Speaker who built it, and why the Arbiter tests those who climb. The guide NPC on each floor shares lore if you talk to them.
+- **Talk to the guide.** A friendly NPC stands on each floor. Walk up and hold V (or type) to ask about the Spire, the First Speaker, the Arbiter, the guardians, or how to play — they answer in character, and know more the higher you climb.
 - **Fight with whatever you invent.** 7 delivery types × 7 shapes, multi-hit combos, chain lightning, burn / freeze / stun / slow / knockback / heal, wards and dashes, with glowing shape-and-element effects, sounds, damage numbers and screen shake.
 - **Ask for anything.** Off-topic, nonsense or impossible requests always end in a floor, an Incantation or an in-character reply from the Arbiter, never an error. "Kill everything instantly" gets the strongest blast the rules allow, and an explanation.
 - **Play without an API key.** Mock mode uses a local keyword parser that produces the same JSON as the LLM.
@@ -151,6 +153,7 @@ Monsters fit the floor: skeletons and ghosts in ruins, treants in forests, yetis
 | "put a dragon on a castle" | A castle floor with a dragon boss |
 | "make it night" | Refines the current floor |
 | "open Grimoire" · "close Grimoire" · "next floor" | System commands (local) |
+| "who are you?" (near the guide NPC) | Talk to the guide: they share lore about the Spire, the First Speaker, the Arbiter, and the guardians |
 | "kill everything instantly" | The Arbiter refuses instant death and grants the strongest blast it allows |
 | "a spell that turns enemies into frogs" | The closest allowed effect (a stun), with a line explaining why |
 | "what is this game?" | An in-character explanation of how to play |
@@ -205,8 +208,9 @@ flowchart LR
 1. **Recite.** Fuse.js match against Grimoire names (threshold 0.4). Cast instantly, no network.
 2. **System command.** "open/close Grimoire", "next floor".
 3. **Refine.** Starts with "make it", "add", "remove"…: sent with the last Incantation and the current floor as context.
-4. **Gate.** While standing in an open gate, anything else describes the next floor.
-5. **Everything else** → `/api/interpret` → forge, build or reply.
+4. **Talk.** Near the guide NPC → in-character dialogue about the Spire's lore (local keyword match).
+5. **Gate.** While standing in an open gate, anything else describes the next floor.
+6. **Everything else** → `/api/interpret` → forge, build or reply (with story context for lore-aware replies).
 
 ### Data shapes
 
@@ -326,7 +330,7 @@ Impossible or forbidden asks are steered, not refused: *"kill everything instant
 
 ```text
 src/
-  game/      scene, Incanter, camera, input, floor loader, gate
+  game/      scene, Incanter, camera, input, floor loader, gate, story, NPC
   combat/    cast planning, Incantation runner, hit detection, status effects, mana, Grimoire
   enemies/   archetypes, state machine, spawner
   voice/     push-to-talk, speech input, intent router, command router, narrator (TTS)
@@ -401,10 +405,11 @@ How: instanced props; one pooled particle system; shared effect geometries and *
 ## Roadmap
 
 - Judgement card: show the Arbiter's verdict when an Incantation is forged.
-- More spoken Arbiter lines, a guide NPC and `/api/talk`.
+- More spoken Arbiter lines (forge verdicts).
 - `/api/stt` for browsers without built-in speech recognition (until then the game asks you to type).
 - First Vercel deployment and a real-LLM test pass.
 - Performance on more GPUs (measured so far on an Intel Iris Xe), boss phases, demo video.
+- Story: quest hooks tied to story beats (e.g. a named NPC on a specific floor who sends the Incanter to find something), branching dialogue, and story-driven floor names that the LLM weaves into the narrative.
 
 ## Credits and licence
 

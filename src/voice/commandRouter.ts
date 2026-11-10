@@ -9,6 +9,7 @@ import { offlineFallback, requestInterpretation, type InterpretContext } from '.
 import { classify, INTERIM_RECITE_THRESHOLD, ReciteIndex, words, type Route, type SystemCommand } from './intentRouter';
 import type { Utterance } from './pipeline';
 import { ARBITER_LINES } from './arbiterLines';
+import { storyContextForFloor } from '../game/story';
 
 /** A final transcript repeating what an interim already cast is ignored within this window. */
 const INTERIM_DEDUPE_MS = 4000;
@@ -22,9 +23,16 @@ const GATE_REPHRASE_IF_UNDER_MS = 3500;
 /** Questions get an answer even at the gate ("what is this place?"). */
 const QUESTION = /\?\s*$|^(what|who|why|how|where|when|is|are|can|could|do|does|will|should)\b/i;
 
+/** A question gets an answer, not a world ("what is this place?"). */
+export function looksLikeQuestion(text: string): boolean {
+  return QUESTION.test(text.trim());
+}
+
 export interface RouterDeps {
   grimoire: Grimoire;
   currentFloor(): FloorSpec;
+  /** Current floor number (for story context). */
+  floorNumber(): number;
   /** Load a floor; resolves with the floor actually loaded (a fallback if building failed). */
   loadFloor(spec: FloorSpec): Promise<FloorSpec | void>;
   /** Cast locally (the runner checks mana and cooldown). */
@@ -45,7 +53,8 @@ export interface RouterDeps {
   onMode?(response: InterpretResponse & { offline?: boolean }): void;
   /** Talk route (guide NPC): not built yet, so the route stays closed until both exist. */
   nearGuide?(): boolean;
-  talk?(text: string): Promise<string>;
+  /** Talk to the nearest NPC: the NPC answers (shown and spoken by the caller). */
+  talk?(text: string): Promise<void>;
   /** Timing hook for the recite budget (< 500 ms from words to cast). */
   onRecite?(name: string, ms: number, fromInterim: boolean): void;
 }
@@ -115,10 +124,7 @@ export class CommandRouter {
       case 'refine':
         return this.network(u.text, true, startedAt);
       case 'talk':
-        return this.withBusy(async () => {
-          const reply = await this.deps.talk!(u.text);
-          this.deps.say(reply);
-        });
+        return this.withBusy(() => this.deps.talk!(u.text));
       case 'interpret':
         return this.network(u.text, false, startedAt);
     }
@@ -168,23 +174,71 @@ export class CommandRouter {
   private network(text: string, refine: boolean, startedAt: number): Promise<void> {
     return this.withBusy(async () => {
       const base = refine ? this.deps.grimoire.last : undefined;
-      const context: InterpretContext | undefined = refine ? { ...(base ? { incantation: base } : {}), floor: this.deps.currentFloor() } : undefined;
+      const storyContext = storyContextForFloor(this.deps.floorNumber());
+      const context: InterpretContext | undefined = refine
+        ? { ...(base ? { incantation: base } : {}), floor: this.deps.currentFloor(), storyContext }
+        : { storyContext };
       const r = await requestInterpretation(text, context, this.avoid());
       this.deps.onMode?.(r);
       await this.apply(r, base, startedAt, text);
     });
   }
 
+  /** The player's world, being built in the background while they explore the village. */
+  private prepared: Promise<FloorSpec> | undefined;
+
   /**
-   * Start screen: the player's words build floor 1, exactly like at a gate (asked again
-   * explicitly, then a cached floor). Resolves true once a floor is loaded; false when the words
-   * were a question (answered instead) or another description is still being built.
+   * Start screen: start turning the player's words into their world (floor 1) in the background,
+   * like at a gate: asked again explicitly if the answer isn't a floor, then a cached floor. The
+   * player explores the village meanwhile; the village gate enters it (enterPreparedWorld).
    */
-  async buildWorld(text: string): Promise<boolean> {
-    if (this.busy) return false;
-    const before = this.deps.currentFloor();
-    await this.gateBuild(text, performance.now());
-    return this.deps.currentFloor() !== before;
+  prepareWorld(text: string): void {
+    const fallback = (): FloorSpec => {
+      const r = offlineFallback(text, undefined, { ...this.avoid(), want: 'floor', reason: 'llm-error' });
+      if (r.floor) return r.floor;
+      const cached = parseFloorSpec(cachedFloor(text, this.avoid().avoidFloors));
+      if (!cached.ok) throw new Error('no cached floor'); // the cache is validated by tests
+      return cached.value;
+    };
+    this.prepared = (async (): Promise<FloorSpec> => {
+      let r = await requestInterpretation(text, undefined, { ...this.avoid(), want: 'floor', budgetMs: GATE_REQUEST_BUDGET_MS });
+      this.deps.onMode?.(r);
+      if (r.intent !== 'build' || !r.floor) {
+        r = await requestInterpretation(`Build the next floor of the Spire: ${text}`, undefined, {
+          ...this.avoid(),
+          want: 'floor',
+          budgetMs: GATE_REQUEST_BUDGET_MS,
+        });
+      }
+      return r.intent === 'build' && r.floor ? r.floor : fallback();
+    })().catch(fallback);
+  }
+
+  /** Is a world waiting beyond the village gate? */
+  get hasPreparedWorld(): boolean {
+    return this.prepared !== undefined;
+  }
+
+  /** The village gate: enter the prepared world, behind the curtain until it is ready. */
+  async enterPreparedWorld(): Promise<boolean> {
+    const pending = this.prepared;
+    if (!pending || this.busy) return false;
+    this.prepared = undefined;
+    await this.withBusy(async () => {
+      void this.deps.reshape?.(true, 'The Spire listens…');
+      const spec = await pending;
+      await this.buildFloor(spec, performance.now());
+    });
+    return true;
+  }
+
+  /** A question on the start screen: answered in character, no world built. */
+  async answer(text: string): Promise<void> {
+    await this.withBusy(async () => {
+      const r = await requestInterpretation(text, undefined, this.avoid());
+      this.deps.onMode?.(r);
+      this.reply(r.reply ?? ARBITER_LINES.silent);
+    });
   }
 
   /**

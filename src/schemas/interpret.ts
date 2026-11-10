@@ -22,6 +22,8 @@ export const InterpretRequest = z.object({
     .object({
       incantation: z.unknown().optional(),
       floor: z.unknown().optional(),
+      /** Current chapter lore, so the LLM gives story-aware replies in llm mode. */
+      storyContext: z.string().max(600).optional(),
     })
     .optional()
     .catch(undefined),

@@ -21,6 +21,10 @@ Every third-party component, asset and AI service used in Incant Online. Only MI
 | Pre-recorded Arbiter lines (`public/assets/voice/*.mp3`) | Fixed lines spoken from files instead of generated each time (`npm run voices`) | Generated with ElevenLabs (voice above) by the project | Output owned by the account holder per ElevenLabs Terms §4(c)(ii); paid plan (commercial use) |
 | Vercel | Static hosting and serverless functions (planned) | Vercel Inc. | Vercel Terms of Service |
 
+## Logo
+
+The Incant Online logo and icon (`public/brand/`) are original artwork made for this project (hand-built SVG: a speech bubble holding the Spire, with custom-drawn lettering, no fonts), released under the project's MIT licence.
+
 ## npm dependencies
 
 ### Direct

@@ -1,3 +1,5 @@
+<p align="center"><img src="public/brand/logo.svg" alt="Incant Online" width="520"></p>
+
 # Incant Online
 
 **Say it. Cast it.**

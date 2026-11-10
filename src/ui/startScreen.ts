@@ -11,7 +11,6 @@ import {
   Orbit,
   ShieldCheck,
   Skull,
-  Sparkles,
   Sun,
   Sunrise,
   Sunset,
@@ -114,15 +113,12 @@ export class StartScreen {
     this.el.innerHTML = `
       <div class="start-shell">
         <header class="start-top">
-          <div class="start-brand">
-            <span class="start-logo">${icon(WandSparkles, 20)}</span>
-            <span id="start-title">Incant Online</span>
-          </div>
+          <img class="start-logo" id="start-title" src="${import.meta.env.BASE_URL}brand/logo.svg" alt="Incant Online" width="742" height="220" />
           <span class="badge start-browser">Chrome · Edge</span>
         </header>
 
         <section class="card start-hero">
-          <div class="start-art" aria-hidden="true">${icon(Sparkles, 64)}</div>
+          <img class="start-art" src="${import.meta.env.BASE_URL}brand/mark-paper.svg" alt="" aria-hidden="true" width="128" height="144" />
           <h1>Say it.<br />Cast it.</h1>
           <div class="start-tabs" role="tablist" aria-label="How to make your world">
             <button type="button" role="tab" class="start-tab" data-tab="describe" aria-selected="true">${icon(Keyboard, 16)} Describe it</button>

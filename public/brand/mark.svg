@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 144" width="128" height="144" role="img" aria-labelledby="t"><title id="t">Incant Online</title><g transform="translate(0 10) scale(1)" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M30 12H98A20 20 0 0 1 118 32V82A20 20 0 0 1 98 102H58L34 122V102H30A20 20 0 0 1 10 82V32A20 20 0 0 1 30 12Z" fill="#1d1a16" transform="translate(0 7)"/>
+  <path d="M30 12H98A20 20 0 0 1 118 32V82A20 20 0 0 1 98 102H58L34 122V102H30A20 20 0 0 1 10 82V32A20 20 0 0 1 30 12Z" fill="#ffc93c" stroke="#1d1a16" stroke-width="7"/>
+  <!-- the Spire: a tall wizard tower -->
+  <path d="M52 56H76V93H52Z" fill="#fffaf0" stroke="#1d1a16" stroke-width="6"/>
+  <path d="M58.5 93V83A5.5 5.5 0 0 1 69.5 83V93Z" fill="#1d1a16"/>
+  <rect x="61" y="63" width="6" height="9" rx="3" fill="#ffc93c" stroke="#1d1a16" stroke-width="3"/>
+  <path d="M64 14L85 58H43Z" fill="#ff5d73" stroke="#1d1a16" stroke-width="6"/>
+  <path d="M41 93H87" stroke="#1d1a16" stroke-width="7"/>
+  <!-- the spark of a spoken word, breaking out of the bubble -->
+  <path d="M64 -6L68 3.5L77.5 7.5L68 11.5L64 21L60 11.5L50.5 7.5L60 3.5Z" fill="#fffaf0" stroke="#1d1a16" stroke-width="4"/>
+</g></svg>

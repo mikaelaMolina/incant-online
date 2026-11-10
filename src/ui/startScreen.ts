@@ -75,7 +75,7 @@ export class StartScreen {
           <section class="card start-notes">
             <span class="start-notes-icon">${icon(ShieldCheck, 18)}</span>
             <div>
-              <p><strong>Push-to-talk only.</strong> Browser speech recognition may send audio to your browser vendor (e.g. Google). We never store audio. <span class="start-permission"></span></p>
+              <p><strong>Push-to-talk only.</strong> Browser speech recognition may send audio to your browser vendor (e.g. Google). We never store audio. The Arbiter's voice is AI-generated, not a human. <span class="start-permission"></span></p>
               ${fallbackNote}
             </div>
           </section>

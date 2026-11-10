@@ -13,7 +13,7 @@ import { pathToFileURL } from 'node:url';
 import { transformWithEsbuild } from 'vite';
 
 const ROOT = new URL('..', import.meta.url).pathname;
-const ENTRIES = ['api/interpret.ts'];
+const ENTRIES = ['api/interpret.ts', 'api/tts.ts'];
 const IMPORT_RE = /(?:import|export)\s[^'"]*?from\s+['"](\.[^'"]+)['"]/g;
 
 const out = mkdtempSync(join(tmpdir(), 'incant-api-'));
@@ -70,6 +70,7 @@ try {
   const env = (globalThis.process.env = { ...process.env });
   delete env.ANTHROPIC_API_KEY; // mock mode: never call the real API from a check
   delete env.LLM_MODE;
+  delete env.OPENAI_API_KEY; // the voice endpoint must report itself off, never call OpenAI from a check
   const mod = await import(pathToFileURL(join(out, 'api/interpret.js')).href);
   const mode = await (await mod.GET()).json();
   const res = await mod.POST(
@@ -83,7 +84,13 @@ try {
   if (mode.mode !== 'mock' || res.status !== 200 || body.intent !== 'forge' || body.incantation?.name !== 'Blazing Cyclone') {
     throw new Error(`unexpected response: GET ${JSON.stringify(mode)}, POST ${res.status} ${JSON.stringify(body).slice(0, 200)}`);
   }
-  console.log(`check:api: ok (${seen.size} files run under plain Node ESM; GET → ${mode.mode}, POST → ${body.intent} "${body.incantation.name}")`);
+  const tts = await import(pathToFileURL(join(out, 'api/tts.js')).href);
+  const ttsInfo = await (await tts.GET()).json();
+  const ttsPost = await tts.POST(new Request('http://localhost/api/tts', { method: 'POST', body: JSON.stringify({ text: 'Hello.' }) }));
+  if (ttsInfo.enabled !== false || ttsPost.status !== 204) {
+    throw new Error(`unexpected /api/tts without a key: GET ${JSON.stringify(ttsInfo)}, POST ${ttsPost.status}`);
+  }
+  console.log(`check:api: ok (${seen.size} files run under plain Node ESM; GET → ${mode.mode}, POST → ${body.intent} "${body.incantation.name}"; tts → off without a key)`);
 } catch (err) {
   console.error('check:api: the function failed under plain Node ESM:\n ', err instanceof Error ? err.message : err);
   process.exitCode = 1;

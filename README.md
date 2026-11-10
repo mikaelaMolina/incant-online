@@ -69,7 +69,7 @@ The Arbiter is plain, deterministic code that runs on **every** Incantation afte
 ### 3. Voice: speaking and being answered
 
 - **Speech in**: the browser's speech recognition (Web Speech API) turns push-to-talk audio into text, live. Spell names are matched locally with fuzzy search (Fuse.js), so a slightly misheard "Blazing Cycle On" still casts *Blazing Cyclone*, within milliseconds.
-- **Speech out**: the Arbiter's replies are spoken with the browser's text-to-speech (`speechSynthesis`), and it falls silent the moment you hold the talk key.
+- **Speech out**: the Arbiter speaks with a cloud voice (OpenAI text-to-speech through `/api/tts`, when `OPENAI_API_KEY` is set) or, without one, the most natural voice the browser offers (`speechSynthesis`; Edge's neural voices are the best). It falls silent the moment you hold the talk key. The voice is AI-generated, not a human.
 
 ### Built with AI, too
 
@@ -172,6 +172,7 @@ Requirements: **WebGL2** (without it the page shows "The Spire could not awaken"
 - The microphone is **push-to-talk only** (hold V or the mic button) and closes as soon as you let go.
 - Browser speech recognition **may send your audio to your browser vendor** (e.g. Google or Microsoft) to turn it into text.
 - Our backend **never stores audio**. Only the text of what you said is sent to `/api/interpret`, and in llm mode on to the model provider (Anthropic).
+- With the cloud voice on, the Arbiter's own lines (text, never your audio) are sent to OpenAI to be spoken. The Arbiter's voice is AI-generated, not a human.
 - API keys live only in server-side environment variables and are never sent to the browser.
 - The game keeps two settings in your browser's local storage (sound and voice on/off) and nothing else.
 

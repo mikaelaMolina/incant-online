@@ -1,5 +1,23 @@
 {
-  "voice": null,
-  "generated": null,
-  "lines": {}
+  "voice": "6WwXjDDEMyNmFG95zycZ|eleven_flash_v2_5",
+  "generated": "2026-11-10",
+  "lines": {
+    "welcome incanter clear each floor speak new incantations and climb a guardian waits on every third floor": "4060c9b3b1e2.mp3",
+    "this floor falls silent a gate opens step into it and speak the next floor into being": "ba96eeb4af2c.mp3",
+    "describe the floor that lies beyond": "aa97240a679c.mp3",
+    "a guardian wakes on this floor unmake it incanter": "35578c680ff2.mp3",
+    "the spire reshapes": "865ec7162dd3.mp3",
+    "the spire is silent": "3e7cefb90785.mp3",
+    "the spire is silent speak again incanter": "8688b93d2ef3.mp3",
+    "the spire heard nothing speak incanter": "238f5aea3e52.mp3",
+    "this is the spire incanter describe an incantation and it is forged say its name and it is cast describe a place and a new floor rises clear a floor and a gate opens to the next": "4e6dc5be46e9.mp3",
+    "you stand in the spire where words become power speak an incantation to forge it recite its name to cast it and describe the floors you wish to climb": "c2093c1bed57.mp3",
+    "greetings incanter speak an incantation into being name an element a shape a number of strikes": "4fdab5d68875.mp3",
+    "the spire hears you incanter tell it what to forge or what place to raise": "652f5df5d61b.mp3",
+    "the spire answers only in deeds ask it for a spell of fire or frost or for a forest a castle a desert or a cave": "57ef97d95362.mp3",
+    "questions echo and fade here shape them into an incantation a triple lightning slash or a place a misty forest": "b8fcf4f57b63.mp3",
+    "the spire does not understand speak of fire ice or lightning of slashes beams and orbs or name a place to build": "8060a795cac8.mp3",
+    "those words find no shape in the spire try a spinning fire slash that hits three times or build a desert at dusk": "7dd09e1af71b.mp3",
+    "the spire waits for clearer words an element and a shape for an incantation or a place for a new floor": "55b678125383.mp3"
+  }
 }

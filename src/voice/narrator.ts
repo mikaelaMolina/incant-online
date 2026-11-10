@@ -45,8 +45,9 @@ export class Narrator {
     const u = new SpeechSynthesisUtterance(stripForSpeech(text));
     if (this.voice) u.voice = this.voice;
     u.lang = this.voice?.lang ?? 'en-GB';
-    u.rate = 0.98;
-    u.pitch = 0.82;
+    // Natural pitch: lowering it makes every engine sound more mechanical.
+    u.rate = 0.97;
+    u.pitch = 1;
     u.volume = 0.9;
     this.synth.speak(u);
   }
@@ -68,13 +69,31 @@ function readMuted(): boolean {
   }
 }
 
-/** Prefer a calm English voice; local voices first (no network, start faster). */
+/**
+ * Pick the most natural English voice the browser offers. Quality first, because the default and
+ * "local" voices are often decades-old formant synthesis (e.g. Windows' "Microsoft David Desktop"):
+ * 1. neural voices: Edge's "… Online (Natural)" voices (free in Edge, streamed by the browser);
+ * 2. Apple's downloaded "Premium" / "Enhanced" voices;
+ * 3. Chrome's "Google …" voices;
+ * and never the old desktop / eSpeak voices unless nothing else exists. Then a British accent and
+ * a calm male narrator suit the Arbiter.
+ */
 export function pickVoice(voices: readonly SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
   const en = voices.filter((v) => v.lang.toLowerCase().startsWith('en'));
-  const score = (v: SpeechSynthesisVoice): number =>
-    (v.lang.toLowerCase() === 'en-gb' ? 4 : 0) +
-    (/male|daniel|george|arthur|ryan|guy|david/i.test(v.name) ? 2 : 0) +
-    (v.localService ? 1 : 0);
+  const score = (v: SpeechSynthesisVoice): number => {
+    const name = v.name.toLowerCase();
+    const lang = v.lang.toLowerCase();
+    let s = 0;
+    if (/natural|neural/.test(name)) s += 50;
+    if (/premium|enhanced/.test(name)) s += 40;
+    if (/^google\b/.test(name)) s += 25;
+    if (/\bonline\b/.test(name)) s += 5;
+    if (/desktop|espeak|robot|compact/.test(name)) s -= 30;
+    if (lang === 'en-gb') s += 6;
+    else if (lang === 'en-us') s += 3;
+    if (/\b(male|ryan|thomas|guy|davis|andrew|brian|christopher|eric|daniel|arthur|george|oliver|william)\b/.test(name)) s += 4;
+    return s;
+  };
   return [...en].sort((a, b) => score(b) - score(a))[0] ?? voices[0];
 }
 

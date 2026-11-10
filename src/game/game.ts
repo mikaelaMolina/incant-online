@@ -71,6 +71,10 @@ export interface GameController {
   nearGuide(): boolean;
   /** The role of the nearest NPC (e.g. "Elder"), for dialogue routing. */
   nearestNpcRole(): string;
+  /** Is this a guardian floor (every third)? */
+  isGuardianFloor(): boolean;
+  /** A quest reward: bonus experience (may level up) and a full heal. */
+  grantReward(xp: number): void;
   /** Event callbacks set by the UI layer. */
   readonly hooks: GameHooks;
 }
@@ -90,6 +94,10 @@ export interface GameHooks {
   /** The Incanter stepped near / away from an NPC. `role` is which NPC (e.g. "Elder"). */
   onGuideEnter?: (role: string) => void;
   onGuideLeave?: () => void;
+  /** Quest events: the floor's last wave fell, a guardian fell, an orb was picked up. */
+  onFloorCleared?: (floor: number) => void;
+  onBossDefeated?: (floor: number) => void;
+  onOrbCollected?: (floor: number) => void;
 }
 
 /** Load the first floor and start rendering. Resolves once the floor is playable (paused). */
@@ -443,8 +451,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   };
   showProgress();
   /** A kill: experience, maybe a level, and orbs to pick up. */
-  const onKill = (archetype: keyof typeof XP_FOR, at: { x: number; y: number; z: number }): void => {
-    const xp = XP_FOR[archetype];
+  /** Experience from any source; levels raise HP and mana and fully restore. */
+  const gainXp = (xp: number): void => {
     const before = progress.stats;
     const gained = progress.addXp(xp);
     progressHud.xpGained(xp);
@@ -460,6 +468,10 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       vfx.deathBurst(incanter.position.clone().setY(incanter.position.y + 0.4), '#ffd36a', true);
     }
     showProgress();
+  };
+  const onKill = (archetype: keyof typeof XP_FOR, at: { x: number; y: number; z: number }): void => {
+    gainXp(XP_FOR[archetype]);
+    if (archetype === 'boss') hooks.onBossDefeated?.(progress.floor);
     const drops: PickupKind[] =
       archetype === 'boss' ? ['health', 'health', 'mana', 'mana', 'mana'] : archetype === 'tank' ? ['health', 'mana'] : Math.random() < 0.45 ? [Math.random() < 0.5 ? 'health' : 'mana'] : [];
     for (const k of drops) pickups.drop(at, incanter.feetY, k);
@@ -582,6 +594,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       healthBars.showBanner('Floor cleared: a gate opens');
       sfx.play('cleared');
       openGate();
+      hooks.onFloorCleared?.(progress.floor);
     }
     if (clearedTimer > 0) {
       clearedTimer -= dt;
@@ -612,9 +625,11 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         if (isNear) { anyNear = true; nearRole = npc.role; }
       }
       const wasNear = nearGuide;
+      const wasRole = nearestNpcRole;
       nearGuide = anyNear;
       nearestNpcRole = nearRole;
-      if (nearGuide && !wasNear) hooks.onGuideEnter?.(nearRole);
+      // Greet when an NPC comes in range, including walking straight from one villager to the next.
+      if (nearGuide && (!wasNear || nearRole !== wasRole)) hooks.onGuideEnter?.(nearRole);
       else if (!nearGuide && wasNear) hooks.onGuideLeave?.();
     }
     // Feedback from this frame's combat: damage numbers, hurt flash, deaths.
@@ -659,6 +674,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
       if (kind === 'health') incanter.health.heal(incanter.health.max * 0.2);
       else runner.resources.mana = Math.min(runner.resources.max, runner.resources.mana + runner.resources.max * 0.25);
       sfx.play('pickup');
+      hooks.onOrbCollected?.(progress.floor);
     }
     vfx.update(dt, cam.camera, renderer.domElement.height);
 
@@ -761,6 +777,14 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     atGate: () => inGate,
     nearGuide: () => nearGuide,
     nearestNpcRole: () => nearestNpcRole,
+    isGuardianFloor: () => progress.bossFloor,
+    grantReward(xp) {
+      gainXp(xp);
+      incanter.health.heal(incanter.health.max);
+      runner.resources.mana = runner.resources.max;
+      sfx.play('levelUp');
+      vfx.deathBurst(incanter.position.clone().setY(incanter.position.y + 0.4), '#7dffa8', true);
+    },
     hooks,
   };
 }

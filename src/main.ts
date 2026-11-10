@@ -26,6 +26,8 @@ import { sfx } from './audio/sfx';
 import { SoundToggle } from './ui/soundToggle';
 import { PROLOGUE_NARRATION, guideGreeting, guideReply, prologueGreeting, prologueReply } from './game/story';
 import { PROLOGUE_FLOOR } from './game/npc';
+import { QuestLog, type Quest } from './game/quests';
+import { QuestTracker } from './ui/questTracker';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const hud = document.querySelector<HTMLElement>('#hud');
@@ -151,6 +153,9 @@ if (canvas && hud) {
     narrator.speak(spoken);
   };
 
+  const questLog = new QuestLog();
+  const questTracker = new QuestTracker(hud);
+
   /** An NPC's line: shown under their name and spoken (same voice as the Arbiter). */
   const npcSay = (name: string, text: string): void => {
     transcript?.add('npc', text, name);
@@ -190,7 +195,11 @@ if (canvas && hud) {
       grimoire,
       currentFloor: () => g.currentFloor(),
       floorNumber: () => g.floorNumber(),
-      loadFloor: (spec) => g.loadFloor(spec),
+      loadFloor: (spec) => {
+        questLog.leftFloor(g.floorNumber()); // a floor's unfinished quest stays behind with it
+        questTracker.show(questLog.active);
+        return g.loadFloor(spec);
+      },
       cast: (spec) => g.castIncantation(spec),
       showGrimoire: (open) => {
         if (open !== grimoirePanel.visible) sfx.play(open ? 'open' : 'close');
@@ -252,9 +261,34 @@ if (canvas && hud) {
       window.setTimeout(() => arbiter(line), 2000);
     };
     g.hooks.onGuideEnter = (role) => {
-      const prologue = g.floorNumber() === PROLOGUE_FLOOR;
-      npcSay(role, prologue ? prologueGreeting(role) : guideGreeting(g.floorNumber()));
+      const floorNumber = g.floorNumber();
+      const greeting = floorNumber === PROLOGUE_FLOOR ? prologueGreeting(role) : guideGreeting(floorNumber);
+      npcSay(role, greeting);
+      // An NPC with a task offers it once the greeting has been said.
+      const offer = questLog.offerFrom(role, floorNumber, g.isGuardianFloor());
+      if (offer) {
+        window.setTimeout(() => {
+          if (g.floorNumber() !== floorNumber || questLog.active) return;
+          questLog.accept(offer);
+          npcSay(role, offer.offer);
+          questTracker.show(questLog.active);
+          sfx.play('forge');
+        }, Math.min(9000, 1200 + greeting.length * 60));
+      }
     };
+    /** A quest event: progress the tracker, or reward a finished quest. */
+    const questEvent = (done: Quest | undefined): void => {
+      if (!done) {
+        questTracker.show(questLog.active);
+        return;
+      }
+      g.grantReward(done.rewardXp);
+      questTracker.completed(done);
+      arbiter(`Quest complete: ${done.title}. The ${done.giver}'s gift: ${done.rewardXp} experience, and your strength restored.`);
+    };
+    g.hooks.onFloorCleared = (floor) => questEvent(questLog.record({ kind: 'floor_cleared', floor }));
+    g.hooks.onBossDefeated = (floor) => questEvent(questLog.record({ kind: 'boss_defeated', floor }));
+    g.hooks.onOrbCollected = (floor) => questEvent(questLog.record({ kind: 'orb_collected', floor }));
     g.hooks.onGuideLeave = () => {};
     pipeline.setHandler((u) => {
       transcript?.add('you', u.text);

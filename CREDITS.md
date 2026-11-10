@@ -94,6 +94,7 @@ Every model the game may load is listed with its licence in `public/assets/manif
 | Castle Kit (2.0) | Kenney | CC0 1.0 | https://kenney.nl/assets/castle-kit |
 | Modular Dungeon Kit (2.1) | Kenney | CC0 1.0 | https://kenney.nl |
 | RPG Characters (Nov 2020): the Incanter (Wizard) and humanoid foes | Quaternius | CC0 1.0 | https://quaternius.com |
+| Ultimate Animated Character Pack (Nov 2019): 10 of 52 characters as friendly NPCs (Casual Male/Female, Casual2 Female, Chef Male, Old Classy Male/Female, Worker Male, Knight Male, Elf, Witch), converted to GLB with only the Idle, Walk and Victory animations by `scripts/pack-npc-models.mjs` | Quaternius | CC0 1.0 | https://quaternius.com/packs/ultimatedanimatedcharacter.html |
 | Cute Animated Monsters (Aug 2020): 11 of 21 models (Skull, Demon, Green Demon, Ghost, Yeti, Cyclops, Tree, Cactus, Crab, Alien Tall, Yellow Dragon) | Quaternius | CC0 1.0 | https://opengameart.org/content/textured-cute-monster-pack |
 
 CC0 does not require credit. We give it anyway, with thanks.

@@ -77,6 +77,19 @@ const PACKS = [
     type: () => 'enemy',
     collider: () => 'none',
   },
+  {
+    // Friendly NPCs (villagers, innkeeper, elders, guard…): slim GLBs made by scripts/pack-npc-models.mjs.
+    id: 'npc',
+    dir: 'quaternius/ultimate_animated_characters_-_nov_2019',
+    models: 'GLB',
+    format: 'glb',
+    license: 'License.txt',
+    author: 'Quaternius',
+    source: 'https://quaternius.com/packs/ultimatedanimatedcharacter.html',
+    baseScale: 1, // scaled to NPC height on load
+    type: () => 'npc',
+    collider: () => 'none', // NPCs get a cylinder from gameplay code
+  },
 ];
 
 const DECOR = /^(flower|grass|crop|crops|lily|hanging_moss|plant_flat|mushroom|path_|ground_|bed|canoe_paddle)/;
@@ -209,5 +222,5 @@ const manifest = {
 writeFileSync(join(ASSETS, 'manifest.json'), JSON.stringify(manifest, null, 1) + '\n');
 const count = (t) => models.filter((m) => m.type === t).length;
 console.log(
-  `manifest.json: ${models.length} models (${count('prop')} props, ${count('enemy')} enemies, ${count('character')} characters) from ${PACKS.length} packs`,
+  `manifest.json: ${models.length} models (${count('prop')} props, ${count('enemy')} enemies, ${count('npc')} NPCs, ${count('character')} characters) from ${PACKS.length} packs`,
 );

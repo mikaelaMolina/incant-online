@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const MODEL_TYPES = ['prop', 'enemy', 'character'] as const;
+export const MODEL_TYPES = ['prop', 'enemy', 'npc', 'character'] as const;
 export type ModelType = (typeof MODEL_TYPES)[number];
 
 export const COLLIDER_KINDS = ['none', 'box', 'trunk', 'mesh'] as const;

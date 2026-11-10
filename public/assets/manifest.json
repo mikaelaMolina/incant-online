@@ -31,6 +31,12 @@
    "source": "https://opengameart.org/content/textured-cute-monster-pack",
    "licence": "CC0-1.0",
    "licenceFile": "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/License.txt"
+  },
+  "npc": {
+   "author": "Quaternius",
+   "source": "https://quaternius.com/packs/ultimatedanimatedcharacter.html",
+   "licence": "CC0-1.0",
+   "licenceFile": "assets/quaternius/ultimate_animated_characters_-_nov_2019/License.txt"
   }
  },
  "models": [
@@ -6918,6 +6924,156 @@
    "collider": "none",
    "textures": [
     "assets/quaternius/cute_animated_monsters_-_aug_2020/Cute Animated Monsters - Aug 2020/Textures/Yeti_Texture.png"
+   ]
+  },
+  {
+   "id": "npc.casual2_female",
+   "path": "assets/quaternius/ultimate_animated_characters_-_nov_2019/GLB/Casual2_Female.glb",
+   "type": "npc",
+   "licence": "CC0-1.0",
+   "pack": "npc",
+   "format": "glb",
+   "baseScale": 1,
+   "collider": "none",
+   "size": [
+    3.24,
+    3.2,
+    1.42
+   ]
+  },
+  {
+   "id": "npc.casual_female",
+   "path": "assets/quaternius/ultimate_animated_characters_-_nov_2019/GLB/Casual_Female.glb",
+   "type": "npc",
+   "licence": "CC0-1.0",
+   "pack": "npc",
+   "format": "glb",
+   "baseScale": 1,
+   "collider": "none",
+   "size": [
+    3.24,
+    3.2,
+    1.53
+   ]
+  },
+  {
+   "id": "npc.casual_male",
+   "path": "assets/quaternius/ultimate_animated_characters_-_nov_2019/GLB/Casual_Male.glb",
+   "type": "npc",
+   "licence": "CC0-1.0",
+   "pack": "npc",
+   "format": "glb",
+   "baseScale": 1,
+   "collider": "none",
+   "size": [
+    3.24,
+    3.33,
+    1.32
+   ]
+  },
+  {
+   "id": "npc.chef_male",
+   "path": "assets/quaternius/ultimate_animated_characters_-_nov_2019/GLB/Chef_Male.glb",
+   "type": "npc",
+   "licence": "CC0-1.0",
+   "pack": "npc",
+   "format": "glb",
+   "baseScale": 1,
+   "collider": "none",
+   "size": [
+    3.24,
+    3.2,
+    1.16
+   ]
+  },
+  {
+   "id": "npc.elf",
+   "path": "assets/quaternius/ultimate_animated_characters_-_nov_2019/GLB/Elf.glb",
+   "type": "npc",
+   "licence": "CC0-1.0",
+   "pack": "npc",
+   "format": "glb",
+   "baseScale": 1,
+   "collider": "none",
+   "size": [
+    3.24,
+    4.1,
+    1.73
+   ]
+  },
+  {
+   "id": "npc.knight_male",
+   "path": "assets/quaternius/ultimate_animated_characters_-_nov_2019/GLB/Knight_Male.glb",
+   "type": "npc",
+   "licence": "CC0-1.0",
+   "pack": "npc",
+   "format": "glb",
+   "baseScale": 1,
+   "collider": "none",
+   "size": [
+    3.24,
+    3.59,
+    1.35
+   ]
+  },
+  {
+   "id": "npc.oldclassy_female",
+   "path": "assets/quaternius/ultimate_animated_characters_-_nov_2019/GLB/OldClassy_Female.glb",
+   "type": "npc",
+   "licence": "CC0-1.0",
+   "pack": "npc",
+   "format": "glb",
+   "baseScale": 1,
+   "collider": "none",
+   "size": [
+    3.24,
+    3.77,
+    1.42
+   ]
+  },
+  {
+   "id": "npc.oldclassy_male",
+   "path": "assets/quaternius/ultimate_animated_characters_-_nov_2019/GLB/OldClassy_Male.glb",
+   "type": "npc",
+   "licence": "CC0-1.0",
+   "pack": "npc",
+   "format": "glb",
+   "baseScale": 1,
+   "collider": "none",
+   "size": [
+    3.24,
+    3.77,
+    1.15
+   ]
+  },
+  {
+   "id": "npc.witch",
+   "path": "assets/quaternius/ultimate_animated_characters_-_nov_2019/GLB/Witch.glb",
+   "type": "npc",
+   "licence": "CC0-1.0",
+   "pack": "npc",
+   "format": "glb",
+   "baseScale": 1,
+   "collider": "none",
+   "size": [
+    3.24,
+    4.29,
+    1.7
+   ]
+  },
+  {
+   "id": "npc.worker_male",
+   "path": "assets/quaternius/ultimate_animated_characters_-_nov_2019/GLB/Worker_Male.glb",
+   "type": "npc",
+   "licence": "CC0-1.0",
+   "pack": "npc",
+   "format": "glb",
+   "baseScale": 1,
+   "collider": "none",
+   "size": [
+    3.24,
+    3.34,
+    1.28
    ]
   }
  ]

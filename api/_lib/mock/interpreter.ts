@@ -24,7 +24,8 @@ const REFINE_START = /^(make it|make that|now make it|add|remove|more|less|give 
 const GREETINGS = ['hello', 'hi', 'hey', 'greetings', 'yo', 'hiya'];
 /** Questions about the game itself get a real answer (how to play), not a deflection. */
 const META = ['game', 'play*', 'control*', 'help', 'tutorial', 'rules', 'goal', 'spire', 'incanter', 'arbiter', 'grimoire'];
-const REPLIES = {
+/** Exported so their spoken versions can be pre-recorded (src/voice/arbiterLines.ts). */
+export const REPLIES = {
   meta: [
     'This is the Spire, Incanter. Describe an Incantation and it is forged; say its name and it is cast. Describe a place and a new floor rises. Clear a floor and a gate opens to the next.',
     'You stand in the Spire, where words become power. Speak an Incantation to forge it, recite its name to cast it, and describe the floors you wish to climb.',

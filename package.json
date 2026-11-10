@@ -16,7 +16,8 @@
     "test": "vitest run",
     "manifest": "node scripts/build-manifest.mjs",
     "check:api": "node scripts/check-api.mjs",
-    "judge-test": "node scripts/judge-test.ts"
+    "judge-test": "node scripts/judge-test.ts",
+    "voices": "node scripts/prebake-voices.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",

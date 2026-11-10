@@ -21,6 +21,7 @@ import { GrimoirePanel } from './ui/grimoirePanel';
 import { ReshapeTransition } from './ui/transition';
 import { GatePrompt } from './ui/gatePrompt';
 import { Narrator } from './voice/narrator';
+import { ARBITER_LINES } from './voice/arbiterLines';
 import { sfx } from './audio/sfx';
 import { SoundToggle } from './ui/soundToggle';
 
@@ -140,10 +141,13 @@ if (canvas && hud) {
     return muted;
   });
   const gatePrompt = new GatePrompt(hud, speech.supported);
-  /** Show and speak an Arbiter line. */
-  const arbiter = (text: string): void => {
+  /**
+   * Show and speak an Arbiter line. `spoken` is a fixed line when the shown one has a name or
+   * number in it, so the voice can come from a pre-recorded file instead of costing credits.
+   */
+  const arbiter = (text: string, spoken = text): void => {
     transcript?.add('spire', text);
-    narrator.speak(text);
+    narrator.speak(spoken);
   };
 
   /** The router needs the game; it exists before entering so the start screen can build floor 1. */
@@ -187,17 +191,18 @@ if (canvas && hud) {
     commandBar?.show();
     if (!speech.supported) transcript?.add('spire', NO_VOICE_MESSAGE);
     game?.setPaused(false);
-    arbiter('Welcome, Incanter. Clear each floor, speak new Incantations, and climb. A guardian waits on every third floor.');
+    arbiter(ARBITER_LINES.welcome);
     const g = game;
     const r = router;
     if (!g || !r) return;
     // In the game: everything said or typed is shown, then routed (forge / build / reply).
     g.hooks.onBarCast = (spec) => grimoire.touch(spec.name);
-    g.hooks.onGateOpen = () => arbiter(`Floor ${g.floorNumber()} falls silent. A gate opens: step into it and speak the next floor into being.`);
-    g.hooks.onBossAwake = (name) => arbiter(`${name} guards this floor. Unmake it, Incanter.`);
+    g.hooks.onGateOpen = () =>
+      arbiter(`Floor ${g.floorNumber()} falls silent. A gate opens: step into it and speak the next floor into being.`, ARBITER_LINES.gateOpen);
+    g.hooks.onBossAwake = (name) => arbiter(`${name} guards this floor. Unmake it, Incanter.`, ARBITER_LINES.bossAwake);
     g.hooks.onGateEnter = () => {
       gatePrompt.show(true);
-      arbiter('Describe the floor that lies beyond.');
+      arbiter(ARBITER_LINES.gateEnter);
     };
     g.hooks.onGateLeave = () => gatePrompt.show(false);
     pipeline.setHandler((u) => {

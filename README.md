@@ -69,7 +69,7 @@ The Arbiter is plain, deterministic code that runs on **every** Incantation afte
 ### 3. Voice: speaking and being answered
 
 - **Speech in**: the browser's speech recognition (Web Speech API) turns push-to-talk audio into text, live. Spell names are matched locally with fuzzy search (Fuse.js), so a slightly misheard "Blazing Cycle On" still casts *Blazing Cyclone*, within milliseconds.
-- **Speech out**: the Arbiter speaks with a cloud voice (ElevenLabs text-to-speech through `/api/tts`, when `ELEVENLABS_API_KEY` is set) or, without one, the most natural voice the browser offers (`speechSynthesis`; Edge's neural voices are the best). It falls silent the moment you hold the talk key. The voice is AI-generated, not a human.
+- **Speech out**: the Arbiter speaks with a cloud voice (ElevenLabs text-to-speech through `/api/tts` when `ELEVENLABS_API_KEY` is set; fixed lines are pre-recorded with `npm run voices`) or, without one, the most natural voice the browser offers (`speechSynthesis`; Edge's neural voices are the best). It falls silent the moment you hold the talk key. The voice is AI-generated, not a human.
 
 ### Built with AI, too
 
@@ -353,6 +353,7 @@ scripts/             manifest builder, API ESM check, judge test
 | `npm test` | Unit and integration tests (Vitest) |
 | `npm run typecheck` | TypeScript only |
 | `npm run judge-test` | Sends ten "judge-style" prompts to `/api/interpret` and checks every one ends in a valid floor, Incantation or reply. `-- --url https://…` tests a deployment; extra arguments are your own prompts |
+| `npm run voices` | Pre-records the Arbiter's fixed lines with the ElevenLabs voice into `public/assets/voice/` (`ELEVENLABS_API_KEY` from `.env`). Only new or changed lines are recorded; `-- --force` re-records all |
 | `npm run check:api` | Runs `/api` under plain Node ESM the way Vercel does (catches import problems before deploy) |
 | `npm run manifest` | Regenerate `public/assets/manifest.json` after changing asset packs |
 

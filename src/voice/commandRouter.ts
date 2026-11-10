@@ -8,6 +8,7 @@ import { CACHED_FLOORS, cachedFloor, cachedIncantation } from '../fallback/cache
 import { offlineFallback, requestInterpretation, type InterpretContext } from './interpretClient';
 import { classify, INTERIM_RECITE_THRESHOLD, ReciteIndex, words, type Route, type SystemCommand } from './intentRouter';
 import type { Utterance } from './pipeline';
+import { ARBITER_LINES } from './arbiterLines';
 
 /** A final transcript repeating what an interim already cast is ignored within this window. */
 const INTERIM_DEDUPE_MS = 4000;
@@ -220,7 +221,7 @@ export class CommandRouter {
   /** Curtain up, build, curtain down, announce. */
   private async buildFloor(spec: FloorSpec, startedAt: number): Promise<void> {
     void this.deps.reshape?.(true, spec.name);
-    this.deps.speak?.('The Spire reshapes.');
+    this.deps.speak?.(ARBITER_LINES.reshapes);
     const loaded = (await this.deps.loadFloor(spec)) ?? spec;
     this.deps.onFloorBuilt?.(loaded.name, performance.now() - startedAt);
     await this.deps.reshape?.(false);
@@ -301,7 +302,7 @@ export class CommandRouter {
       await this.buildFloor(r.floor, startedAt);
       return;
     }
-    this.reply(r.reply ?? 'The Spire is silent.');
+    this.reply(r.reply ?? ARBITER_LINES.silent);
   }
 }
 

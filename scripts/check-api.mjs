@@ -70,7 +70,7 @@ try {
   const env = (globalThis.process.env = { ...process.env });
   delete env.ANTHROPIC_API_KEY; // mock mode: never call the real API from a check
   delete env.LLM_MODE;
-  delete env.ELEVENLABS_API_KEY; // the voice endpoint must report itself off, never call ElevenLabs from a check
+  delete env.ELEVENLABS_API_KEY; // the voice endpoint must report itself off: never call ElevenLabs from a check
   const mod = await import(pathToFileURL(join(out, 'api/interpret.js')).href);
   const mode = await (await mod.GET()).json();
   const res = await mod.POST(

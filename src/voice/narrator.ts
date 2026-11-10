@@ -1,7 +1,13 @@
+import { stripForSpeech } from './speechText';
+import { lineKey } from './arbiterLines';
+
+export { stripForSpeech };
+
 /**
- * The Arbiter's voice. Two engines, best first:
- * 1. a cloud voice from /api/tts (ElevenLabs text-to-speech, when the server has a key), streamed as
- *    MP3 and cached per line for the session;
+ * The Arbiter's voice (and any NPC's: everything spoken goes through here). Best first:
+ * 0. pre-recorded files for fixed lines (public/assets/voice, made by `npm run voices`): no credits;
+ * 1. a cloud voice from /api/tts (ElevenLabs text-to-speech, when the server has a key), cached per
+ *    line for the session;
  * 2. browser text-to-speech (`window.speechSynthesis`), with the most natural voice available.
  * Any cloud failure (no key, timeout, rate limit, autoplay refused) falls back to the browser voice
  * for that line; repeated failures switch the cloud voice off for the session. Without either, every
@@ -9,6 +15,7 @@
  * talking, so the microphone never hears the Arbiter.
  */
 const TTS_ENDPOINT = '/api/tts';
+const VOICE_DIR = `${import.meta.env.BASE_URL}assets/voice/`;
 /** Waiting longer than this for the cloud voice makes the line feel late: use the browser voice. */
 const CLOUD_TIMEOUT_MS = 3_500;
 const CLOUD_FAILURES_BEFORE_OFF = 2;
@@ -24,6 +31,8 @@ export class Narrator {
   private cloud = false;
   private cloudFailures = 0;
   private readonly audio: HTMLAudioElement | undefined = typeof Audio !== 'undefined' ? new Audio() : undefined;
+  /** lineKey(text) → URL of a pre-recorded file. */
+  private readonly prebaked = new Map<string, string>();
   /** Line text → object URL of its MP3 (lines like "The Spire reshapes." repeat). */
   private readonly cache = new Map<string, string>();
   private pending: AbortController | undefined;
@@ -39,6 +48,7 @@ export class Narrator {
       this.synth.addEventListener?.('voiceschanged', pick);
     }
     void this.checkCloud();
+    void this.loadPrebaked();
   }
 
   get supported(): boolean {
@@ -65,7 +75,9 @@ export class Narrator {
     if (this.muted || !line || performance.now() < this.quietUntil) return;
     this.halt();
     const gen = ++this.generation;
-    if (this.cloud && this.audio) void this.speakCloud(line, gen);
+    const file = this.prebaked.get(lineKey(line));
+    if (file && this.audio) void this.play(file, line, gen, () => (this.cloud ? this.speakCloud(line, gen) : this.speakBrowser(line)));
+    else if (this.cloud && this.audio) void this.speakCloud(line, gen);
     else this.speakBrowser(line);
   }
 
@@ -124,14 +136,31 @@ export class Narrator {
         if (this.pending === controller) this.pending = undefined;
       }
     }
-    if (gen !== this.generation || this.muted) return;
+    await this.play(url, line, gen, () => this.speakBrowser(line));
+  }
+
+  /** Play an MP3 for this line; on failure (autoplay refused, missing file) run `fallback`. */
+  private async play(url: string, line: string, gen: number, fallback: () => unknown): Promise<void> {
+    const audio = this.audio;
+    if (!audio || gen !== this.generation || this.muted || !line) return;
     audio.src = url;
     audio.volume = 0.95;
     try {
       await audio.play();
     } catch {
-      // Autoplay refused (no user gesture yet) or decoding failed: the browser voice instead.
-      if (gen === this.generation) this.speakBrowser(line);
+      if (gen === this.generation) void fallback();
+    }
+  }
+
+  private async loadPrebaked(): Promise<void> {
+    if (typeof fetch === 'undefined' || !this.audio) return;
+    try {
+      const res = await fetch(`${VOICE_DIR}manifest.json`);
+      if (!res.ok) return;
+      const body = (await res.json()) as { lines?: Record<string, string> };
+      for (const [key, file] of Object.entries(body.lines ?? {})) this.prebaked.set(key, VOICE_DIR + file);
+    } catch {
+      // No pre-recorded lines: every line is generated or spoken by the browser.
     }
   }
 
@@ -192,15 +221,4 @@ export function pickVoice(voices: readonly SpeechSynthesisVoice[]): SpeechSynthe
     return s;
   };
   return [...en].sort((a, b) => score(b) - score(a))[0] ?? voices[0];
-}
-
-/** Drop bits that sound odd read aloud: bar slot tags, symbols. */
-export function stripForSpeech(text: string): string {
-  return text
-    .replace(/\[\d\]/g, '')
-    .replace(/×/g, ' times ')
-    .replace(/[“”]/g, '')
-    .replace(/…/g, '.')
-    .replace(/\s+/g, ' ')
-    .trim();
 }

@@ -109,10 +109,7 @@ export class StartScreen {
     this.el.className = 'start-screen';
     this.el.setAttribute('aria-labelledby', 'start-title');
     const voice = voiceMode !== 'none';
-    const fallbackNote =
-      voiceMode === 'recorder'
-        ? '<p>No speech recognition in this browser: clips go to our server for text, then are deleted.</p>'
-        : '';
+
 
     this.el.innerHTML = `
       <div class="start-shell">
@@ -170,8 +167,7 @@ export class StartScreen {
           <section class="card start-notes">
             <span class="start-notes-icon">${icon(ShieldCheck, 18)}</span>
             <div>
-              <p><strong>Push-to-talk only.</strong> Browser speech recognition may send audio to your browser vendor (e.g. Google). We never store audio. The Arbiter's voice is AI-generated, not a human. <span class="start-permission"></span></p>
-              ${fallbackNote}
+              <p><strong>Push-to-talk only.</strong> Browser speech recognition may send audio to your browser vendor (e.g. Google); in browsers without it, clips go through our server to ElevenLabs to be turned into text. We never store audio. The voices you hear are AI-generated, not human. <span class="start-permission"></span></p>
             </div>
           </section>
           <section class="card start-keys" aria-label="Controls">

@@ -30,12 +30,32 @@ export class SpeechInput {
   private state: VoiceState = 'idle';
   private pressed = false;
   private watchdog = 0;
+  /** Is /api/stt (server speech to text) available? Unknown until the probe answers. */
+  private stt: boolean | undefined;
 
   constructor(private readonly events: SpeechInputEvents) {
     this.recognizer = this.create(webSpeechConstructor() ? 'webspeech' : recorderSupported() ? 'recorder' : 'none');
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) this.cancel();
     });
+    void this.probeStt();
+  }
+
+  /**
+   * Ask the server whether it can transcribe recordings. Brave exposes the speech API but its
+   * service never answers, so there the recorder is used straight away when the server can.
+   */
+  private async probeStt(): Promise<void> {
+    try {
+      const res = await fetch('/api/stt', { signal: AbortSignal.timeout(4000) });
+      this.stt = res.ok && ((await res.json()) as { enabled?: unknown }).enabled === true;
+    } catch {
+      this.stt = false;
+    }
+    const brave = 'brave' in navigator;
+    if (this.stt && brave && this.recognizer?.kind === 'webspeech' && this.state === 'idle' && recorderSupported()) {
+      this.recognizer = this.create('recorder');
+    }
   }
 
   get mode(): VoiceMode {
@@ -86,9 +106,15 @@ export class SpeechInput {
       onInterim: (t) => this.events.onInterim(t),
       onFinal: (t) => this.events.onFinal(t),
       onError: (e) => {
-        // A 'network' error from the browser's speech service is usually momentary: keep using it
-        // (the player is asked to speak again). Switching to the recorder would need /api/stt,
-        // which is not built yet, and would break listening until a reload.
+        // The browser's own recognition failed (no speech service in Brave, Opera…, or it can't
+        // capture audio): when the server can transcribe, switch to recording + /api/stt, which
+        // reports its own, precise errors (a blocked or missing microphone too). Without /api/stt,
+        // keep the browser's recognition and ask the player to speak again. Silence isn't a failure.
+        if (e !== 'no-speech' && this.recognizer?.kind === 'webspeech' && this.stt && recorderSupported()) {
+          this.recognizer = this.create('recorder');
+          this.events.onError('network'); // "the Spire will listen another way: speak again"
+          return;
+        }
         this.events.onError(e);
       },
       onIdle: () => {

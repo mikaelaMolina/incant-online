@@ -133,8 +133,9 @@ export class WebSpeechRecognizer implements Recognizer {
 function mapSpeechError(error: string): VoiceError {
   switch (error) {
     case 'not-allowed':
-    case 'service-not-allowed':
       return 'not-allowed';
+    case 'service-not-allowed': // the browser's speech service refused (not the microphone)
+      return 'network';
     case 'no-speech':
       return 'no-speech';
     case 'audio-capture':

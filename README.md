@@ -95,7 +95,7 @@ Plain, deterministic code that runs on **every** Incantation after the model, wh
 
 ### 4. Voice: speaking and being answered
 
-- **Speech in**: the browser's speech recognition (Web Speech API), push-to-talk, live. Spell names are matched locally with fuzzy search (Fuse.js), so a misheard "Blazing Cycle On" still casts *Blazing Cyclone*.
+- **Speech in**: the browser's speech recognition (Web Speech API), push-to-talk, live. In browsers where that doesn't work (Firefox, Brave, Opera…) the game records while you hold the key and `/api/stt` turns the clip into text with ElevenLabs Speech to Text (about 1 s). Spell names are matched locally with fuzzy search (Fuse.js), so a misheard "Blazing Cycle On" still casts *Blazing Cyclone*.
 - **Speech out**: the Arbiter and the NPCs speak with an ElevenLabs AI voice through `/api/tts`. Fixed lines (the prologue, villagers' dialogue, story beats) are **pre-recorded** with `npm run voices`, so they cost nothing at runtime; new lines are generated once and cached. Without a key, the most natural voice your browser has is used (Edge's neural voices are the best). Everyone falls silent the moment you hold the talk key. **The voices are AI-generated, not human.**
 
 ### Built with AI, too
@@ -106,7 +106,7 @@ This codebase was written with the help of Claude Code, an AI coding assistant b
 
 | Requirement | How Incant Online meets it |
 | --- | --- |
-| Runs fully in a desktop web browser; backend may be serverless | The whole game runs in the browser (WebGL2). The backend is three small Vercel serverless functions: `/api/interpret`, `/api/talk`, `/api/tts`. |
+| Runs fully in a desktop web browser; backend may be serverless | The whole game runs in the browser (WebGL2). The backend is four small Vercel serverless functions: `/api/interpret`, `/api/talk`, `/api/tts`, `/api/stt`. |
 | Plain language becomes **both** 3D scenes **and** working logic | Described places become 3D floors (`FloorSpec`: biome, lighting, scenery, monsters). Described abilities become executable Incantations (`IncantationSpec`) with real hitboxes, damage, status effects and cooldowns. |
 | Judges may type any prompt, including off-topic ones | Every input ends in a floor, an Incantation or an in-character reply. Failures, timeouts and rate limits fall back to cached content, never an error page. Checked by `npm run judge-test` (ten judge-style prompts) and unit tests. |
 | Only permissive dependencies and assets | MIT, Apache-2.0, BSD, ISC, Zlib and CC0 only. The Anthropic SDK and Tailwind were rejected for transitive licences outside that list; the APIs are called over plain HTTP. All 3D models, sounds and NPC characters are CC0. |
@@ -141,7 +141,7 @@ cp .env.example .env   # git-ignored
 | `ANTHROPIC_API_KEY` | *(empty)* | Claude for worlds, spells and NPC conversation. Empty → mock mode. |
 | `LLM_MODEL` | `claude-haiku-5-5` | Model used in llm mode (a fast model, for latency). |
 | `LLM_MODE` | *(unset)* | `mock` forces mock mode even with a key. |
-| `ELEVENLABS_API_KEY` | *(empty)* | The AI voice for the Arbiter and NPCs. Empty → the browser's voice. |
+| `ELEVENLABS_API_KEY` | *(empty)* | The AI voice for the Arbiter and NPCs, and speech-to-text for browsers without built-in recognition. Empty → the browser's voice; voice input only in Chrome and Edge. |
 | `TTS_VOICE` / `TTS_MODEL` | Eldrin (`6WwXjDDEMyNmFG95zycZ`) / `eleven_flash_v2_5` | ElevenLabs voice and model. |
 
 Keys are only read by the serverless functions and are never sent to the browser. Other commands: `npm test`, `npm run judge-test`, `npm run build` (type-check, production build, API check), `npm run voices` (pre-record fixed lines).
@@ -187,7 +187,7 @@ Kills give experience; levels raise health and mana (never spell damage, so the 
 | Browser (desktop) | Status |
 | --- | --- |
 | **Chrome, Edge** | Recommended. Everything works: 3D (WebGL2), voice input (Web Speech API), voices, sound. |
-| Firefox | Plays fully with the text box (Enter). Firefox has no built-in speech recognition, so holding V asks you to type. |
+| Firefox, Brave, Opera and others | Voice works through `/api/stt` (ElevenLabs Speech to Text) when `ELEVENLABS_API_KEY` is set: the first try switches to recording, then hold V and speak again. Without the key, play with the text box (Enter). |
 | Safari | Not tested. |
 | Phones and tablets | Not supported: the game needs a keyboard and mouse. |
 
@@ -196,7 +196,7 @@ Requirements: **WebGL2**, Web Audio for sound, and a microphone for voice (optio
 ## Privacy
 
 - The microphone is **push-to-talk only** (hold V or the mic button) and closes as soon as you let go.
-- Browser speech recognition **may send your audio to your browser vendor** (e.g. Google or Microsoft) to turn it into text.
+- Browser speech recognition **may send your audio to your browser vendor** (e.g. Google or Microsoft) to turn it into text. In browsers without it, your push-to-talk clip goes through our server to ElevenLabs to be turned into text; it is forwarded, never stored.
 - Our backend **never stores audio**. Only the *text* of what you said is sent: to `/api/interpret` or `/api/talk`, and in llm mode on to the model provider (Anthropic).
 - With the AI voice on, the Arbiter's and NPCs' own lines (text, never your audio) are sent to ElevenLabs to be spoken. **The voices are AI-generated, not human.**
 - API keys live only in server-side environment variables and are never sent to the browser.
@@ -371,7 +371,7 @@ src/
   schemas/   zod: IncantationSpec, EnemySpec, FloorSpec, InterpretResponse, manifest
   fallback/  cached Incantations and floors, the prologue village
 api/
-  interpret.ts  talk.ts  tts.ts   Vercel functions
+  interpret.ts  talk.ts  tts.ts  stt.ts   Vercel functions
   _lib/         shared backend code: modes, rate limits, Claude client and prompt, NPC talk, ElevenLabs voice
   _lib/mock/    the mock-mode keyword parser
 public/assets/   CC0 models (Kenney, Quaternius), sounds, pre-recorded voice lines, manifest.json
@@ -403,7 +403,7 @@ Highlights: the Arbiter (including the required Blazing Cyclone case); every com
 
 ## Deploying
 
-A static Vite build plus three Vercel serverless functions (`api/interpret.ts`, `api/talk.ts`, `api/tts.ts`).
+A static Vite build plus four Vercel serverless functions (`api/interpret.ts`, `api/talk.ts`, `api/tts.ts`, `api/stt.ts`).
 
 1. Import the repo into Vercel (framework preset: Vite; build command `npm run build`; output `dist`).
 2. In Project Settings → Environment Variables, set `ANTHROPIC_API_KEY` (llm mode) and `ELEVENLABS_API_KEY` (AI voice). Both are optional.
@@ -433,7 +433,6 @@ How: instanced props; pooled particles and effect materials; shaders compiled be
 - First Vercel deployment and a full pass on the deployed AI paths.
 - Trim the village to under 150 draw calls.
 - Judgement card: show the Arbiter's verdict when an Incantation is forged.
-- `/api/stt` for browsers without built-in speech recognition (until then the game asks you to type).
 - Performance on more GPUs, boss phases, demo video.
 
 ## Credits and licence

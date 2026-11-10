@@ -1,4 +1,4 @@
-import type { FloorSpec } from '../schemas/floorSpec';
+import type { FloorSpec } from '../schemas/floorSpec.js';
 
 /**
  * The narrative engine of the Spire. Pure functions (no three.js), so they are unit-tested.

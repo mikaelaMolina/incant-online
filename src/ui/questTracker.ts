@@ -27,7 +27,7 @@ export class QuestTracker {
     this.el.classList.remove('quest-done');
     if (!q) return;
     this.title.textContent = q.goal > 1 ? `${q.title} · ${q.progress}/${q.goal}` : q.title;
-    this.detail.textContent = `from the ${q.giver} · +${q.rewardXp} XP`;
+    this.detail.textContent = `from the ${q.giver} · +${q.rewardXp} XP · +${Math.round(q.rewardXp / 2)} gold`;
   }
 
   /** Briefly show a finished quest, then hide. */

@@ -1,5 +1,6 @@
 import { REPLIES } from '../../api/_lib/mock/interpreter.js';
 import { stripForSpeech } from './speechText.js';
+import { tradeLines } from '../game/economy.js';
 import { STORY_BEATS, STORY_CHAPTERS, GUIDE_LINES, PROLOGUE_NARRATION, PROLOGUE_NPC_DIALOGUE, VILLAGE_RETURN } from '../game/story.js';
 
 /**
@@ -32,6 +33,7 @@ export function prebakedLines(): string[] {
     ...GUIDE_LINES.map((g) => g.line),
     PROLOGUE_NARRATION,
     VILLAGE_RETURN,
+    ...tradeLines(),
     ...PROLOGUE_NPC_DIALOGUE.flatMap((d) => [d.greeting, ...d.lines.map((l) => l.line)]),
   ];
   return [...new Set(lines)];

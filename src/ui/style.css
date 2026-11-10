@@ -430,7 +430,7 @@ body {
 .cast-slots {
   position: absolute;
   left: 16px;
-  bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(140px + env(safe-area-inset-bottom, 0px));
   width: min(220px, 50vw);
   gap: 8px;
 }
@@ -633,6 +633,13 @@ body {
   gap: 8px;
 }
 
+.transcript-lines {
+  /* Never more than about a third of the screen, whatever is said. */
+  max-height: 36vh;
+  overflow: hidden;
+  justify-content: flex-end;
+}
+
 .transcript-line {
   align-self: flex-start;
   max-width: 100%;
@@ -641,6 +648,26 @@ body {
   font-size: 14px;
   line-height: 1.4;
   transition: opacity 0.6s;
+  /* The newest line in full, up to five text lines. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+  flex: none;
+}
+
+/* Older lines: one dimmed line each, so the newest stays readable. */
+.transcript-line.transcript-old {
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0.72;
+  font-size: 12px;
+}
+
+.transcript-line.transcript-old.fading {
+  opacity: 0;
 }
 
 .transcript-you {
@@ -1747,4 +1774,150 @@ body {
   .boss-lag {
     transition: none;
   }
+}
+
+/* --- Wallet (inside the unit frame): gold and potions ---------------------------------------- */
+.wallet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.wallet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px 2px 3px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--cream);
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.wallet-chip .kbd {
+  min-width: 18px;
+  height: 18px;
+  font-size: 10px;
+  box-shadow: none;
+}
+
+.wallet-gold {
+  padding-left: 6px;
+  background: var(--sun);
+}
+
+.wallet-health svg {
+  color: var(--berry);
+}
+
+.wallet-mana svg {
+  color: #2f8fe0;
+}
+
+.wallet-gain .wallet-gold {
+  animation: wallet-gain 0.5s ease-out;
+}
+
+@keyframes wallet-gain {
+  from {
+    transform: scale(1.18);
+    background: #fff;
+  }
+}
+
+/* --- The Merchant's stall ---------------------------------------------------------------------- */
+.card.shop-panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -52%);
+  width: min(460px, calc(100vw - 32px));
+  max-height: min(78vh, 620px);
+  box-sizing: border-box;
+  overflow: auto;
+  gap: 12px;
+  padding: 18px;
+  pointer-events: auto;
+  z-index: 15;
+}
+
+.shop-panel > header {
+  padding: 0;
+}
+
+.shop-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 21px;
+  font-weight: 900;
+}
+
+.shop-gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 2px 0 0;
+  padding: 3px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--sun);
+  font-weight: 900;
+  justify-self: start;
+}
+
+.shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shop-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 14px;
+  border: 2.5px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--drop-sm);
+}
+
+.shop-charm {
+  background: var(--cream);
+}
+
+.shop-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.shop-text strong {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.shop-text span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted-foreground);
+}
+
+.btn.shop-buy {
+  flex: none;
+  min-width: 78px;
+  height: 38px;
+  gap: 4px;
+  background: var(--sun);
+}
+
+.btn.shop-buy:disabled {
+  background: var(--muted);
+  opacity: 0.7;
 }

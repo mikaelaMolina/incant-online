@@ -1,5 +1,7 @@
-const MAX_LINES = 4;
-const LINE_LIFETIME_MS = 9000;
+/** A dialogue box, not a log: few lines, the newest in full, older ones shrunk to one line. */
+const MAX_LINES = 3;
+/** Long lines stay longer so they can be read: 4 s + ~45 ms per character, at most 15 s. */
+const lifetimeMs = (text: string): number => Math.min(15_000, 4_000 + text.length * 45);
 
 export type LineKind = 'you' | 'spire' | 'npc';
 
@@ -35,11 +37,12 @@ export class Transcript {
     const body = document.createElement('span');
     body.textContent = text; // never innerHTML: this is player / model text
     line.append(who, body);
+    for (const older of this.lines.children) older.classList.add('transcript-old');
     this.lines.appendChild(line);
     while (this.lines.children.length > MAX_LINES) this.lines.firstElementChild?.remove();
     window.setTimeout(() => {
       line.classList.add('fading');
       window.setTimeout(() => line.remove(), 600);
-    }, LINE_LIFETIME_MS);
+    }, lifetimeMs(text));
   }
 }

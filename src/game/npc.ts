@@ -1,24 +1,55 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { assetUrl, type ModelIndex } from './assets';
 import type { ManifestModel } from '../schemas/manifest';
 
 const NPC_SCALE = 1.75 / 3.3;
+/** Strolling speed of villagers on a route (m/s). */
+const WALK_SPEED = 1.1;
+/** A villager waits this long (s) at each end of its route. */
+const ROUTE_PAUSE = 2.5;
+
+/** NPCs cast shadows only this close to the Incanter (each costs ~6 extra draw calls). */
+const SHADOW_DISTANCE = 7;
 
 /** Proximity within which the Incanter is "near" an NPC. */
 export const GUIDE_RADIUS = 3.5;
 
+/** One download per model, shared by every NPC that uses it (each gets its own skeleton clone). */
+const gltfCache = new Map<string, Promise<GLTF>>();
+function loadGltf(path: string): Promise<GLTF> {
+  let p = gltfCache.get(path);
+  if (!p) {
+    p = new GLTFLoader().loadAsync(assetUrl(path));
+    p.catch(() => gltfCache.delete(path)); // a failed download may be retried on the next floor
+    gltfCache.set(path, p);
+  }
+  return p;
+}
+
 /**
- * A simple ambient NPC: a GLB Quaternius character that plays its idle animation in a loop,
- * faces the Incanter when nearby, and shows a talk badge. No physics, no combat. Dispose between floors.
+ * A friendly NPC: an animated GLB Quaternius character that idles (or strolls a route), turns to
+ * face the Incanter when nearby, and shows a name tag (plus what F does, if anything). No physics,
+ * no combat. Dispose between floors.
  */
 export class GuideNpc {
   readonly object = new THREE.Group();
   private mixer: THREE.AnimationMixer | undefined;
+  private readonly actions = new Map<string, THREE.AnimationAction>();
+  private current: THREE.AnimationAction | undefined;
   private readonly badgeEl: HTMLElement;
   /** Role name shown on the badge, e.g. "Elder", "Villager". */
   readonly role: string;
+  /** What F does near this NPC ("trade", "rest"), if anything. */
+  readonly interact: string | undefined;
+  private readonly route: { x: number; z: number }[];
+  private routeIndex = 1;
+  private routeDir = 1;
+  private pause = 0;
+  private cheerTime = 0;
+  private readonly meshes: THREE.Mesh[] = [];
+  private shadows = true;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -26,15 +57,18 @@ export class GuideNpc {
     position: { x: number; z: number },
     groundY: number,
     role = 'Guide',
+    opts: { interact?: string | undefined; route?: readonly { x: number; z: number }[] | undefined } = {},
   ) {
     this.role = role;
+    this.interact = opts.interact;
+    this.route = opts.route ? [...opts.route] : [];
     this.object.position.set(position.x, groundY, position.z);
     scene.add(this.object);
 
-    // Talk badge
+    // Name tag: "Merchant · F trade" when F does something here.
     this.badgeEl = document.createElement('div');
     this.badgeEl.className = 'npc-talk-badge';
-    this.badgeEl.textContent = `${role} · V`;
+    this.badgeEl.textContent = opts.interact ? `${role} · F ${opts.interact}` : `${role} · V talk`;
     this.badgeEl.hidden = true;
     hud.appendChild(this.badgeEl);
   }
@@ -42,24 +76,22 @@ export class GuideNpc {
   /** Load and attach the character model. Fails silently (a glowing orb appears). */
   async loadModel(entry: ManifestModel): Promise<void> {
     try {
-      const loader = new GLTFLoader();
-      const gltf = await loader.loadAsync(assetUrl(entry.path));
-      const root = gltf.scene;
+      const gltf = await loadGltf(entry.path);
+      const model = SkeletonUtils.clone(gltf.scene) as THREE.Group;
       // Quaternius characters are ~3.3 units tall (before hats): scale them to ~1.75 m, the Incanter's height.
-      const s = (entry.baseScale ?? 1) * NPC_SCALE;
-      root.scale.setScalar(s);
-      root.traverse((o) => {
+      model.scale.setScalar((entry.baseScale ?? 1) * NPC_SCALE);
+      model.traverse((o) => {
         if (o instanceof THREE.Mesh) {
           o.castShadow = true;
           o.frustumCulled = false;
+          this.meshes.push(o);
         }
       });
-      const model = SkeletonUtils.clone(root) as THREE.Group;
       this.object.add(model);
       if (gltf.animations.length) {
         this.mixer = new THREE.AnimationMixer(model);
-        const idleClip = gltf.animations.find((a) => /idle/i.test(a.name)) ?? gltf.animations[0]!;
-        this.mixer.clipAction(idleClip).play();
+        for (const clip of gltf.animations) this.actions.set(clip.name.toLowerCase(), this.mixer.clipAction(clip));
+        this.play('idle');
       }
     } catch {
       const geo = new THREE.SphereGeometry(0.25, 8, 8);
@@ -68,14 +100,45 @@ export class GuideNpc {
     }
   }
 
-  /** Update: NPC faces player when nearby; badge appears. Returns whether the player is in talk range. */
+  /** Cross-fade to an animation ("idle", "walk", "victory"). */
+  private play(name: string): void {
+    const next = this.actions.get(name) ?? this.actions.get('idle');
+    if (!next || next === this.current) return;
+    next.reset().fadeIn(0.25).play();
+    this.current?.fadeOut(0.25);
+    this.current = next;
+  }
+
+  /** A short cheer (a quest the NPC gave was completed). */
+  cheer(): void {
+    this.cheerTime = 2.2;
+    this.play('victory');
+  }
+
+  /** Update: stroll the route, face the player when nearby, place the name tag. Returns whether the player is in talk range. */
   update(dt: number, playerPos: THREE.Vector3, cam: THREE.Camera): boolean {
     this.mixer?.update(dt);
     const dx = playerPos.x - this.object.position.x;
     const dz = playerPos.z - this.object.position.z;
-    const near = Math.hypot(dx, dz) <= GUIDE_RADIUS;
-    if (near) {
-      const targetYaw = Math.atan2(dx, dz);
+    const dist = Math.hypot(dx, dz);
+    const near = dist <= GUIDE_RADIUS;
+    const shadows = dist <= SHADOW_DISTANCE;
+    if (shadows !== this.shadows) {
+      this.shadows = shadows;
+      for (const m of this.meshes) m.castShadow = shadows;
+    }
+    let targetYaw: number | undefined;
+    if (this.cheerTime > 0) {
+      this.cheerTime -= dt;
+      if (this.cheerTime <= 0) this.play('idle');
+    } else if (near) {
+      // Stop and turn to the Incanter.
+      targetYaw = Math.atan2(dx, dz);
+      this.play('idle');
+    } else if (this.route.length > 1) {
+      targetYaw = this.stroll(dt);
+    }
+    if (targetYaw !== undefined) {
       const current = this.object.rotation.y;
       const diff = ((targetYaw - current + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
       this.object.rotation.y += diff * Math.min(1, dt * 6);
@@ -98,6 +161,34 @@ export class GuideNpc {
     return near;
   }
 
+  /** Walk back and forth along the route, pausing at each end. Returns the walking direction (yaw). */
+  private stroll(dt: number): number | undefined {
+    if (this.pause > 0) {
+      this.pause -= dt;
+      this.play('idle');
+      return undefined;
+    }
+    const target = this.route[this.routeIndex]!;
+    const p = this.object.position;
+    const tx = target.x - p.x;
+    const tz = target.z - p.z;
+    const dist = Math.hypot(tx, tz);
+    if (dist < 0.15) {
+      const atEnd = this.routeIndex === 0 || this.routeIndex === this.route.length - 1;
+      if (atEnd) {
+        this.routeDir = -this.routeDir;
+        this.pause = ROUTE_PAUSE;
+      }
+      this.routeIndex += this.routeDir;
+      return undefined;
+    }
+    const step = Math.min(dist, WALK_SPEED * dt);
+    p.x += (tx / dist) * step;
+    p.z += (tz / dist) * step;
+    this.play('walk');
+    return Math.atan2(tx, tz);
+  }
+
   dispose(): void {
     this.scene.remove(this.object);
     this.mixer?.stopAllAction();
@@ -116,6 +207,10 @@ export interface NpcDef {
   modelId: string;
   /** Initial facing (radians, 0 = north). */
   yaw?: number;
+  /** What F does near them ("trade", "rest"). */
+  interact?: string;
+  /** A route they stroll back and forth (the first point is where they start). */
+  route?: readonly { x: number; z: number }[];
 }
 
 /**
@@ -127,6 +222,15 @@ export const PROLOGUE_NPCS: readonly NpcDef[] = [
   { role: 'Villager', position: { x:  9,  z:  5  }, modelId: 'npc.casual_female',    yaw: Math.PI * 1.5  },
   { role: 'Knight',   position: { x:  0,  z: 11  }, modelId: 'npc.knight_male',      yaw: 0              },
   { role: 'Wanderer', position: { x: -11, z:  7  }, modelId: 'npc.elf',              yaw: Math.PI        },
+  // Village life: the Merchant's stall (east), the Innkeeper's tent (west), a villager on an errand.
+  { role: 'Merchant', position: { x: 10.5, z: -6.5 }, modelId: 'npc.worker_male', yaw: -1.0, interact: 'trade' },
+  { role: 'Innkeeper', position: { x: -10.5, z: -7.5 }, modelId: 'npc.chef_male', yaw: 0.9, interact: 'rest' },
+  {
+    role: 'Villager',
+    position: { x: 4.1, z: -11.3 },
+    modelId: 'npc.casual2_female',
+    route: [{ x: 4.1, z: -11.3 }, { x: 0, z: -12 }, { x: -4.1, z: -11.3 }, { x: -7.7, z: -9.2 }],
+  },
 ];
 
 /** For non-prologue floors: a single guide NPC placed off to the side. */

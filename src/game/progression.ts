@@ -32,6 +32,8 @@ export class Progression {
   level = 1;
   xp = 0;
   floor = 1;
+  /** Permanent bonuses on top of the level's stats (charms bought in the village). */
+  bonus: LevelStats = { maxHp: 0, maxMana: 0, manaRegen: 0 };
 
   /** Add experience; returns how many levels were gained. */
   addXp(amount: number): number {
@@ -52,7 +54,8 @@ export class Progression {
   }
 
   get stats(): LevelStats {
-    return statsFor(this.level);
+    const s = statsFor(this.level);
+    return { maxHp: s.maxHp + this.bonus.maxHp, maxMana: s.maxMana + this.bonus.maxMana, manaRegen: s.manaRegen + this.bonus.manaRegen };
   }
 
   get bossFloor(): boolean {

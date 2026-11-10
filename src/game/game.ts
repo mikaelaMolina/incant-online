@@ -8,6 +8,8 @@ import { Progression, XP_FOR, planWaves, spawnsForFloor, xpToNext } from './prog
 import { VILLAGE_SUBTITLE, storySubtitle, storyLineForFloor } from './story';
 import { preloadEnemyModels } from '../enemies/enemyModel';
 import { GuideNpc, PROLOGUE_FLOOR, guideSpawnPoint, npcModel, npcsForFloor } from './npc';
+import { GOLD_FOR, Inventory, type BuyResult, type ItemId, type PotionKind } from './economy';
+import { WalletHud } from '../ui/walletHud';
 import { UnitFrame } from '../ui/unitFrame';
 import { OffscreenMarkers } from '../ui/offscreenMarkers';
 import { Pickups, type PickupKind } from './pickups';
@@ -79,8 +81,16 @@ export interface GameController {
   nearestNpcRole(): string;
   /** Is this a guardian floor (every third)? */
   isGuardianFloor(): boolean;
-  /** A quest reward: bonus experience (may level up) and a full heal. */
-  grantReward(xp: number): void;
+  /** A quest reward: bonus experience (may level up), gold and a full heal. */
+  grantReward(xp: number, gold?: number): void;
+  /** Gold, potions and charms. */
+  readonly inventory: Inventory;
+  /** Buy from the Merchant (charms apply at once). */
+  buy(id: ItemId): BuyResult;
+  /** Rest at the inn: pay, then full health and mana. False if you can't afford it. */
+  restAtInn(): boolean;
+  /** An NPC cheers (a quest they gave was completed). */
+  cheerNpc(role: string): void;
   /** Event callbacks set by the UI layer. */
   readonly hooks: GameHooks;
 }
@@ -104,6 +114,8 @@ export interface GameHooks {
   onFloorCleared?: (floor: number) => void;
   onBossDefeated?: (floor: number) => void;
   onOrbCollected?: (floor: number) => void;
+  /** F pressed next to an NPC (the Merchant trades, the Innkeeper offers a rest). */
+  onInteract?: (role: string) => void;
 }
 
 /** Load the first floor and start rendering. Resolves once the floor is playable (paused). */
@@ -353,7 +365,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     for (const def of npcsForFloor(prologue ? PROLOGUE_FLOOR : progress.floor)) {
       // The village NPCs stand where the prologue places them; a floor's guide stands near the spawn.
       const spot = prologue ? def.position : guideSpawnPoint(floor.spawn, floor.halfExtent, floor.spec.name);
-      const npc = new GuideNpc(scene, hud, spot, incanter.feetY, def.role);
+      const npc = new GuideNpc(scene, hud, spot, incanter.feetY, def.role, prologue ? { interact: def.interact, route: def.route } : {});
       if (def.yaw !== undefined) npc.object.rotation.y = def.yaw;
       const entry = npcModel(def, models);
       if (entry) void npc.loadModel(entry);
@@ -451,6 +463,37 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   const healthBars = new HealthBars(hud);
   const progressHud = new ProgressHud(hud);
   const unitFrame = new UnitFrame(hud);
+  // Gold, potions and charms.
+  const inventory = new Inventory();
+  const wallet = new WalletHud(hud);
+  const refreshWallet = (): void => wallet.set(inventory.gold, inventory.potions);
+  refreshWallet();
+  /** Charms change max health and mana: re-apply the stats, keeping how full the bars were. */
+  const applyStats = (): void => {
+    progress.bonus = inventory.bonus;
+    const st = progress.stats;
+    const hpFrac = incanter.health.current / incanter.health.max;
+    incanter.health.max = st.maxHp;
+    incanter.health.current = Math.round(st.maxHp * hpFrac);
+    const manaFrac = runner.resources.mana / runner.resources.max;
+    runner.resources.max = st.maxMana;
+    runner.resources.regen = st.manaRegen;
+    runner.resources.mana = st.maxMana * manaFrac;
+  };
+  /** Q / E: drink a potion (half health or half mana). */
+  const drinkPotion = (kind: PotionKind): void => {
+    if (!incanter.alive) return;
+    if (!inventory.usePotion(kind)) {
+      castHud.say(kind === 'health' ? 'No health potions. The Merchant sells them.' : 'No mana potions. The Merchant sells them.');
+      sfx.play('refuse');
+      return;
+    }
+    if (kind === 'health') incanter.health.heal(incanter.health.max * 0.5);
+    else runner.resources.mana = Math.min(runner.resources.max, runner.resources.mana + runner.resources.max * 0.5);
+    sfx.play('pickup');
+    vfx.deathBurst(incanter.position.clone().setY(incanter.position.y + 0.4), kind === 'health' ? '#5dff8f' : '#6fb8ff');
+    refreshWallet();
+  };
   const offscreen = new OffscreenMarkers(hud);
   const showTitle = (): void =>
     inVillage
@@ -484,6 +527,8 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   };
   const onKill = (archetype: keyof typeof XP_FOR, at: { x: number; y: number; z: number }): void => {
     gainXp(XP_FOR[archetype]);
+    inventory.earn(GOLD_FOR[archetype]);
+    refreshWallet();
     if (archetype === 'boss') hooks.onBossDefeated?.(progress.floor);
     const drops: PickupKind[] =
       archetype === 'boss' ? ['health', 'health', 'mana', 'mana', 'mana'] : archetype === 'tank' ? ['health', 'mana'] : Math.random() < 0.45 ? [Math.random() < 0.5 ? 'health' : 'mana'] : [];
@@ -537,6 +582,9 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         const spec = bar[i];
         if (spec && codes.some((c) => input.wasPressed(c)) && castIncantation(spec).ok) hooks.onBarCast?.(spec);
       });
+      if (input.wasPressed('KeyQ')) drinkPotion('health');
+      if (input.wasPressed('KeyE')) drinkPotion('mana');
+      if (input.wasPressed('KeyF') && nearGuide) hooks.onInteract?.(nearestNpcRole);
     }
     runner.setTargets(enemies);
 
@@ -798,12 +846,32 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     nearestNpcRole: () => nearestNpcRole,
     isGuardianFloor: () => progress.bossFloor && !inVillage,
     inVillage: inVillageNow,
-    grantReward(xp) {
+    grantReward(xp, gold = 0) {
       gainXp(xp);
+      inventory.earn(gold);
+      refreshWallet();
       incanter.health.heal(incanter.health.max);
       runner.resources.mana = runner.resources.max;
       sfx.play('levelUp');
       vfx.deathBurst(incanter.position.clone().setY(incanter.position.y + 0.4), '#7dffa8', true);
+    },
+    inventory,
+    buy(id) {
+      const r = inventory.buy(id);
+      if (r.ok && r.item.kind === 'charm') applyStats();
+      refreshWallet();
+      return r;
+    },
+    restAtInn() {
+      if (!inventory.payInn()) return false;
+      incanter.health.heal(incanter.health.max);
+      runner.resources.mana = runner.resources.max;
+      vfx.deathBurst(incanter.position.clone().setY(incanter.position.y + 0.4), '#ffd36a', true);
+      refreshWallet();
+      return true;
+    },
+    cheerNpc(role) {
+      for (const n of npcs) if (n.role === role) n.cheer();
     },
     hooks,
   };

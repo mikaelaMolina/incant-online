@@ -373,13 +373,38 @@ export const PROLOGUE_NPC_DIALOGUE: readonly PrologueNpcLines[] = [
       { triggers: ['*'], line: 'I climbed far but not far enough, Incanter. Ask me about the Spire, the guardians, Incantations, the Arbiter, or the climb — I will tell you what I learned before I fell.' },
     ],
   },
+  {
+    role: 'Merchant',
+    greeting: 'Wares for the climb, Incanter! Potions, charms, the odd lucky stone. Press F to see what I have, or ask me what you need.',
+    lines: [
+      { triggers: ['hello', 'hi', 'hey', 'greet*'], line: 'Welcome to my stall, Incanter. Whatever the Spire throws at you, I have something for it. Press F to trade.' },
+      { triggers: ['who are you', 'what are you', 'your name'], line: 'Just a trader who never left the Threshold. Climbers come down with gold in their pockets, and climbers go up needing potions. It is honest work.' },
+      { triggers: ['buy', 'sell', 'trade', 'shop', 'wares', 'price*', 'cost'], line: 'Health potions for a bad fight, mana potions for a long one, and charms that make you stronger for good. Press F and take a look.' },
+      { triggers: ['potion*', 'heal*', 'mana'], line: 'A health potion restores half your strength, a mana potion half your power. Drink them with Q and E when the fight turns. Twenty-five and twenty gold.' },
+      { triggers: ['charm*', 'stronger', 'upgrade'], line: 'The Vitality Charm makes you harder to fell; the Focus Charm deepens your well of mana. Eighty gold each, and they last the whole climb.' },
+      { triggers: ['gold', 'money', 'coin*'], line: 'Monsters in the Spire carry gold, and the climbers I send on errands pay well. Come back with full pockets.' },
+      { triggers: ['*'], line: 'I know prices better than prophecies, Incanter. Ask me about potions or charms, or press F to see my wares.' },
+    ],
+  },
+  {
+    role: 'Innkeeper',
+    greeting: 'A warm fire and a soft bed, Incanter, ten gold a night. Press F to rest, and wake with your strength restored.',
+    lines: [
+      { triggers: ['hello', 'hi', 'hey', 'greet*'], line: 'Come in from the cold, Incanter. The fire is lit, the soup is hot, and the beds are almost clean.' },
+      { triggers: ['who are you', 'what are you', 'your name'], line: 'I keep the only inn at the foot of the Spire. Climbers rest here before the gate and after the guardians. I hear all their stories.' },
+      { triggers: ['rest', 'sleep', 'bed', 'room', 'stay', 'heal*', 'tired'], line: 'Ten gold for a night by the fire. Press F, and you will wake with your health and mana full.' },
+      { triggers: ['story', 'stories', 'rumou*', 'news', 'heard'], line: 'Climbers say the floors change with the words you speak. One swore she walked a desert at dusk, another a frozen keep. Strange tower, this.' },
+      { triggers: ['food', 'eat', 'drink', 'soup'], line: 'Soup with whatever the forest gave today. It will not make you stronger, but it will make you happier.' },
+      { triggers: ['*'], line: 'I keep the fire and the beds, Incanter. Press F to rest, or sit a while and tell me where you are headed.' },
+    ],
+  },
 ];
 
 /**
  * Get the prologue dialogue set for a given NPC role. Falls back to the Wanderer set.
  */
 export function prologueDialogueFor(role: string): PrologueNpcLines {
-  return PROLOGUE_NPC_DIALOGUE.find((d) => d.role === role) ?? PROLOGUE_NPC_DIALOGUE[PROLOGUE_NPC_DIALOGUE.length - 1]!;
+  return PROLOGUE_NPC_DIALOGUE.find((d) => d.role === role) ?? PROLOGUE_NPC_DIALOGUE.find((d) => d.role === 'Wanderer')!;
 }
 
 /**

@@ -54,6 +54,7 @@ Prompts worth trying:
 - **Begin with a story, not a fight.** The climb opens in a peaceful prologue village. The Arbiter, the Spire's voice, tells you where you are; four villagers (an Elder, a Villager, a Knight and a Wanderer) each know a different part of the story.
 - **Talk to NPCs, really.** Walk up to anyone and speak or type. With an API key, Claude plays each character in their own voice, from their own background and the story so far, and remembers your last few exchanges. Without one, they answer from their written dialogue.
 - **Take quests.** NPCs give you tasks: clear the next floor, defeat the guardian, gather healing orbs. Finishing one earns bonus experience and a full heal.
+- **Live in a real village.** A Merchant's stall sells health and mana potions (Q / E to drink) and charms that permanently raise your health or mana; the Innkeeper rests you for a few coins; villagers go about their errands. Monsters drop gold and quests pay it.
 - **Return to the village between climbs.** After every guardian (every third floor), the gate leads back to the village to rest, talk and take a new quest, then on up the Spire.
 - **Forge Incantations by voice or text.** Describe an ability; it becomes a validated `IncantationSpec`, balanced by the Arbiter, on your Grimoire bar.
 - **Recite to cast.** Say an Incantation's name ("Frost Comet") and it fires immediately, matched locally with no network round-trip, even from the live transcript before you finish speaking.
@@ -169,6 +170,8 @@ Kills give experience; levels raise health and mana (never spell damage, so the 
 | Mouse | Aim strikes and Incantations (the Incanter turns to the aim when it attacks or casts) |
 | Left click | Staff strike |
 | Space | Dodge (brief invulnerability) |
+| Q / E | Drink a health / mana potion |
+| F | Next to the Merchant: open the stall. Next to the Innkeeper: rest (10 gold). |
 | 1 – 6 (or numpad) | Cast the Incantation in that Grimoire slot |
 | Hold V (or the mic button) | Push-to-talk: speak, then let go. Near an NPC, you talk to them. |
 | Enter | Type instead of speaking (Enter again sends, Esc cancels) |
@@ -178,6 +181,7 @@ Kills give experience; levels raise health and mana (never spell damage, so the 
 ### The HUD
 
 - **Floor label** (top left): *Prologue*, *Village* or *Floor N*, with the floor's name; the **quest tracker** below it.
+- **Gold and potions** (in the unit frame): your coins and how many health (Q) and mana (E) potions you carry.
 - **Grimoire bar** (left): six slots with mana cost, cooldown and a cooldown sweep.
 - **Unit frame** (bottom left): level, health and mana.
 - **Transcript** (bottom): what you said, what the Arbiter answered, and NPC lines under the NPC's name.
@@ -245,6 +249,7 @@ flowchart LR
 
 - **Story** (`src/game/story.ts`): five chapters (The Awakening → The Summit, then the Endless Spire), story beats at milestone floors, chapter-aware floor subtitles, the prologue narration, and lore passed to the model so replies fit the chapter.
 - **NPCs** (`src/game/npc.ts`): animated low-poly characters (Quaternius, CC0) that idle, turn to face you, show a name tag when you're near, and greet you. Four villagers in the village; one guide on each combat floor.
+- **Economy** (`src/game/economy.ts`, pure and tested): gold from kills and quests, the Merchant's potions and charms, the inn.
 - **Quests** (`src/game/quests.ts`, pure and tested): one active quest at a time, offered after an NPC's greeting: clear the next floor (the village Knight), defeat the guardian, clear the floor or gather three orbs (floor guides). Rewards scale with the floor.
 
 ### Data shapes
@@ -421,7 +426,7 @@ Earlier measurements (Intel Iris Xe laptop GPU, Chromium, 1280×720, production 
 | --- | --- | --- |
 | Frame rate, exploring | 60 fps (30 minimum) | 55–60 fps |
 | Frame rate, heavy combat | 60 fps (30 minimum) | 25–105 fps depending on floor and quality level |
-| Draw calls | < 150 | 66–141 on combat floors; **160–200 in the village** (59 props plus 4 NPCs: over budget, to trim) |
+| Draw calls | < 150 | 66–141 on combat floors; up to ~165 in the busiest spot of the village (seven NPCs; they cast shadows only within 7 m; slightly over budget) |
 | Particles | < 3,000 | ≤ 680 including ambient particles (hard cap 2,400 for effects) |
 | First load (to playable) | < 8 s | 3.7–5.6 s typical |
 | Total download | < 25 MB | 6.8 MB at first load; NPC models (0.4–0.7 MB each) and voice lines load only when used |
@@ -433,7 +438,7 @@ How: instanced props; pooled particles and effect materials; shaders compiled be
 ## Roadmap
 
 - First Vercel deployment and a full pass on the deployed AI paths.
-- Trim the village to under 150 draw calls.
+- Trim the village's busiest spot to under 150 draw calls.
 - Judgement card: show the Arbiter's verdict when an Incantation is forged.
 - Performance on more GPUs, boss phases, demo video.
 

@@ -29,6 +29,8 @@ import { STARTING_ARENA } from './fallback/floors';
 import { PROLOGUE_FLOOR } from './game/npc';
 import { QuestLog, type Quest } from './game/quests';
 import { QuestTracker } from './ui/questTracker';
+import { ShopPanel } from './ui/shopPanel';
+import { INN_LINES, shopLine } from './game/economy';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const hud = document.querySelector<HTMLElement>('#hud');
@@ -154,6 +156,7 @@ if (canvas && hud) {
     narrator.speak(spoken);
   };
 
+  const shopPanel = new ShopPanel(hud);
   const questLog = new QuestLog();
   const questTracker = new QuestTracker(hud);
 
@@ -191,6 +194,30 @@ if (canvas && hud) {
     talkHistory.set(key, [...history, { who: 'player' as const, text }, { who: 'npc' as const, text: reply }].slice(-6));
     return reply;
   };
+
+  /** Talking to the Merchant or Innkeeper about their trade does it. */
+  const TRADE_WORDS = /\b(buy|sell|trade|shop|wares|goods|potions?|charms?|what do you (have|sell))\b/i;
+  const REST_WORDS = /\b(rest|sleep|room|bed|stay the night|inn)\b/i;
+  const openShop = (): void => {
+    const g = game;
+    if (!g) return;
+    if (!shopPanel.visible) sfx.play('open');
+    shopPanel.show(true, g.inventory);
+  };
+  const rest = (): void => {
+    const g = game;
+    if (!g) return;
+    const ok = g.restAtInn();
+    sfx.play(ok ? 'levelUp' : 'refuse');
+    npcSay('Innkeeper', ok ? INN_LINES.rested : INN_LINES.poor);
+  };
+  shopPanel.onBuy = (id) => {
+    const r = game!.buy(id);
+    sfx.play(r.ok ? 'forge' : 'refuse');
+    npcSay('Merchant', shopLine(r));
+    return r;
+  };
+  shopPanel.onClose = () => sfx.play('close');
 
   /** The router needs the game; it exists before entering so the start screen can build floor 1. */
   const makeRouter = (g: GameController): CommandRouter =>
@@ -230,6 +257,15 @@ if (canvas && hud) {
       nearGuide: () => g.nearGuide(),
       talk: async (text: string) => {
         const role = g.nearestNpcRole() || 'Wanderer';
+        // Village business by voice: "what do you sell?", "I'd like a room".
+        if (role === 'Merchant' && TRADE_WORDS.test(text)) {
+          openShop();
+          return;
+        }
+        if (role === 'Innkeeper' && REST_WORDS.test(text)) {
+          rest();
+          return;
+        }
         npcSay(role, await npcReply(text, role, g.floorNumber(), g.inVillage()));
       },
     });
@@ -281,7 +317,12 @@ if (canvas && hud) {
       // Story beats are spoken with a delay so they don't overlap the floor title card or gate line.
       window.setTimeout(() => arbiter(line), 2000);
     };
+    g.hooks.onInteract = (role) => {
+      if (role === 'Merchant') openShop();
+      else if (role === 'Innkeeper') rest();
+    };
     g.hooks.onGuideEnter = (role) => {
+      if (role !== 'Merchant') shopPanel.show(false);
       const floorNumber = g.floorNumber();
       const village = g.inVillage();
       const greeting = village ? prologueGreeting(role) : guideGreeting(floorNumber);
@@ -304,14 +345,16 @@ if (canvas && hud) {
         questTracker.show(questLog.active);
         return;
       }
-      g.grantReward(done.rewardXp);
+      const gold = Math.round(done.rewardXp / 2);
+      g.grantReward(done.rewardXp, gold);
+      g.cheerNpc(done.giver);
       questTracker.completed(done);
-      arbiter(`Quest complete: ${done.title}. The ${done.giver}'s gift: ${done.rewardXp} experience, and your strength restored.`);
+      arbiter(`Quest complete: ${done.title}. The ${done.giver}'s gift: ${done.rewardXp} experience, ${gold} gold, and your strength restored.`);
     };
     g.hooks.onFloorCleared = (floor) => questEvent(questLog.record({ kind: 'floor_cleared', floor }));
     g.hooks.onBossDefeated = (floor) => questEvent(questLog.record({ kind: 'boss_defeated', floor }));
     g.hooks.onOrbCollected = (floor) => questEvent(questLog.record({ kind: 'orb_collected', floor }));
-    g.hooks.onGuideLeave = () => {};
+    g.hooks.onGuideLeave = () => shopPanel.show(false); // walked away from the stall
     pipeline.setHandler((u) => {
       transcript?.add('you', u.text);
       void r.handle(u);

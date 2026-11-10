@@ -11,7 +11,7 @@ function devApi(): Plugin {
     configureServer(server: ViteDevServer) {
       const env = loadEnv(server.config.mode, server.config.root, '');
       const proc = (globalThis as { process?: { env: Record<string, string | undefined> } }).process;
-      if (proc) for (const key of ['ANTHROPIC_API_KEY', 'LLM_MODE', 'LLM_MODEL', 'OPENAI_API_KEY', 'TTS_MODEL', 'TTS_VOICE']) if (env[key] !== undefined) proc.env[key] ??= env[key];
+      if (proc) for (const key of ['ANTHROPIC_API_KEY', 'LLM_MODE', 'LLM_MODEL', 'ELEVENLABS_API_KEY', 'TTS_MODEL', 'TTS_VOICE']) if (env[key] !== undefined) proc.env[key] ??= env[key];
 
       server.middlewares.use(async (req, res, next) => {
         const url = req.url ?? '';

@@ -1,6 +1,6 @@
 /**
  * The Arbiter's voice. Two engines, best first:
- * 1. a cloud voice from /api/tts (OpenAI text-to-speech, when the server has a key), streamed as
+ * 1. a cloud voice from /api/tts (ElevenLabs text-to-speech, when the server has a key), streamed as
  *    MP3 and cached per line for the session;
  * 2. browser text-to-speech (`window.speechSynthesis`), with the most natural voice available.
  * Any cloud failure (no key, timeout, rate limit, autoplay refused) falls back to the browser voice

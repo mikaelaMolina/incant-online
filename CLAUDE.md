@@ -32,7 +32,7 @@ Submission deadline: 11 Nov 2026, 16:30 CEST (UTC+2) = 22:30 Philippine time. Th
 - LLM: Anthropic Messages API via env vars `ANTHROPIC_API_KEY`, `LLM_MODEL` (default `claude-haiku-5-5`, a fast model for low latency) and `LLM_MODE` (see "LLM modes"). Request JSON only, via structured outputs (`output_config.format`).
   Call it over raw HTTP (`fetch`), not `@anthropic-ai/sdk`: the SDK's dependency tree includes `fast-sha256` (Unlicense), which is not on the allowed licence list. Decided with the owner on 2026-11-04.
 - Speech in: Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`); fallback: MediaRecorder audio → `/api/stt`
-- Speech out: OpenAI text-to-speech (`gpt-4o-mini-tts`, voice `cedar`) via `/api/tts` when `OPENAI_API_KEY` is set (raw HTTP, no SDK; streamed MP3, cached per line), falling back to `window.speechSynthesis` with the most natural browser voice. The start screen states the voice is AI-generated (OpenAI policy). OpenAI shuts `gpt-4o-mini-tts` down on 2027-01-06 (`TTS_MODEL` to change). Decided with the owner on 2026-11-10.
+- Speech out: ElevenLabs text-to-speech (`eleven_flash_v2_5`, voice "Eldrin - Crisp British Baritone" `6WwXjDDEMyNmFG95zycZ`) via `/api/tts` when `ELEVENLABS_API_KEY` is set (raw HTTP, no SDK; streamed MP3, cached per line), falling back to `window.speechSynthesis` with the most natural browser voice. Needs a paid ElevenLabs plan (free = non-commercial, no Voice Library voices via API). The start screen states the voice is AI-generated. Decided with the owner on 2026-11-10 (ElevenLabs chosen over OpenAI).
 - Assets: CC0 low-poly packs from Kenney and Quaternius in `public/assets/`, listed in `public/assets/manifest.json`
 
 Do not add other frameworks (no React, no game engines) unless asked.

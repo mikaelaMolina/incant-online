@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ARBITER_VOICE_INSTRUCTIONS, MAX_TTS_CHARS, OPENAI_SPEECH_URL, TTS_RATE_LIMIT, clipForSpeech, resetTtsRateLimit, synthesize } from './tts';
+import { ARBITER_VOICE_SETTINGS, DEFAULT_TTS_VOICE, ELEVENLABS_TTS_URL, MAX_TTS_CHARS, TTS_RATE_LIMIT, clipForSpeech, resetTtsRateLimit, synthesize } from './tts';
 
-const env = { OPENAI_API_KEY: 'test-key' };
+const env = { ELEVENLABS_API_KEY: 'test-key' };
 const mp3 = () => new Response(new Uint8Array([0xff, 0xf3, 0x44]), { status: 200, headers: { 'content-type': 'application/octet-stream' } });
 
 beforeEach(() => resetTtsRateLimit());
@@ -14,7 +14,7 @@ describe('/api/tts', () => {
     expect(called).toBe(false);
   });
 
-  it('sends a valid OpenAI speech request and streams MP3 back', async () => {
+  it('sends a valid ElevenLabs request and streams MP3 back', async () => {
     let url = '';
     let init: RequestInit | undefined;
     const res = await synthesize({ text: '  The Spire reshapes.  ' }, {
@@ -28,26 +28,25 @@ describe('/api/tts', () => {
     });
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('audio/mpeg');
-    expect(url).toBe(OPENAI_SPEECH_URL);
-    expect((init?.headers as Record<string, string>).authorization).toBe('Bearer test-key');
-    const sent = JSON.parse(String(init?.body));
-    expect(sent).toEqual({
-      model: 'gpt-4o-mini-tts',
-      voice: 'cedar',
-      input: 'The Spire reshapes.',
-      instructions: ARBITER_VOICE_INSTRUCTIONS,
-      response_format: 'mp3',
+    expect(url).toBe(`${ELEVENLABS_TTS_URL}/${DEFAULT_TTS_VOICE}/stream?output_format=mp3_44100_64`);
+    expect((init?.headers as Record<string, string>)['xi-api-key']).toBe('test-key');
+    expect(JSON.parse(String(init?.body))).toEqual({
+      text: 'The Spire reshapes.',
+      model_id: 'eleven_flash_v2_5',
+      voice_settings: ARBITER_VOICE_SETTINGS,
     });
   });
 
   it('TTS_MODEL / TTS_VOICE override the defaults', async () => {
-    let sent: { model?: string; voice?: string } = {};
+    let url = '';
+    let sent: { model_id?: string } = {};
     await synthesize({ text: 'Hi.' }, {
-      env: { ...env, TTS_MODEL: 'tts-1-hd', TTS_VOICE: 'onyx' },
+      env: { ...env, TTS_MODEL: 'eleven_multilingual_v2', TTS_VOICE: 'myVoice123' },
       ip: '1',
-      fetchImpl: async (_u, i) => ((sent = JSON.parse(String(i?.body))), mp3()),
+      fetchImpl: async (u, i) => ((url = String(u)), (sent = JSON.parse(String(i?.body))), mp3()),
     });
-    expect(sent).toMatchObject({ model: 'tts-1-hd', voice: 'onyx' });
+    expect(url).toContain('/myVoice123/stream');
+    expect(sent.model_id).toBe('eleven_multilingual_v2');
   });
 
   it('empty text, upstream errors and thrown errors never reach the player as errors', async () => {

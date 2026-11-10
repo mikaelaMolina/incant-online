@@ -16,7 +16,7 @@ Every third-party component, asset and AI service used in Incant Online. Only MI
 | Web Speech API (`SpeechRecognition`) | Speech to text in the browser | Browser vendor (e.g. Google Chrome, Microsoft Edge) | Browser vendor's terms |
 | MediaRecorder + `getUserMedia` | Records push-to-talk audio for `/api/stt` in browsers without speech recognition | Browser vendor | Browser vendor's terms |
 | `window.speechSynthesis` | Text to speech for the Arbiter voice (replies, floor and gate lines) when no cloud voice is configured or it fails | Browser vendor / OS voices | Browser vendor's terms |
-| OpenAI Audio API (`gpt-4o-mini-tts`, voice `cedar`; set by `TTS_MODEL` / `TTS_VOICE`) | The Arbiter's cloud voice via `/api/tts` when `OPENAI_API_KEY` is set. Called over raw HTTP; only the Arbiter's lines (text) are sent. Players are told on the start screen that the voice is AI-generated, as OpenAI's usage policies require | OpenAI | OpenAI Services Agreement / Terms of Use and Usage Policies |
+| ElevenLabs Text to Speech API (`eleven_flash_v2_5`, voice "Eldrin - Crisp British Baritone"; set by `TTS_MODEL` / `TTS_VOICE`) | The Arbiter's cloud voice via `/api/tts` when `ELEVENLABS_API_KEY` is set. Called over raw HTTP; only the Arbiter's lines (text) are sent. Paid plan (commercial use). The start screen says the voice is AI-generated | ElevenLabs | ElevenLabs Terms of Service and ElevenAPI Terms |
 | Vercel | Static hosting and serverless functions (planned) | Vercel Inc. | Vercel Terms of Service |
 
 ## npm dependencies

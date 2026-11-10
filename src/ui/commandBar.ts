@@ -25,7 +25,7 @@ export class CommandBar {
     this.input.type = 'text';
     this.input.className = 'input command-input';
     this.input.maxLength = MAX_UTTERANCE_LENGTH;
-    this.input.placeholder = voiceSupported ? 'Hold V to speak, or press Enter to type…' : 'Press Enter to type…';
+    this.input.placeholder = voiceSupported ? 'Hold V or type…' : 'Type…';
     this.input.setAttribute('aria-label', 'Speak to the Spire');
     this.input.autocomplete = 'off';
     this.input.spellcheck = false;

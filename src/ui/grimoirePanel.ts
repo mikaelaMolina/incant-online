@@ -1,6 +1,6 @@
 import { X } from 'lucide';
 import type { Grimoire } from '../combat/grimoire';
-import { summary } from '../voice/commandRouter';
+import type { IncantationSpec } from '../schemas/incantationSpec';
 import { icon } from './icons';
 
 /** Full Grimoire listing, opened with "open Grimoire" (or typed), closed with "close Grimoire" or ×. */
@@ -19,7 +19,7 @@ export class GrimoirePanel {
     title.textContent = 'Grimoire';
     const hint = document.createElement('p');
     hint.className = 'grimoire-hint';
-    hint.textContent = 'Say a name to recite it, or press its number. Only six fit on the bar; every Incantation here can still be recited.';
+    hint.textContent = 'Say a name or press its number.';
     const close = document.createElement('button');
     close.className = 'btn card-action grimoire-close';
     close.type = 'button';
@@ -61,18 +61,32 @@ export class GrimoirePanel {
       name.className = 'grimoire-name';
       name.textContent = spec.name;
       body.appendChild(name);
-      for (const [cls, text] of [
-        ['grimoire-stats', summary(spec)],
-        ['grimoire-flavor', spec.flavor],
-      ] as const) {
-        if (!text) continue;
+      const chips = document.createElement('div');
+      chips.className = 'grimoire-chips';
+      for (const text of chipsFor(spec)) {
+        const chip = document.createElement('span');
+        chip.className = 'badge';
+        chip.textContent = text;
+        chips.appendChild(chip);
+      }
+      body.appendChild(chips);
+      if (spec.flavor) {
         const p = document.createElement('p');
-        p.className = cls;
-        p.textContent = text;
+        p.className = 'grimoire-flavor';
+        p.textContent = spec.flavor;
         body.appendChild(p);
       }
       row.append(badge, body);
       this.list.appendChild(row);
     }
   }
+}
+
+/** Short stat chips: "fire", "3×14", "burn", "chain 3", "7s", "18 mana". */
+function chipsFor(i: IncantationSpec): string[] {
+  const chips = [i.element, `${i.hits}×${i.damage_per_hit}`];
+  if (i.status_effect.kind !== 'none') chips.push(i.status_effect.kind);
+  if (i.chain_targets) chips.push(`chain ${i.chain_targets}`);
+  chips.push(`${i.cooldown}s`, `${i.mana_cost} mana`);
+  return chips;
 }

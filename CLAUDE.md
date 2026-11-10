@@ -27,7 +27,7 @@ Submission deadline: 11 Nov 2026, 16:30 CEST (UTC+2) = 22:30 Philippine time. Th
 - Three.js for rendering; `postprocessing` (bloom) for glow
 - `@dimforge/rapier3d-compat` for physics and hitboxes
 - `fuse.js` for fuzzy name matching; `zod` for all schemas (shared by client and backend)
-- HTML/CSS overlay for the HUD (no 3D UI), styled with shadcn/ui-style components from `basecoat-css` (prebuilt CSS, dark class on `<html>`) and `lucide` icons. No Tailwind build step: Tailwind v4 depends on `lightningcss` (MPL-2.0). No React. Decided with the owner on 2026-11-10.
+- HTML/CSS overlay for the HUD (no 3D UI), styled with shadcn/ui-style components from `basecoat-css` (prebuilt CSS) re-skinned chunky and blocky in `src/ui/style.css` (thick ink outlines, solid drop shadows, sunny yellow, few words), and `lucide` icons. No Tailwind build step: Tailwind v4 depends on `lightningcss` (MPL-2.0). No React. Decided with the owner on 2026-11-10.
 - Backend: Vercel serverless functions (Node) in `/api`
 - LLM: Anthropic Messages API via env vars `ANTHROPIC_API_KEY`, `LLM_MODEL` (default `claude-haiku-5-5`, a fast model for low latency) and `LLM_MODE` (see "LLM modes"). Request JSON only, via structured outputs (`output_config.format`).
   Call it over raw HTTP (`fetch`), not `@anthropic-ai/sdk`: the SDK's dependency tree includes `fast-sha256` (Unlicense), which is not on the allowed licence list. Decided with the owner on 2026-11-04.

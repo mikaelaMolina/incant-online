@@ -277,7 +277,8 @@ export class CommandRouter {
       const slot = this.deps.grimoire.bar.indexOf(j) + 1;
       const where = slot > 0 ? ` [${slot}]` : '';
       const verb = refined ? (refined.name === j.incantation.name ? 'Reshaped' : `Reshaped ${refined.name} into`) : 'Forged';
-      this.deps.say(`${verb} ${j.incantation.name}${where}: ${summary(j.incantation)}. ${j.sentence}`);
+      // Short: the stats are on the Grimoire bar. Only mention the Arbiter when it changed something.
+      this.deps.say(`${verb} ${j.incantation.name}${where}.${j.changes.length ? ` ${j.sentence}` : ''}`);
       return;
     }
     if (r.intent === 'build' && r.floor) {

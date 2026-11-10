@@ -41,7 +41,7 @@ export class CastHud {
         const empty = document.createElement('div');
         empty.className = 'item cast-slot cast-empty';
         empty.dataset.size = 'sm';
-        empty.innerHTML = `<figure class="cast-key"><span class="cast-key-num">${key}</span></figure><section><h3 class="cast-name">Empty</h3></section>`;
+        empty.innerHTML = `<figure class="cast-key"><span class="cast-key-num">${key}</span></figure>`;
         this.slotsEl.appendChild(empty);
         return;
       }

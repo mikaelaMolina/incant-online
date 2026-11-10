@@ -66,10 +66,10 @@ export class ProgressHud {
   }
 
   setFloor(floor: number, name: string, boss: boolean): void {
-    // Header: "Floor 3 · " muted, the floor name in the foreground colour.
+    // Block header: "Floor 3" on yellow, the floor name on a paper block beside it.
     const strong = document.createElement('strong');
     strong.textContent = name;
-    this.floorEl.replaceChildren(`Floor ${floor} · `, strong);
+    this.floorEl.replaceChildren(`Floor ${floor}`, strong);
     if (boss) {
       const tag = document.createElement('span');
       tag.className = 'badge floor-tag';

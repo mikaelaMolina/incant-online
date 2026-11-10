@@ -1,4 +1,4 @@
-import { Castle, Flame, Sparkles, WandSparkles } from 'lucide';
+import { Castle, Flame, ShieldCheck, Sparkles, WandSparkles } from 'lucide';
 import { icon } from './icons';
 import { MIC_ICON } from './micIcon';
 import { AWAKENING_PHRASE } from '../voice/utterance';
@@ -25,87 +25,60 @@ export class StartScreen {
     const voice = voiceMode !== 'none';
     const fallbackNote =
       voiceMode === 'recorder'
-        ? '<p class="start-small">This browser has no built-in speech recognition, so your recording is sent to our server to be turned into text, then discarded.</p>'
+        ? '<p>No speech recognition in this browser: clips go to our server for text, then are deleted.</p>'
         : '';
 
     this.el.innerHTML = `
       <div class="start-shell">
         <header class="start-top">
           <div class="start-brand">
-            <span class="start-logo">${icon(WandSparkles, 18)}</span>
+            <span class="start-logo">${icon(WandSparkles, 20)}</span>
             <span id="start-title">Incant Online</span>
           </div>
+          <span class="badge start-browser">Chrome · Edge</span>
         </header>
 
-        <div class="start-grid">
-          <section class="card start-hero">
-            <header>
-              <span class="badge" data-variant="secondary">${icon(Sparkles, 12)} Voice-first action RPG</span>
-              <h1>Say it. Cast it.</h1>
-              <p>Speak spells and places into being, then cast them by name as you climb the Spire, floor by floor.</p>
-            </header>
-            <section>
-              ${
-                voice
-                  ? `<div class="item start-awaken" data-variant="muted">
-                       <figure><button type="button" class="btn mic-button mic-large" data-size="icon-lg" aria-label="Hold to speak">${MIC_ICON}</button></figure>
-                       <section>
-                         <h3>Hold <kbd class="kbd">V</kbd> or the mic and say</h3>
-                         <p class="start-phrase">“${AWAKENING_PHRASE}”</p>
-                       </section>
-                     </div>
-                     <p class="start-heard" aria-live="polite"></p>`
-                  : `<p class="start-heard" aria-live="polite">This browser cannot carry your voice. You can still play by typing.</p>`
-              }
-            </section>
-            <footer class="start-actions">
-              <button type="button" class="btn start-enter" data-size="lg">Enter without voice</button>
-              <p class="start-status" aria-live="polite">The Spire is assembling…</p>
-            </footer>
-          </section>
+        <section class="card start-hero">
+          <div class="start-art" aria-hidden="true">${icon(Sparkles, 64)}</div>
+          <h1>Say it.<br />Cast it.</h1>
+          ${
+            voice
+              ? `<div class="start-awaken">
+                   <button type="button" class="btn mic-button mic-large" aria-label="Hold to speak">${MIC_ICON}</button>
+                   <div>
+                     <span class="start-hold">Hold <kbd class="kbd">V</kbd> and say</span>
+                     <p class="start-phrase">“${AWAKENING_PHRASE}”</p>
+                   </div>
+                 </div>
+                 <p class="start-heard" aria-live="polite"></p>`
+              : `<p class="start-heard" aria-live="polite">No voice in this browser. Type instead.</p>`
+          }
+          <div class="start-actions">
+            <button type="button" class="btn start-enter" data-size="lg">Play without voice</button>
+            <p class="start-status" aria-live="polite">Loading…</p>
+          </div>
+        </section>
 
-          <section class="card start-side" aria-labelledby="start-how">
-            <header>
-              <h2 id="start-how">How to play</h2>
-              <p>Three things you can say.</p>
-            </header>
-            <section class="item-group">
-              <div class="item" data-variant="outline" data-size="sm">
-                <figure class="start-step-icon">${icon(Flame, 16)}</figure>
-                <section><h3>Forge</h3><p>Describe a spell: “fire spin, three hits”</p></section>
-              </div>
-              <div class="item" data-variant="outline" data-size="sm">
-                <figure class="start-step-icon">${icon(WandSparkles, 16)}</figure>
-                <section><h3>Recite</h3><p>Say its name to cast it, or press its number</p></section>
-              </div>
-              <div class="item" data-variant="outline" data-size="sm">
-                <figure class="start-step-icon">${icon(Castle, 16)}</figure>
-                <section><h3>Build</h3><p>Describe a place: “a frozen castle”</p></section>
-              </div>
-            </section>
-          </section>
+        <div class="start-steps">
+          <div class="start-step forge">${icon(Flame, 22)}<strong>Forge</strong><span>“fire spin”</span></div>
+          <div class="start-step recite">${icon(WandSparkles, 22)}<strong>Recite</strong><span>say its name</span></div>
+          <div class="start-step build">${icon(Castle, 22)}<strong>Build</strong><span>“frozen castle”</span></div>
+        </div>
 
+        <div class="start-row">
           <section class="card start-notes">
-            <header><h2>Microphone and privacy</h2></header>
-            <section>
-              <p><strong>Push-to-talk.</strong> Incant Online only listens while you hold <kbd class="kbd">V</kbd> or the mic button. The first time, your browser asks for permission: allow it, then hold again. <span class="start-permission"></span></p>
-              <p><strong>Privacy.</strong> Browser speech recognition may send your audio to your browser vendor (for example Google or Microsoft) to turn it into text. Our backend never stores audio.</p>
+            <span class="start-notes-icon">${icon(ShieldCheck, 18)}</span>
+            <div>
+              <p><strong>Push-to-talk only.</strong> Browser speech recognition may send audio to your browser vendor (e.g. Google). We never store audio. <span class="start-permission"></span></p>
               ${fallbackNote}
-              <p><strong>Best in Chrome or Edge.</strong> Other browsers can play by typing.</p>
-            </section>
+            </div>
           </section>
-
-          <section class="card start-notes">
-            <header><h2>Controls</h2></header>
-            <section>
-              <dl class="start-controls">
-                <dt><kbd class="kbd">W</kbd><kbd class="kbd">A</kbd><kbd class="kbd">S</kbd><kbd class="kbd">D</kbd></dt><dd>Move</dd>
-                <dt><kbd class="kbd">Mouse</kbd></dt><dd>Aim · left click to strike</dd>
-                <dt><kbd class="kbd">Space</kbd></dt><dd>Dodge</dd>
-                <dt><kbd class="kbd">V</kbd></dt><dd>Hold to speak</dd>
-                <dt><kbd class="kbd">Enter</kbd></dt><dd>Type instead</dd>
-              </dl>
-            </section>
+          <section class="card start-keys" aria-label="Controls">
+            <span><kbd class="kbd">WASD</kbd>move</span>
+            <span><kbd class="kbd">Click</kbd>strike</span>
+            <span><kbd class="kbd">Space</kbd>dodge</span>
+            <span><kbd class="kbd">V</kbd>talk</span>
+            <span><kbd class="kbd">Enter</kbd>type</span>
           </section>
         </div>
       </div>`;
@@ -129,7 +102,7 @@ export class StartScreen {
 
   setReady(): void {
     this.ready = true;
-    this.status.textContent = 'The Spire awaits.';
+    this.status.textContent = 'Ready.';
     if (this.entering) this.finish();
   }
 
@@ -148,7 +121,7 @@ export class StartScreen {
     if (this.entering) return;
     this.entering = true;
     if (this.ready) this.finish();
-    else this.status.textContent = 'The Spire is still assembling… you will enter in a moment.';
+    else this.status.textContent = 'Almost ready…';
   }
 
   private finish(): void {
@@ -174,9 +147,9 @@ export class StartScreen {
       const render = (): void => {
         this.permission.textContent =
           status.state === 'granted'
-            ? 'Microphone: allowed.'
+            ? 'Mic allowed.'
             : status.state === 'denied'
-              ? 'Microphone: blocked. Allow it from the address bar to speak, or type instead.'
+              ? 'Mic blocked: allow it in the address bar, or type.'
               : '';
       };
       render();

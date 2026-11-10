@@ -1,6 +1,6 @@
 import { REPLIES } from '../../api/_lib/mock/interpreter.js';
 import { stripForSpeech } from './speechText.js';
-import { STORY_BEATS, STORY_CHAPTERS, GUIDE_LINES } from '../game/story.js';
+import { STORY_BEATS, STORY_CHAPTERS, GUIDE_LINES, PROLOGUE_NARRATION, PROLOGUE_NPC_DIALOGUE } from '../game/story.js';
 
 /**
  * Every fixed line the Arbiter speaks. These are pre-recorded once with the cloud voice
@@ -18,14 +18,20 @@ export const ARBITER_LINES = {
   heardNothing: 'The Spire heard nothing. Speak, Incanter.',
 } as const;
 
+/** Story beats and chapter intros up to this floor are pre-recorded; later ones are spoken live. */
+const PREBAKE_UP_TO_FLOOR = 4;
+
 /** All lines worth pre-recording: the Arbiter's own lines, story beats, and the mock parser's in-character replies. */
 export function prebakedLines(): string[] {
   const lines = [
     ...Object.values(ARBITER_LINES),
     ...Object.values(REPLIES).flat(),
-    ...STORY_BEATS.map((b) => b.line),
-    ...STORY_CHAPTERS.map((c) => c.intro),
+    // Only what nearly every player hears: later beats and chapters are generated on demand (cached).
+    ...STORY_BEATS.filter((b) => b.floor <= PREBAKE_UP_TO_FLOOR).map((b) => b.line),
+    ...STORY_CHAPTERS.filter((c) => c.start <= PREBAKE_UP_TO_FLOOR).map((c) => c.intro),
     ...GUIDE_LINES.map((g) => g.line),
+    PROLOGUE_NARRATION,
+    ...PROLOGUE_NPC_DIALOGUE.flatMap((d) => [d.greeting, ...d.lines.map((l) => l.line)]),
   ];
   return [...new Set(lines)];
 }

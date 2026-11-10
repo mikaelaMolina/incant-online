@@ -50,9 +50,12 @@ export class CastHud {
       el.title = `${spec.flavor}\n${spec.type} · ${spec.shape} · ${spec.element} · ${spec.hits}×${spec.damage_per_hit}` +
         (spec.status_effect.kind !== 'none' ? ` · ${spec.status_effect.kind}` : '') +
         (spec.chain_targets ? ` · chains ${spec.chain_targets}` : '');
+      // Round icon: the key number on the Incantation's colour, with the cooldown sweep inside.
       const keyEl = document.createElement('span');
       keyEl.className = 'cast-key';
-      keyEl.textContent = key;
+      const keyNum = document.createElement('span');
+      keyNum.className = 'cast-key-num';
+      keyNum.textContent = key;
       const name = document.createElement('span');
       name.className = 'cast-name';
       name.textContent = spec.name;
@@ -63,7 +66,8 @@ export class CastHud {
       shade.className = 'cast-shade';
       const time = document.createElement('span');
       time.className = 'cast-time';
-      el.append(shade, keyEl, name, cost, time);
+      keyEl.append(shade, keyNum);
+      el.append(keyEl, name, cost, time);
       this.slotsEl.appendChild(el);
       this.slots.push({ spec, el, shade, time, cooling: false });
     });
@@ -107,6 +111,7 @@ export class CastHud {
       s.el.style.setProperty('--cd', cooling ? (cd.remaining / cd.total).toFixed(3) : '0');
       s.time.textContent = cooling ? (cd.remaining >= 10 ? cd.remaining.toFixed(0) : cd.remaining.toFixed(1)) : '';
       if (s.cooling && !cooling) this.flashSlot(s.el, 'cast-ready'); // ready again
+      if (s.cooling !== cooling) s.el.classList.toggle('cast-cooling', cooling);
       s.cooling = cooling;
       s.el.classList.toggle('cast-nomana', !cooling && s.spec.mana_cost > res.mana);
     }

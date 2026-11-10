@@ -66,7 +66,16 @@ export class ProgressHud {
   }
 
   setFloor(floor: number, name: string, boss: boolean): void {
-    this.floorEl.textContent = `Floor ${floor} · ${name}${boss ? ' · Guardian floor' : ''}`;
+    // Two-tone header: "Floor 3 · " in the accent colour, the name in bold white.
+    const strong = document.createElement('strong');
+    strong.textContent = name;
+    this.floorEl.replaceChildren(`Floor ${floor} · `, strong);
+    if (boss) {
+      const tag = document.createElement('span');
+      tag.className = 'floor-tag';
+      tag.textContent = 'Guardian floor';
+      this.floorEl.appendChild(tag);
+    }
     this.floorEl.classList.toggle('floor-boss', boss);
   }
 

@@ -23,3 +23,6 @@ Thumbs.db
 
 # Windows download markers (WSL)
 *:Zone.Identifier
+
+# Private UI mood board (contains third-party game art and logos): never commit
+reference.jpg

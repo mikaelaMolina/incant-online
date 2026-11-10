@@ -206,7 +206,8 @@ export class StartScreen {
     }
     this.wireChooser();
     void this.showPermissionState();
-    this.input.focus();
+    // No focus on the text box: holding V must start listening, not type "vvv" into it.
+    // (Clicking the box types; push-to-talk ignores keys typed into text boxes.)
   }
 
   /** Tabs (describe / choose), the pick buttons and the composed description. */
@@ -220,7 +221,7 @@ export class StartScreen {
       tab.addEventListener('click', () => {
         for (const t of this.el.querySelectorAll<HTMLButtonElement>('.start-tab')) t.setAttribute('aria-selected', String(t === tab));
         for (const panel of this.el.querySelectorAll<HTMLElement>('[data-panel]')) panel.hidden = panel.dataset.panel !== tab.dataset.tab;
-        if (tab.dataset.tab === 'describe') this.input.focus();
+        // (no focus on the text box: V should keep working as push-to-talk)
       });
     }
     for (const group of this.el.querySelectorAll<HTMLFieldSetElement>('.start-choice')) {
@@ -253,7 +254,7 @@ export class StartScreen {
   setBusy(busy: boolean): void {
     this.busy = busy;
     for (const el of [this.input, this.buildButton, ...this.el.querySelectorAll<HTMLButtonElement>('.start-quick-pick, .start-build-choice, .start-pick')]) el.disabled = busy;
-    if (!busy && !this.input.closest<HTMLElement>('[data-panel]')?.hidden) this.input.focus();
+    // Not refocusing the text box here either: V would type instead of listening.
   }
 
   setVoiceState(state: VoiceState): void {

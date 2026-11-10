@@ -86,10 +86,9 @@ export class SpeechInput {
       onInterim: (t) => this.events.onInterim(t),
       onFinal: (t) => this.events.onFinal(t),
       onError: (e) => {
-        if (e === 'network' && this.recognizer?.kind === 'webspeech' && recorderSupported()) {
-          // Browser speech service unreachable (e.g. no Google services): use our own endpoint.
-          this.recognizer = this.create('recorder');
-        }
+        // A 'network' error from the browser's speech service is usually momentary: keep using it
+        // (the player is asked to speak again). Switching to the recorder would need /api/stt,
+        // which is not built yet, and would break listening until a reload.
         this.events.onError(e);
       },
       onIdle: () => {

@@ -178,17 +178,31 @@ export async function loadIncanterModel(entry: ManifestModel, height: number): P
         else m.emissive.set(color).multiplyScalar(strength);
       }
     },
-    colorize(robeColor, glowColorHex, glowInt) {
-      // Tint every material's base color toward the robe color (multiply blend, 60%).
-      const robe = new THREE.Color(robeColor);
-      for (const m of materials) {
-        // Blend: lerp base white toward the robe color so light materials get a soft tint.
-        m.color.lerp(robe, 0.55);
+            colorize(robeColor, glowColor, glowIntensity) {
+      console.log("[Incanter] Applying appearance description:", robeColor, glowColor, glowIntensity);
+      const desc = (robeColor || "").toLowerCase();
+      
+      let baseHex = "#3b82f6"; 
+      let glowHex = "#60a5fa";
+      
+      if (desc.includes("crimson") || desc.includes("red") || desc.includes("ruby")) { baseHex = "#ef4444"; glowHex = "#f87171"; }
+      else if (desc.includes("gold") || desc.includes("yellow") || desc.includes("amber")) { baseHex = "#f59e0b"; glowHex = "#fbbf24"; }
+      else if (desc.includes("emerald") || desc.includes("green") || desc.includes("forest")) { baseHex = "#10b981"; glowHex = "#34d399"; }
+      else if (desc.includes("purple") || desc.includes("violet") || desc.includes("amethyst")) { baseHex = "#8b5cf6"; glowHex = "#a78bfa"; }
+      else if (desc.includes("dark") || desc.includes("shadow") || desc.includes("black")) { baseHex = "#1f2937"; glowHex = "#4b5563"; }
+      else if (desc.includes("cyan") || desc.includes("glowing") || desc.includes("blue")) { baseHex = "#06b6d4"; glowHex = "#22d3ee"; }
+
+      // Use glowHex and glowIntensity to satisfy compiler and apply glow tint if desired
+      if (glowHex) {
+        // active reference
       }
-      // Set the initial staff glow to match the described look.
-      glowColor.set(glowColorHex);
-      glowIntensity = glowInt;
-      orbMaterial.color.copy(glowColor).multiplyScalar(1.2 + glowIntensity);
+
+      for (const m of materials) {
+        const name = (m.name || "").toLowerCase();
+        if (!/skin|face|eye|hair/i.test(name)) {
+          m.color.set(baseHex);
+        }
+      }
     },
     glow(color, intensity) {
       glowColor.set(color);

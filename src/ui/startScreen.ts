@@ -17,8 +17,6 @@ import {
   Swords,
   Tent,
   Trees,
-  User,
-  UserX,
   WandSparkles,
   type IconNode,
 } from 'lucide';
@@ -84,7 +82,7 @@ const DANGERS: Choice[] = [
 const PEOPLE: Choice[] = [
   { id: 'village', label: 'A village', icon: House, words: 'with a small village of friendly villagers to talk to' },
   { id: 'travellers', label: 'Travellers', icon: Tent, words: 'with a couple of friendly travellers to talk to' },
-  { id: 'none', label: 'No one', icon: UserX, words: 'with no one else around' },
+  { id: 'none', label: 'No one', icon: ShieldCheck, words: 'with no one else around' },
 ];
 
 /** The description sent to the Spire for a set of picks. */
@@ -163,6 +161,10 @@ export class StartScreen {
               <span>Try</span>
               ${QUICK_WORLDS.map((w) => `<button type="button" class="badge start-quick-pick">${w}</button>`).join('')}
             </div>
+                      <div class="start-appearance-inline" style="margin-top: 12px; border-top: 1px solid rgba(0,0,0,0.06); padding-top: 10px;">
+              <label for="start-appearance-input" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px; opacity: 0.8;">Incanter Appearance (Optional)</label>
+              <input id="start-appearance-input" class="input start-appearance-input" type="text" placeholder="e.g. crimson cloak, golden hair, glowing cyan eyes..." spellcheck="true" style="width: 100%; font-size: 0.9rem;" />
+            </div>
           </form>
           <div class="start-chooser" data-panel="choose" hidden>
             ${choiceGroup('place', 'Where', PLACES, 'forest')}
@@ -180,12 +182,7 @@ export class StartScreen {
           <p class="start-status" aria-live="polite">Loading…</p>
         </section>
 
-        <details class="card start-appearance">
-          <summary class="start-appearance-toggle">${icon(User, 15)} Your Incanter's appearance <span class="start-appearance-hint">(optional)</span></summary>
-          <label class="start-appearance-label" for="start-appearance-input">Describe how your Incanter looks — the Spire and its inhabitants will remember.</label>
-          <input id="start-appearance-input" class="input start-appearance-input" type="text" spellcheck="true"
-            maxlength="200" placeholder="tall, dark robes, silver hair, glowing eyes…" />
-        </details>
+        
 
         <div class="start-steps">
           <div class="start-step forge">${icon(Flame, 22)}<strong>Forge</strong><span>“fire spin”</span></div>

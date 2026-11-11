@@ -392,6 +392,7 @@ if (canvas && hud) {
       startScreen?.setReady();
       // Apply the player's appearance description to tint the character model.
       const desc = startScreen?.appearance || savedAppearance();
+      (window as any).__INCANTER_APPEARANCE__ = desc;
       if (desc) g.applyAppearance(desc);
       if (pendingWorld !== undefined) {
         const text = pendingWorld;

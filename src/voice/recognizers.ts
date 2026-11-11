@@ -230,6 +230,7 @@ export class RecorderRecognizer implements Recognizer {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
     } catch (err) {
+      console.warn("[Microphone] Permission denied or unavailable:", err);
       const name = err instanceof DOMException ? err.name : '';
       this.ev.onError(name === 'NotAllowedError' || name === 'SecurityError' ? 'not-allowed' : 'audio-capture');
       this.ev.onIdle();

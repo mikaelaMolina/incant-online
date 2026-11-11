@@ -182,6 +182,25 @@ const FloorSpecObject = z
       g.x = clamp(g.x, -limit, limit);
       g.z = clamp(g.z, -limit, limit);
     }
+    if (floor.spawns.length === 0 && !/quiet hollow|village|sanctuary/i.test(floor.name)) {
+      floor.spawns.push(
+        SpawnGroup.parse({
+          count: 3,
+          enemy: {
+            id: "spire_guardian",
+            archetype: "melee",
+            model: "monster.skeleton",
+            hp: 65,
+            speed: 3,
+            damage: 10,
+            aggro_range: 15,
+            flee_threshold: 0.15,
+            attack_pattern: "swift slash",
+            phases: [],
+          },
+        }),
+      );
+    }
     return floor;
   });
 

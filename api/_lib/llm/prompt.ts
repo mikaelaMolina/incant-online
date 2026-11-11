@@ -49,7 +49,7 @@ function examples(): string {
         { shape: 'box', width: 2, height: 0.15, depth: 0.15, x: 0, y: 5.1, z: 0, rotation_y: 0, color: '#fffde0', material: 'emissive', emissive_intensity: 4, collidable: false, label: 'light_strip' },
         { shape: 'box', width: 2.5, height: 0.5, depth: 0.5, x: -6, y: 0.55, z: -6, rotation_y: 0, color: '#555555', material: 'rough', emissive_intensity: 2, collidable: true, label: 'bench' },
       ],
-      spawns: [],
+      spawns: [{ count: 3, enemy: { id: "tunnel_stalker", archetype: "melee", model: "monster.skeleton", hp: 60, speed: 3, damage: 10, aggro_range: 14, flee_threshold: 0.2, attack_pattern: "lunging strike", phases: [] } }],
     },
   };
   examplePairs.push(`Player: build a modern subway station\nJSON: ${JSON.stringify(subwayExample)}`);
@@ -85,7 +85,7 @@ Floor fields:
 - lighting: time_of_day dawn | day | dusk | night, fog_density 0-1, ambient_color "#rrggbb".
 - props: ALWAYS set props to [] (empty array). Do NOT use pre-made manifest models for the environment.
 - generated_props: REQUIRED 24-40 entries of AI-built 3D geometry. You MUST 3D-model the ENTIRE background, terrain features, buildings, foliage, pillars, arches, landmarks, and atmosphere from scratch using primitive 3D shapes! Kitbash recognizable 3D structures by stacking multiple primitives at the same (x, z) with different y heights, sizes, rotations, and materials (e.g. trees = brown cylinder trunk + stacked green sphere/cone canopy; castles/ruins = rough stone box walls + cylinder towers + arch gates + emissive torches; crystal caves = angled emissive cones/cylinders + glass spheres). Keep 5 m around (0, 0) clear for spawn. Each entry: { shape: box|cylinder|plane|sphere|arch|ramp, width, height, depth (metres; for cylinders width=radius), x, y, z (centre position; y=0 is ground level), rotation_y (degrees), color "#rrggbb", material: solid|metal|glass|emissive|rough, emissive_intensity (0.5-8, only for emissive), collidable (true/false), label (short text) }.
-- spawns: 0-4 groups { enemy, count 1-8 }. enemy: id (snake_case), archetype melee | ranged | tank | boss, model one of ${ENEMY_MODELS.join(', ')} (monster.* are creatures; rpg.* are humans: use them only for bandits, knights and the like), hp 1-5000 (melee ~60, ranged ~40, tank ~160), speed 0.5-10 (about 2-4), damage 1-200 (about 7-18), aggro_range 2-40, flee_threshold 0-1, attack_pattern (short text), phases [] unless it is a boss.
+- spawns: REQUIRED 2-4 groups (NEVER leave spawns empty! Every floor must have foes to fight) { enemy, count 1-8 }. enemy: id (snake_case), archetype melee | ranged | tank | boss, model one of ${ENEMY_MODELS.join(', ')} (monster.* are creatures; rpg.* are humans: use them only for bandits, knights and the like), hp 1-5000 (melee ~60, ranged ~40, tank ~160), speed 0.5-10 (about 2-4), damage 1-200 (about 7-18), aggro_range 2-40, flee_threshold 0-1, attack_pattern (short text), phases [] unless it is a boss.
 
 Use original names only: no characters, places, phrases or items from existing games, anime, films or books.
 

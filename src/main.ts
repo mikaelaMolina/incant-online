@@ -297,8 +297,7 @@ if (canvas && hud) {
               sfx.play('forge');
             }, Math.min(9000, 1200 + greeting.length * 60));
           }
-          // Don't also reply to their words on first contact — the greeting is enough.
-          return;
+          // Also reply to the player statement right away so they never have to type twice.
         }
         npcSay(role, await npcReply(text, role, floorNumber, village));
       },
@@ -342,6 +341,7 @@ if (canvas && hud) {
     g.hooks.onGateEnter = () => {
       // The prologue's gate leads into the world described on the start screen.
       if (g.floorNumber() === PROLOGUE_FLOOR && r.hasPreparedWorld) {
+        void r.enterPreparedWorld();
         return;
       }
       // A cleared guardian floor's gate leads back to the village first.
@@ -363,7 +363,24 @@ if (canvas && hud) {
     };
     g.hooks.onGuideEnter = (role) => {
       if (role !== 'Merchant') shopPanel.show(false);
-      // No auto-greeting: the NPC waits until the player speaks (V / type). Badge shows "· V talk".
+      const floorNumber = g.floorNumber();
+      const village = g.inVillage();
+      const greetKey = `${floorNumber}:${role}`;
+      if (!greetedNpcs.has(greetKey)) {
+        greetedNpcs.add(greetKey);
+        const greeting = village ? prologueGreeting(role) : guideGreeting(floorNumber);
+        npcSay(role, greeting);
+        const offer = questLog.offerFrom(role, floorNumber, g.isGuardianFloor(), village);
+        if (offer) {
+          window.setTimeout(() => {
+            if (g.floorNumber() !== floorNumber || questLog.active) return;
+            questLog.accept(offer);
+            npcSay(role, offer.offer);
+            questTracker.show(questLog.active);
+            sfx.play('forge');
+          }, Math.min(9000, 1200 + greeting.length * 60));
+        }
+      }
     };
     // Unused stubs removed — greeting is now handled inside the talk callback (makeRouter).
     /** A quest event: progress the tracker, or reward a finished quest. */

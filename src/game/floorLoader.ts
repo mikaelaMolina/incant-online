@@ -336,6 +336,8 @@ function buildGeneratedProps(
     const geo = genGeometry(g);
     const mat = genMaterial(g.color, g.material, g.emissive_intensity);
     const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     mesh.position.set(g.x, g.y, g.z);
     mesh.quaternion.setFromAxisAngle(up, THREE.MathUtils.degToRad(g.rotation_y));
     mesh.castShadow = g.material !== 'glass';

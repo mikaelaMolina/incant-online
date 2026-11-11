@@ -157,25 +157,26 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   incanter.setSpawn(floor.spawn);
   // The animated wizard body loads in the background; the capsule stands in until then (or if it fails).
   // If applyAppearance() was called before the model loaded, pendingAppearance queues it.
-  let pendingAppearance: string | undefined;
   const wizard = models.resolve('rpg.wizard', 'character');
   if (wizard) {
     loadIncanterModel(wizard, 1.75).then((inc) => {
-      const incanter = inc as any;
-      const desc = (window as any).__START_SCREEN_APPEARANCE__ || (window as any).savedAppearance?.() || "dark robes with blue glow";
-      incanter.updateAppearance?.(desc);
-      return incanter;
+      const incModel = inc as any;
+      // Read directly from window or localStorage at runtime right when the model spawns
+      const liveAppearance = (window as any).__INCANTER_APPEARANCE__ || localStorage.getItem("incant.appearance") || "";
+      console.log("[Game] Runtime applying appearance to 3D model:", liveAppearance);
+      
+      incModel.updateAppearance?.(liveAppearance);
+      
+      if (typeof appearancePalette === 'function' && incModel.applyAppearancePalette) {
+        const { robeColor, glowColor, glowIntensity } = appearancePalette(liveAppearance);
+        incModel.applyAppearancePalette(robeColor, glowColor, glowIntensity);
+      }
+      
+      incanter.attachModel(incModel);
+      void precompile();
+      return incModel;
     })
-      .then((m) => {
-        incanter.attachModel(m);
-        if (pendingAppearance) {
-          const { robeColor, glowColor, glowIntensity } = appearancePalette(pendingAppearance);
-          incanter.applyAppearancePalette(robeColor, glowColor, glowIntensity);
-          pendingAppearance = undefined;
-        }
-        void precompile();
-      })
-      .catch((err: unknown) => console.warn('Incanter model failed to load; keeping the placeholder.', err));
+    .catch((err) => console.warn('Incanter model failed to load; keeping placeholder.', err));
   }
   cam.snapTo(incanter.position);
 
@@ -893,7 +894,7 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
         incanter.applyAppearancePalette(robeColor, glowColor, glowIntensity);
       } else {
         // Model hasn't loaded yet — queue it.
-        pendingAppearance = description;
+        
       }
     },
     hooks,

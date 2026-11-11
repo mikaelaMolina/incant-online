@@ -1,7 +1,6 @@
 import { RANGES } from '../../../src/schemas/incantationSpec.js';
 import { FLOOR_HALF_EXTENT } from '../../../src/schemas/floorSpec.js';
 import { mockInterpret } from '../mock/interpreter.js';
-import { PALETTES, SETTLEMENT_PALETTE } from '../mock/floor.js';
 import { ENEMY_MODEL_IDS } from '../../../src/schemas/monsters.js';
 
 const ENEMY_MODELS = ENEMY_MODEL_IDS;
@@ -24,7 +23,7 @@ function examples(): string {
   const pairs: [string, ReturnType<typeof mockInterpret>][] = EXAMPLE_PROMPTS.map((t) => [t, mockInterpret(t)]);
   const examplePairs = pairs.map(([text, out]) => {
     const trimmed = structuredClone(out) as { floor?: { props?: unknown[]; generated_props?: unknown[] } };
-    if (trimmed.floor?.props) trimmed.floor.props = trimmed.floor.props.slice(0, 4); // keep the prompt short
+    if (trimmed.floor?.props) trimmed.floor.props = []; // keep the prompt short
     if (trimmed.floor?.generated_props) trimmed.floor.generated_props = trimmed.floor.generated_props.slice(0, 2);
     const full = { intent: out.intent, incantation: null, floor: null, reply: null, ...trimmed };
     return `Player: ${text}\nJSON: ${JSON.stringify(full)}`;
@@ -58,12 +57,6 @@ function examples(): string {
   return examplePairs.join('\n\n');
 }
 
-function palettes(): string {
-  return Object.entries(PALETTES)
-    .map(([biome, rules]) => `${biome}: ${rules.map((r) => r.model).join(', ')}`)
-    .concat(`settlements (village, town, camp; any biome): ${SETTLEMENT_PALETTE.map((r) => r.model).join(', ')}`)
-    .join('\n');
-}
 
 /** Stable system prompt (no timestamps or per-request data, so it caches). */
 export const SYSTEM_PROMPT = `You are the Spire, the world-engine of a voice-driven action RPG. The player (an Incanter) speaks, and you turn their words into game data. You never write code. Reply with JSON only, matching the response schema.
@@ -90,9 +83,8 @@ The Arbiter balances power afterwards (stronger means longer cooldown and more m
 Floor fields:
 - name (at most 48 characters), biome forest | ruins | ice | desert | cavern | castle | void, size small | medium | large (half-widths ${FLOOR_HALF_EXTENT.small} / ${FLOOR_HALF_EXTENT.medium} / ${FLOOR_HALF_EXTENT.large} m).
 - lighting: time_of_day dawn | day | dusk | night, fog_density 0-1, ambient_color "#rrggbb".
-- props: 16-24 entries { model, x, z, rotation (degrees), scale 0.25-4, tint "#rrggbb" or null }. Keep 5 m around (0, 0) clear: the Incanter spawns there. x and z must stay inside the half-width. Use only these model ids:
-${palettes()}
-- generated_props: 0-40 entries of procedurally-generated geometry — REQUIRED both when the theme has no matching manifest models (subway, office, sci-fi station, etc.) AND whenever the player names specific objects, flowers, landmarks, statues, furniture, or surreal features not in the manifest (e.g. roses, fountains, altars, giant mushrooms, portals, vehicles, clockwork towers). Kitbash recognizable 3D objects by stacking and combining multiple primitives at the same (x, z) with different y heights, sizes, and colors (for example: a rose bush = green box/sphere foliage base + thin green cylinder stems + bright red sphere blooms on top; a fountain = stone cylinder basin + glowing blue cylinder water + central pillar). Each entry: { shape: box|cylinder|plane|sphere|arch|ramp, width, height, depth (metres; for cylinders width=radius), x, y, z (centre position; y=0 is ground level), rotation_y (degrees), color "#rrggbb", material: solid|metal|glass|emissive|rough, emissive_intensity (0.5-8, only for emissive), collidable (true/false), label (short text for dev overlay) }. Build structural elements first (floor tiles, walls, ceiling, pillars), then decorative fills (benches, signs, lights). Examples: a subway platform uses box tiles on the ground, box walls, cylinder pillars, emissive box light strips, rough box benches; a neon city uses emissive boxes for signs, metal cylinders for lampposts, glass boxes for windows; a sci-fi corridor uses metal box walls/ceiling, emissive line lights, glass sphere terminals.
+- props: ALWAYS set props to [] (empty array). Do NOT use pre-made manifest models for the environment.
+- generated_props: REQUIRED 24-40 entries of AI-built 3D geometry. You MUST 3D-model the ENTIRE background, terrain features, buildings, foliage, pillars, arches, landmarks, and atmosphere from scratch using primitive 3D shapes! Kitbash recognizable 3D structures by stacking multiple primitives at the same (x, z) with different y heights, sizes, rotations, and materials (e.g. trees = brown cylinder trunk + stacked green sphere/cone canopy; castles/ruins = rough stone box walls + cylinder towers + arch gates + emissive torches; crystal caves = angled emissive cones/cylinders + glass spheres). Keep 5 m around (0, 0) clear for spawn. Each entry: { shape: box|cylinder|plane|sphere|arch|ramp, width, height, depth (metres; for cylinders width=radius), x, y, z (centre position; y=0 is ground level), rotation_y (degrees), color "#rrggbb", material: solid|metal|glass|emissive|rough, emissive_intensity (0.5-8, only for emissive), collidable (true/false), label (short text) }.
 - spawns: 0-4 groups { enemy, count 1-8 }. enemy: id (snake_case), archetype melee | ranged | tank | boss, model one of ${ENEMY_MODELS.join(', ')} (monster.* are creatures; rpg.* are humans: use them only for bandits, knights and the like), hp 1-5000 (melee ~60, ranged ~40, tank ~160), speed 0.5-10 (about 2-4), damage 1-200 (about 7-18), aggro_range 2-40, flee_threshold 0-1, attack_pattern (short text), phases [] unless it is a boss.
 
 Use original names only: no characters, places, phrases or items from existing games, anime, films or books.

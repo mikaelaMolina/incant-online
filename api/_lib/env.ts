@@ -8,7 +8,7 @@ export function serverEnv(): Env {
 }
 
 /** Fast model by default, for low latency. Override with LLM_MODEL. */
-export const DEFAULT_LLM_MODEL = 'claude-haiku-5-5';
+export const DEFAULT_LLM_MODEL = 'claude-opus-5-5';
 
 export interface ModeConfig {
   mode: LlmMode;

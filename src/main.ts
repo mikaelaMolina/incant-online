@@ -117,6 +117,11 @@ if (canvas && hud) {
       });
       return;
     }
+    const appDesc = startScreen?.appearance || savedAppearance();
+    if (appDesc) {
+      (window as any).__INCANTER_APPEARANCE__ = appDesc;
+      game?.applyAppearance(appDesc);
+    }
     r.prepareWorld(text);
     startScreen?.setBusy(true);
     startScreen?.enter();
@@ -337,7 +342,6 @@ if (canvas && hud) {
     g.hooks.onGateEnter = () => {
       // The prologue's gate leads into the world described on the start screen.
       if (g.floorNumber() === PROLOGUE_FLOOR && r.hasPreparedWorld) {
-        void r.enterPreparedWorld();
         return;
       }
       // A cleared guardian floor's gate leads back to the village first.

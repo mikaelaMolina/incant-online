@@ -314,13 +314,14 @@ export class StartScreen {
         this.el.hidden = true;
       }, 450);
     }
-    this.onEnter?.();
+    (window as any).__INCANTER_APPEARANCE__ = this.appearance; localStorage.setItem("incant.appearance", this.appearance); this.onEnter?.();
   }
 
   private submit(raw: string): void {
-    const text = raw.trim();
-    if (!text || this.busy) return;
-    this.onWorld?.(text);
+    const app = this.appearance;
+    const text = raw.trim() || (app ? "a realm for " + app : "a mystical forest");
+    if (this.busy) return;
+    (window as any).__INCANTER_APPEARANCE__ = this.appearance; localStorage.setItem("incant.appearance", this.appearance); this.onWorld?.(text);
   }
 
   private async showPermissionState(): Promise<void> {

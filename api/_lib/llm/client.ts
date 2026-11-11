@@ -67,7 +67,6 @@ export async function callLlm({ apiKey, model, text, context, signal, fetchImpl 
       // NOTE: output_config.format with json_schema is intentionally omitted — the full
       // INTERPRET_JSON_SCHEMA exceeds Anthropic's grammar compilation limit and returns 400.
       // Instead we rely on the system prompt's JSON instruction + lenient Zod validation.
-      output_config: { effort: 'low' },
     }),
   });
 
@@ -115,7 +114,6 @@ export async function callClaudeText({ apiKey, model, system, messages, maxToken
       max_tokens: maxTokens,
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       messages,
-      output_config: { effort: 'low' },
     }),
   });
   if (!res.ok) {

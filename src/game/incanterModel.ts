@@ -88,9 +88,14 @@ export interface IncanterModel {
   /** Staff glow colour + intensity (the last Incantation's colour, pulsing on cast). */
   glow(color: THREE.ColorRepresentation, intensity: number): void;
   update(dt: number, runSpeed: number): void;
+  updateAppearance?(desc: string): void;
 }
 
 export async function loadIncanterModel(entry: ManifestModel, height: number): Promise<IncanterModel> {
+  // AI Character Generator: Fetch live appearance description from window or localStorage
+  const rawDesc = (window as any).__INCANTER_APPEARANCE__ || localStorage.getItem("incant.appearance") || "";
+  console.log("[AI Character Generator] Generating model from description:", rawDesc);
+
   const t = await loadTemplate(entry);
   const model = SkeletonUtils.clone(t.root) as THREE.Group;
   const s = height / t.height;
@@ -104,6 +109,7 @@ export async function loadIncanterModel(entry: ManifestModel, height: number): P
     o.frustumCulled = false;
     const own = ([] as THREE.Material[]).concat(o.material).map((m) => {
       const c = m.clone() as THREE.MeshPhongMaterial;
+      if (!c.name) c.name = "robe_cloth";
       materials.push(c);
       return c;
     });
@@ -123,6 +129,35 @@ export async function loadIncanterModel(entry: ManifestModel, height: number): P
   });
   const orbMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color('#7cd6ff').multiplyScalar(3), toneMapped: false });
   const orb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 8), orbMaterial);
+
+  // Apply appearance on spawn
+  const liveDesc = (window as any).__INCANTER_APPEARANCE__ || localStorage.getItem("incant.appearance") || "";
+  if (liveDesc) {
+    const desc = liveDesc.toLowerCase();
+    let baseHex = "#3b82f6";
+    let orbHex = "#7cd6ff";
+    if (desc.includes("bunny") || desc.includes("rabbit") || desc.includes("pink")) { baseHex = "#f472b6"; orbHex = "#fda4af"; }
+    else if (desc.includes("kid") || desc.includes("child") || desc.includes("gold") || desc.includes("yellow")) { baseHex = "#f59e0b"; orbHex = "#fef08a"; }
+    else if (desc.includes("crimson") || desc.includes("red") || desc.includes("blood")) { baseHex = "#ef4444"; orbHex = "#fca5a5"; }
+    else if (desc.includes("emerald") || desc.includes("green") || desc.includes("forest")) { baseHex = "#10b981"; orbHex = "#6ee7b7"; }
+    else if (desc.includes("shadow") || desc.includes("dark") || desc.includes("black")) { baseHex = "#1f2937"; orbHex = "#c084fc"; }
+    else if (desc.length > 0) {
+      let hash = 0;
+      for (let i = 0; i < desc.length; i++) { hash = desc.charCodeAt(i) + ((hash << 5) - hash); }
+      const c = (hash & 0x00ffffff).toString(16).toUpperCase();
+      baseHex = "#" + "00000".substring(0, 6 - c.length) + c;
+    }
+    for (const m of materials) {
+      const name = (m.name || "").toLowerCase();
+      if (!/skin|face|eye|head/i.test(name)) {
+        m.color.set(baseHex);
+        m.needsUpdate = true;
+      }
+    }
+    if (orbMaterial && orbMaterial.color) {
+      orbMaterial.color.set(orbHex);
+    }
+  }
   // No PointLight: adding a light after load recompiles every shader in the scene (a stutter). Bloom does the glow.
   const tip = new THREE.Group();
   tip.add(orb);
@@ -135,6 +170,54 @@ export async function loadIncanterModel(entry: ManifestModel, height: number): P
 
   const object = new THREE.Group();
   object.add(model);
+
+  const aiRoot = new THREE.Group();
+  aiRoot.visible = false;
+  object.add(aiRoot);
+  let lastPrompt = "";
+
+  async function buildAiMesh(raw: string) {
+    const desc = (raw || "").trim();
+    if (!desc || desc.startsWith("#") || desc === lastPrompt) return;
+    lastPrompt = desc;
+    try {
+      console.log("[AI Character] Requesting 3D character from claude-opus-5-5:", desc);
+      const r = await fetch("/api/character", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ description: desc }),
+      });
+      if (!r.ok) return;
+      const spec = await r.json();
+      if (!Array.isArray(spec.parts) || !spec.parts.length) return;
+      while (aiRoot.children.length) aiRoot.remove(aiRoot.children[0]!);
+      materials.length = 0;
+      for (const p of spec.parts) {
+        let geo;
+        if (p.shape === "box") geo = new THREE.BoxGeometry(p.w, p.h, p.d);
+        else if (p.shape === "cylinder") geo = new THREE.CylinderGeometry(p.w / 2, p.d / 2, p.h, 12);
+        else if (p.shape === "cone") geo = new THREE.ConeGeometry(p.w / 2, p.h, 12);
+        else { geo = new THREE.SphereGeometry(0.5, 14, 12); geo.scale(p.w, p.h, p.d); }
+        const c = new THREE.Color(p.color || "#ffffff");
+        const mat = new THREE.MeshPhongMaterial({ color: c, ...(p.emissive ? { emissive: c } : {}) });
+        materials.push(mat);
+        const m = new THREE.Mesh(geo, mat);
+        m.castShadow = true;
+        m.position.set(p.x || 0, p.y || 0, p.z || 0);
+        m.rotation.set((p.rx || 0) * Math.PI / 180, (p.ry || 0) * Math.PI / 180, (p.rz || 0) * Math.PI / 180);
+        aiRoot.add(m);
+      }
+      if (spec.orbColor) glowColor.set(spec.orbColor);
+      model.visible = false;
+      aiRoot.visible = true;
+      console.log("[AI Character] Built 3D mesh with", spec.parts.length, "parts!");
+    } catch (e) {
+      console.warn("[AI Character] Error:", e);
+    }
+  }
+
+  const initPrompt = (window as any).__INCANTER_APPEARANCE__ || localStorage.getItem("incant.appearance") || "";
+  if (initPrompt) void buildAiMesh(initPrompt);
 
   const mixer = new THREE.AnimationMixer(model);
   const clips = Object.fromEntries(
@@ -178,31 +261,12 @@ export async function loadIncanterModel(entry: ManifestModel, height: number): P
         else m.emissive.set(color).multiplyScalar(strength);
       }
     },
-            colorize(robeColor, glowColor, glowIntensity) {
-      console.log("[Incanter] Applying appearance description:", robeColor, glowColor, glowIntensity);
-      const desc = (robeColor || "").toLowerCase();
-      
-      let baseHex = "#3b82f6"; 
-      let glowHex = "#60a5fa";
-      
-      if (desc.includes("crimson") || desc.includes("red") || desc.includes("ruby")) { baseHex = "#ef4444"; glowHex = "#f87171"; }
-      else if (desc.includes("gold") || desc.includes("yellow") || desc.includes("amber")) { baseHex = "#f59e0b"; glowHex = "#fbbf24"; }
-      else if (desc.includes("emerald") || desc.includes("green") || desc.includes("forest")) { baseHex = "#10b981"; glowHex = "#34d399"; }
-      else if (desc.includes("purple") || desc.includes("violet") || desc.includes("amethyst")) { baseHex = "#8b5cf6"; glowHex = "#a78bfa"; }
-      else if (desc.includes("dark") || desc.includes("shadow") || desc.includes("black")) { baseHex = "#1f2937"; glowHex = "#4b5563"; }
-      else if (desc.includes("cyan") || desc.includes("glowing") || desc.includes("blue")) { baseHex = "#06b6d4"; glowHex = "#22d3ee"; }
-
-      // Use glowHex and glowIntensity to satisfy compiler and apply glow tint if desired
-      if (glowHex) {
-        // active reference
-      }
-
-      for (const m of materials) {
-        const name = (m.name || "").toLowerCase();
-        if (!/skin|face|eye|hair/i.test(name)) {
-          m.color.set(baseHex);
-        }
-      }
+                            colorize(robeColor) {
+      const desc = (window as any).__INCANTER_APPEARANCE__ || localStorage.getItem("incant.appearance") || robeColor || "";
+      void buildAiMesh(desc);
+    },
+    updateAppearance(desc: string) {
+      void buildAiMesh(desc);
     },
     glow(color, intensity) {
       glowColor.set(color);

@@ -160,7 +160,12 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   let pendingAppearance: string | undefined;
   const wizard = models.resolve('rpg.wizard', 'character');
   if (wizard) {
-    loadIncanterModel(wizard, 1.75)
+    loadIncanterModel(wizard, 1.75).then((inc) => {
+      const incanter = inc as any;
+      const desc = (window as any).__START_SCREEN_APPEARANCE__ || (window as any).savedAppearance?.() || "dark robes with blue glow";
+      incanter.updateAppearance?.(desc);
+      return incanter;
+    })
       .then((m) => {
         incanter.attachModel(m);
         if (pendingAppearance) {

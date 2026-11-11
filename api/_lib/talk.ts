@@ -17,7 +17,7 @@ import { resolveMode, type Env } from './env.js';
  * or when the call fails, times out or is rate limited, the NPC answers from its written dialogue,
  * so talking always gets an in-character answer.
  */
-export const TALK_TIMEOUT_MS = 6_000;
+export const TALK_TIMEOUT_MS = 300_000;
 export const TALK_RATE_LIMIT = { requests: 40, windowMs: 10 * 60 * 1000 } as const;
 const MAX_REPLY_CHARS = 320;
 const MAX_TOKENS = 220;

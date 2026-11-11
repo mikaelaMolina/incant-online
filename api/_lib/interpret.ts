@@ -5,7 +5,7 @@ import { callLlm, LlmError } from './llm/client.js';
 import { resolveMode, type Env } from './env.js';
 import { allowRequest } from './rateLimit.js';
 
-export const TIMEOUT_MS = 8_000;
+export const TIMEOUT_MS = 300_000;
 
 export interface InterpretOptions {
   env: Env;
@@ -40,6 +40,7 @@ export async function interpret(body: unknown, opts: InterpretOptions): Promise<
     return finish(mockInterpret(text, context ?? {}), 'mock', 'mock');
   }
 
+  log(`llm mode: calling Claude model=${cfg.model} for: "${text.slice(0, 60)}"`);
   // LLM mode: one call, one retry on a parse failure or retryable error, then the cache.
   // One 8 s budget covers both attempts.
   const controller = new AbortController();
@@ -56,18 +57,23 @@ export async function interpret(body: unknown, opts: InterpretOptions): Promise<
           signal: deadline,
           ...(opts.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
         });
+        log(`attempt ${attempt}: got raw response, validating…`);
         const parsed = InterpretResponse.safeParse(raw);
-        if (parsed.success) return { ...parsed.data, mode: 'llm', source: 'llm' };
-        log(`attempt ${attempt}: response did not validate`);
+        if (parsed.success) {
+          log(`attempt ${attempt}: validated OK, intent=${parsed.data.intent}`);
+          return { ...parsed.data, mode: 'llm', source: 'llm' };
+        }
+        log(`attempt ${attempt}: response did not validate — ${JSON.stringify(raw).slice(0, 200)}`);
       } catch (err) {
         const retryable = err instanceof LlmError ? err.retryable : !deadline.aborted;
-        log(`attempt ${attempt}: ${err instanceof Error ? err.message : String(err)}`);
+        log(`attempt ${attempt}: ERROR — ${err instanceof Error ? err.message : String(err)}`);
         if (!retryable || deadline.aborted) break;
       }
     }
   } finally {
     clearTimeout(timer);
   }
+  log(`falling back to cache (aborted=${deadline.aborted})`);
   return fromCache(text, context, 'llm', deadline.aborted ? 'timeout' : 'llm-error');
 }
 

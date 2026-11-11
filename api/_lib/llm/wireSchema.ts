@@ -1,5 +1,5 @@
 import { ELEMENTS, INCANTATION_SHAPES, INCANTATION_TYPES, PARTICLES, STATUS_KINDS } from '../../../src/schemas/incantationSpec.js';
-import { FLOOR_BIOMES, FLOOR_SIZES, TIMES_OF_DAY } from '../../../src/schemas/floorSpec.js';
+import { FLOOR_BIOMES, FLOOR_SIZES, TIMES_OF_DAY, GENERATED_SHAPES, GENERATED_MATERIALS } from '../../../src/schemas/floorSpec.js';
 import { ENEMY_ARCHETYPES } from '../../../src/schemas/enemySpec.js';
 
 /**
@@ -56,6 +56,24 @@ const floor = obj({
   props: {
     type: 'array',
     items: obj({ model: str, x: numSchema, z: numSchema, rotation: numSchema, scale: numSchema, tint: nullable(str) }),
+  },
+  generated_props: {
+    type: 'array',
+    items: obj({
+      shape: enumOf(GENERATED_SHAPES),
+      width: numSchema,
+      height: numSchema,
+      depth: numSchema,
+      x: numSchema,
+      y: numSchema,
+      z: numSchema,
+      rotation_y: numSchema,
+      color: str,
+      material: enumOf(GENERATED_MATERIALS),
+      emissive_intensity: numSchema,
+      collidable: { type: 'boolean' },
+      label: str,
+    }),
   },
   spawns: { type: 'array', items: obj({ enemy, count: int }) },
 });

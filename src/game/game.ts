@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createPhysicsWorld, FIXED_DT } from './physics';
 import { Input } from './input';
 import { FollowCamera } from './camera';
-import { loadIncanterModel } from './incanterModel';
+import { loadIncanterModel, appearancePalette } from './incanterModel';
 import { Incanter } from './player';
 import { Progression, XP_FOR, planWaves, spawnsForFloor, xpToNext } from './progression';
 import { VILLAGE_SUBTITLE, storySubtitle, storyLineForFloor } from './story';
@@ -91,6 +91,8 @@ export interface GameController {
   restAtInn(): boolean;
   /** An NPC cheers (a quest they gave was completed). */
   cheerNpc(role: string): void;
+  /** Apply a free-text appearance description to tint the Incanter's model. */
+  applyAppearance(description: string): void;
   /** Event callbacks set by the UI layer. */
   readonly hooks: GameHooks;
 }
@@ -154,11 +156,18 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
   scene.add(incanter.object);
   incanter.setSpawn(floor.spawn);
   // The animated wizard body loads in the background; the capsule stands in until then (or if it fails).
+  // If applyAppearance() was called before the model loaded, pendingAppearance queues it.
+  let pendingAppearance: string | undefined;
   const wizard = models.resolve('rpg.wizard', 'character');
   if (wizard) {
     loadIncanterModel(wizard, 1.75)
       .then((m) => {
         incanter.attachModel(m);
+        if (pendingAppearance) {
+          const { robeColor, glowColor, glowIntensity } = appearancePalette(pendingAppearance);
+          incanter.applyAppearancePalette(robeColor, glowColor, glowIntensity);
+          pendingAppearance = undefined;
+        }
         void precompile();
       })
       .catch((err: unknown) => console.warn('Incanter model failed to load; keeping the placeholder.', err));
@@ -872,6 +881,15 @@ export async function startGame(canvas: HTMLCanvasElement, hud: HTMLElement): Pr
     },
     cheerNpc(role) {
       for (const n of npcs) if (n.role === role) n.cheer();
+    },
+    applyAppearance(description) {
+      const { robeColor, glowColor, glowIntensity } = appearancePalette(description);
+      if (incanter.hasModel()) {
+        incanter.applyAppearancePalette(robeColor, glowColor, glowIntensity);
+      } else {
+        // Model hasn't loaded yet — queue it.
+        pendingAppearance = description;
+      }
     },
     hooks,
   };

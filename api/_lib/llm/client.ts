@@ -1,4 +1,3 @@
-import { INTERPRET_JSON_SCHEMA } from './wireSchema.js';
 import { SYSTEM_PROMPT } from './prompt.js';
 
 /**
@@ -6,7 +5,7 @@ import { SYSTEM_PROMPT } from './prompt.js';
  * our licence allow-list). Returns the model's JSON object, or throws; the caller falls back.
  */
 export const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-export const ANTHROPIC_VERSION = '2026-10-21';
+export const ANTHROPIC_VERSION = '2023-06-01';
 const MAX_TOKENS = 6000; // a 40-prop floor is ~3-4k tokens of JSON
 
 export class LlmError extends Error {
@@ -22,7 +21,7 @@ export interface LlmCall {
   apiKey: string;
   model: string;
   text: string;
-  context?: { incantation?: unknown; floor?: unknown; storyContext?: string | undefined } | undefined;
+  context?: { incantation?: unknown; floor?: unknown; storyContext?: string | undefined; characterDescription?: string | undefined } | undefined;
   signal: AbortSignal;
   fetchImpl?: typeof fetch;
 }
@@ -33,8 +32,22 @@ interface MessagesResponse {
 }
 
 export async function callLlm({ apiKey, model, text, context, signal, fetchImpl = fetch }: LlmCall): Promise<unknown> {
-  const user = context && (context.incantation !== undefined || context.floor !== undefined || context.storyContext)
-    ? JSON.stringify({ player: text, context: { incantation: context.incantation, floor: context.floor, ...(context.storyContext ? { story: context.storyContext } : {}) } })
+  const hasContext = context && (
+    context.incantation !== undefined ||
+    context.floor !== undefined ||
+    context.storyContext ||
+    context.characterDescription
+  );
+  const user = hasContext
+    ? JSON.stringify({
+        player: text,
+        context: {
+          incantation: context.incantation,
+          floor: context.floor,
+          ...(context.storyContext ? { story: context.storyContext } : {}),
+          ...(context.characterDescription ? { characterDescription: context.characterDescription } : {}),
+        },
+      })
     : JSON.stringify({ player: text });
 
   const res = await fetchImpl(ANTHROPIC_URL, {
@@ -48,19 +61,22 @@ export async function callLlm({ apiKey, model, text, context, signal, fetchImpl 
     body: JSON.stringify({
       model,
       max_tokens: MAX_TOKENS,
-      // Stable system prompt first so it can be cached across requests.
-      cache_control: { type: 'ephemeral' },
-      system: SYSTEM_PROMPT,
+      // System prompt as a content block so cache_control attaches correctly to it.
+      system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: user }],
-      // Low effort for latency (Forge < 6 s p90). Sampling parameters are not accepted by current models.
-      // No `thinking` field: several current models reject `disabled`, and LLM_MODEL can change.
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: INTERPRET_JSON_SCHEMA } },
+      // NOTE: output_config.format with json_schema is intentionally omitted — the full
+      // INTERPRET_JSON_SCHEMA exceeds Anthropic's grammar compilation limit and returns 400.
+      // Instead we rely on the system prompt's JSON instruction + lenient Zod validation.
+      output_config: { effort: 'low' },
     }),
   });
 
   if (!res.ok) {
+    // Log the response body in dev so API errors are visible.
+    let detail = '';
+    try { detail = ` — ${await res.text()}`; } catch { /* ignore */ }
     // 429 / 5xx / overloaded are worth one retry; 400 / 401 / 403 / 404 are not.
-    throw new LlmError(`Anthropic API ${res.status}`, res.status === 429 || res.status >= 500);
+    throw new LlmError(`Anthropic API ${res.status}${detail}`, res.status === 429 || res.status >= 500);
   }
   const body = (await res.json()) as MessagesResponse;
   if (body.stop_reason === 'refusal') throw new LlmError('refusal', false);
@@ -97,14 +113,16 @@ export async function callClaudeText({ apiKey, model, system, messages, maxToken
     body: JSON.stringify({
       model,
       max_tokens: maxTokens,
-      cache_control: { type: 'ephemeral' },
-      system,
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       messages,
-      // Low effort: conversation should feel immediate. No `thinking` field (see callLlm).
       output_config: { effort: 'low' },
     }),
   });
-  if (!res.ok) throw new LlmError(`Anthropic API ${res.status}`, res.status === 429 || res.status >= 500);
+  if (!res.ok) {
+    let detail = '';
+    try { detail = ` — ${await res.text()}`; } catch { /* ignore */ }
+    throw new LlmError(`Anthropic API ${res.status}${detail}`, res.status === 429 || res.status >= 500);
+  }
   const body = (await res.json()) as MessagesResponse;
   if (body.stop_reason === 'refusal') throw new LlmError('refusal', false);
   const text = body.content

@@ -1,4 +1,4 @@
-import type { Biome, FloorSize, TimeOfDay } from '../../../src/schemas/floorSpec.js';
+import type { Biome, FloorSize, TimeOfDay, GeneratedProp } from '../../../src/schemas/floorSpec.js';
 import { FLOOR_HALF_EXTENT } from '../../../src/schemas/floorSpec.js';
 import type { EnemySpec } from '../../../src/schemas/enemySpec.js';
 import { CREATURE_WORDS, monsterFor } from '../../../src/schemas/monsters.js';
@@ -11,6 +11,7 @@ export interface RawFloor {
   lighting: { time_of_day: TimeOfDay; fog_density: number; ambient_color: string };
   size: FloorSize;
   props: { model: string; x: number; z: number; rotation: number; scale: number; tint?: string }[];
+  generated_props: GeneratedProp[];
   spawns: { enemy: Omit<EnemySpec, 'phases'> & { phases: [] }; count: number }[];
 }
 
@@ -169,6 +170,341 @@ const ENEMY_ADJ: Record<Biome, string> = {
 
 const PROP_COUNT: Record<FloorSize, number> = { small: 26, medium: 40, large: 60 };
 
+// ─── Generative themes (non-biome worlds built from procedural primitives) ───────────────────
+
+type Rand = () => number;
+
+interface ThemePreset {
+  name: string;
+  time: TimeOfDay;
+  fog: number;
+  ambient: string;
+  build: (size: FloorSize, rand: Rand) => GeneratedProp[];
+}
+
+/** Shorthand helpers for building GeneratedProp objects. */
+function box(label: string, x: number, y: number, z: number, w: number, h: number, d: number, color: string, material: GeneratedProp['material'] = 'solid', extra: Partial<GeneratedProp> = {}): GeneratedProp {
+  return { shape: 'box', x, y: y + h / 2, z, width: w, height: h, depth: d, rotation_y: 0, color, material, emissive_intensity: 2, collidable: true, label, ...extra };
+}
+function cyl(label: string, x: number, y: number, z: number, r: number, h: number, color: string, material: GeneratedProp['material'] = 'solid', extra: Partial<GeneratedProp> = {}): GeneratedProp {
+  return { shape: 'cylinder', x, y: y + h / 2, z, width: r, height: h, depth: r, rotation_y: 0, color, material, emissive_intensity: 2, collidable: true, label, ...extra };
+}
+
+/** Subway station platform. */
+function subwayTheme(): ThemePreset {
+  return {
+    name: 'The Underground Station',
+    time: 'night',
+    fog: 0.3,
+    ambient: '#3a4a6a',
+    build(size) {
+      const half = FLOOR_HALF_EXTENT[size];
+      const W = half * 2 - 2;
+      const D = half * 2 - 2;
+      const H = 5; // ceiling height
+      const props: GeneratedProp[] = [];
+
+      // Platform floor (slightly raised concrete slab)
+      props.push(box('platform', 0, 0, 0, W, 0.3, D, '#888888', 'rough'));
+
+      // Walls
+      props.push(box('wall_north', 0, 0.3, -(half - 1), W, H, 0.4, '#6a6a7a', 'rough'));
+      props.push(box('wall_south', 0, 0.3, (half - 1), W, H, 0.4, '#6a6a7a', 'rough'));
+      props.push(box('wall_east',  (half - 1), 0.3, 0, 0.4, H, D, '#6a6a7a', 'rough'));
+      props.push(box('wall_west', -(half - 1), 0.3, 0, 0.4, H, D, '#6a6a7a', 'rough'));
+
+      // Ceiling
+      props.push(box('ceiling', 0, 0.3 + H - 0.2, 0, W, 0.3, D, '#555566', 'rough', { collidable: false }));
+
+      // Pillars down the centre aisle
+      const pillarSpacing = 4;
+      const pillarCount = Math.floor((W * 0.7) / pillarSpacing);
+      for (let i = -pillarCount; i <= pillarCount; i++) {
+        const px = i * pillarSpacing;
+        props.push(cyl('pillar', px, 0.3, -4, 0.3, H, '#aaaaaa', 'rough'));
+        props.push(cyl('pillar', px, 0.3,  4, 0.3, H, '#aaaaaa', 'rough'));
+      }
+
+      // Neon strip lights along the ceiling
+      const stripCount = Math.ceil(W / 5);
+      for (let i = 0; i < stripCount; i++) {
+        const lx = -W / 2 + 2.5 + i * 5;
+        props.push(box('light_strip', lx, 0.3 + H - 0.4, 0, 1.5, 0.15, 0.15, '#fffde0', 'emissive', { collidable: false, emissive_intensity: 4 }));
+      }
+
+      // Benches
+      for (let i = -2; i <= 2; i++) {
+        props.push(box('bench', i * 5, 0.3, -6, 2.5, 0.5, 0.5, '#555555', 'rough'));
+        props.push(box('bench', i * 5, 0.3,  6, 2.5, 0.5, 0.5, '#555555', 'rough'));
+      }
+
+      // Sign boards on walls
+      props.push(box('sign_n', 0, 0.3 + 2.5, -(half - 1.3), 5, 1, 0.1, '#001144', 'emissive', { collidable: false, emissive_intensity: 1.5 }));
+      props.push(box('sign_s', 0, 0.3 + 2.5, (half - 1.3), 5, 1, 0.1, '#001144', 'emissive', { collidable: false, emissive_intensity: 1.5 }));
+
+      // Yellow safety edge strip
+      props.push(box('edge_n', 0, 0.3, -(half / 2), W * 0.5, 0.05, 0.4, '#ffdd00', 'emissive', { collidable: false, emissive_intensity: 2 }));
+      props.push(box('edge_s', 0, 0.3, (half / 2), W * 0.5, 0.05, 0.4, '#ffdd00', 'emissive', { collidable: false, emissive_intensity: 2 }));
+
+      return props;
+    },
+  };
+}
+
+/** Neon city street. */
+function neonCityTheme(): ThemePreset {
+  return {
+    name: 'The Neon Boulevard',
+    time: 'night',
+    fog: 0.45,
+    ambient: '#1a0a2a',
+    build(size, rand) {
+      const half = FLOOR_HALF_EXTENT[size];
+      const props: GeneratedProp[] = [];
+      const neonColors = ['#ff0077', '#00ffcc', '#ffcc00', '#8844ff', '#00aaff', '#ff4400'];
+      const pick = (arr: string[]) => arr[Math.floor(rand() * arr.length)]!;
+
+      // Road surface
+      props.push(box('road', 0, -0.01, 0, half * 2 - 2, 0.05, 8, '#222233', 'rough', { collidable: false }));
+
+      // Pavements
+      props.push(box('pavement_l', 0, 0, -8, half * 2 - 2, 0.15, 4, '#333344', 'rough'));
+      props.push(box('pavement_r', 0, 0, 8, half * 2 - 2, 0.15, 4, '#333344', 'rough'));
+
+      // Building facades on each side
+      const buildingCount = Math.floor(half / 5);
+      for (let i = 0; i < buildingCount; i++) {
+        const bx = -half + 4 + i * (half * 1.8 / buildingCount);
+        const bh = 6 + rand() * 8;
+        const bw = 3 + rand() * 2;
+        props.push(box('building', bx, 0.15, -(half - 2), bw, bh, 2, '#1a1a2a', 'rough'));
+        props.push(box('building', bx, 0.15,  (half - 2), bw, bh, 2, '#1a1a2a', 'rough'));
+        // Neon signs on buildings
+        const sc = pick(neonColors);
+        props.push(box('sign', bx, 0.15 + bh * 0.6, -(half - 2.1), bw * 0.6, 0.6, 0.1, sc, 'emissive', { collidable: false, emissive_intensity: 5 }));
+        props.push(box('sign', bx, 0.15 + bh * 0.6,  (half - 2.1), bw * 0.6, 0.6, 0.1, sc, 'emissive', { collidable: false, emissive_intensity: 5 }));
+        // Windows
+        for (let j = 1; j <= 3; j++) {
+          const wc = rand() > 0.6 ? pick(neonColors) : '#fffde0';
+          props.push(box('window', bx, 0.15 + j * 1.5, -(half - 1.9), 0.6, 0.6, 0.05, wc, 'glass', { collidable: false }));
+          props.push(box('window', bx, 0.15 + j * 1.5,  (half - 1.9), 0.6, 0.6, 0.05, wc, 'glass', { collidable: false }));
+        }
+      }
+
+      // Lamp posts
+      const lampCount = Math.floor(half / 4);
+      for (let i = 0; i < lampCount; i++) {
+        const lx = -half + 3 + i * ((half * 1.8) / lampCount);
+        props.push(cyl('lamppost', lx, 0.15, -10, 0.08, 4, '#888888', 'metal'));
+        props.push(box('lamp_l', lx, 0.15 + 4, -10, 0.4, 0.3, 0.3, '#ffffcc', 'emissive', { collidable: false, emissive_intensity: 4 }));
+        props.push(cyl('lamppost', lx, 0.15, 10, 0.08, 4, '#888888', 'metal'));
+        props.push(box('lamp_r', lx, 0.15 + 4, 10, 0.4, 0.3, 0.3, '#ffffcc', 'emissive', { collidable: false, emissive_intensity: 4 }));
+      }
+
+      return props;
+    },
+  };
+}
+
+/** Sci-fi corridor / space station. */
+function scifiTheme(): ThemePreset {
+  return {
+    name: 'The Orbital Corridor',
+    time: 'night',
+    fog: 0.2,
+    ambient: '#0a1a2a',
+    build(size, rand) {
+      const half = FLOOR_HALF_EXTENT[size];
+      const W = half * 2 - 2;
+      const H = 4.5;
+      const props: GeneratedProp[] = [];
+
+      // Metal floor
+      props.push(box('floor', 0, -0.1, 0, W, 0.2, W, '#1a2a3a', 'metal', { collidable: false }));
+
+      // Walls
+      props.push(box('wall_n', 0, 0, -(half - 1), W, H, 0.5, '#1e2e3e', 'metal'));
+      props.push(box('wall_s', 0, 0,  (half - 1), W, H, 0.5, '#1e2e3e', 'metal'));
+      props.push(box('wall_e',  (half - 1), 0, 0, 0.5, H, W, '#1e2e3e', 'metal'));
+      props.push(box('wall_w', -(half - 1), 0, 0, 0.5, H, W, '#1e2e3e', 'metal'));
+
+      // Ceiling panels
+      props.push(box('ceiling', 0, H - 0.2, 0, W, 0.3, W, '#151f2f', 'metal', { collidable: false }));
+
+      // Ceiling light strips
+      const stripCount = Math.ceil(W / 5);
+      for (let i = 0; i < stripCount; i++) {
+        const lx = -W / 2 + 2 + i * (W / stripCount);
+        const lc = rand() > 0.8 ? '#ff4422' : '#44aaff';
+        props.push(box('ceiling_light', lx, H - 0.1, 0, 2, 0.1, 0.2, lc, 'emissive', { collidable: false, emissive_intensity: 3 }));
+      }
+
+      // Consoles / terminals along walls
+      const consoleCount = Math.floor(half / 4);
+      for (let i = 0; i < consoleCount; i++) {
+        const cx = -half + 3 + i * ((W * 0.8) / consoleCount);
+        props.push(box('console', cx, 0, -(half - 1.5), 1.2, 1.2, 0.5, '#112233', 'metal'));
+        props.push(box('screen', cx, 0, -(half - 1.3), 0.9, 0.7, 0.05, rand() > 0.5 ? '#00ffcc' : '#ff4422', 'emissive', { collidable: false, emissive_intensity: 2 }));
+      }
+
+      // Pillars with glowing bands
+      const pillarPositions = [[-half * 0.5, -half * 0.4], [-half * 0.5, half * 0.4], [half * 0.5, -half * 0.4], [half * 0.5, half * 0.4]] as const;
+      for (const [px, pz] of pillarPositions) {
+        props.push(box('pillar', px, 0, pz, 0.6, H, 0.6, '#1e2e3e', 'metal'));
+        props.push(box('pillar_band', px, 0, pz, 0.65, 0.2, 0.65, '#44aaff', 'emissive', { collidable: false, emissive_intensity: 3, y: H * 0.4 + 0.1 }));
+      }
+
+      // Crates / cover
+      for (let i = 0; i < 6; i++) {
+        const cr = rand() * 0.5 + 0.4;
+        const angle = rand() * Math.PI * 2;
+        const dist = 5 + rand() * (half - 8);
+        props.push(box('crate', Math.cos(angle) * dist, 0, Math.sin(angle) * dist, cr * 1.5, cr * 1.5, cr * 1.5, '#334455', 'metal'));
+      }
+
+      return props;
+    },
+  };
+}
+
+/** Library / archive. */
+function libraryTheme(): ThemePreset {
+  return {
+    name: 'The Vast Archive',
+    time: 'dusk',
+    fog: 0.2,
+    ambient: '#7a6a4a',
+    build(size, rand) {
+      const half = FLOOR_HALF_EXTENT[size];
+      const H = 6;
+      const props: GeneratedProp[] = [];
+
+      // Wooden floor
+      props.push(box('floor', 0, -0.05, 0, half * 2 - 2, 0.1, half * 2 - 2, '#8b6b3a', 'rough', { collidable: false }));
+
+      // Walls
+      props.push(box('wall_n', 0, 0, -(half - 1), half * 2 - 2, H, 0.5, '#7a5a2a', 'rough'));
+      props.push(box('wall_s', 0, 0,  (half - 1), half * 2 - 2, H, 0.5, '#7a5a2a', 'rough'));
+      props.push(box('wall_e',  (half - 1), 0, 0, 0.5, H, half * 2 - 2, '#7a5a2a', 'rough'));
+      props.push(box('wall_w', -(half - 1), 0, 0, 0.5, H, half * 2 - 2, '#7a5a2a', 'rough'));
+
+      // Ceiling
+      props.push(box('ceiling', 0, H - 0.15, 0, half * 2 - 2, 0.3, half * 2 - 2, '#6a4a1a', 'rough', { collidable: false }));
+
+      // Warm overhead lanterns
+      const lanternCount = Math.ceil((half * 2) / 6);
+      for (let i = 0; i < lanternCount; i++) {
+        for (let j = 0; j < lanternCount; j++) {
+          const lx = -half + 3 + i * ((half * 2 - 4) / (lanternCount - 1 || 1));
+          const lz = -half + 3 + j * ((half * 2 - 4) / (lanternCount - 1 || 1));
+          props.push(cyl('lantern', lx, H - 0.6, lz, 0.15, 0.4, '#ffcc88', 'emissive', { collidable: false, emissive_intensity: 3 }));
+        }
+      }
+
+      // Bookshelves as tall boxes in rows
+      const shelfRows = Math.floor(half / 4);
+      for (let i = 0; i < shelfRows; i++) {
+        const sx = -half + 4 + i * ((half * 1.6) / shelfRows);
+        props.push(box('shelf', sx, 0, -4, 1, H * 0.7, 4, '#5a3a1a', 'rough'));
+        props.push(box('shelf', sx, 0,  4, 1, H * 0.7, 4, '#5a3a1a', 'rough'));
+        // Books: colorful blocks on shelves
+        const bookColors = ['#8b2222', '#1a4a8b', '#2a7a2a', '#8b6b1a', '#6a1a8b'];
+        for (let k = 0; k < 4; k++) {
+          const bc = bookColors[Math.floor(rand() * bookColors.length)]!;
+          const bh = 0.25 + rand() * 0.15;
+          props.push(box('book', sx, 0, -4 - 1.5 + k * 0.6 + 0.3, 0.9, bh, 0.5, bc, 'solid', { collidable: false }));
+          props.push(box('book', sx, 0, 4 - 1.5 + k * 0.6 + 0.3, 0.9, bh, 0.5, bc, 'solid', { collidable: false }));
+        }
+      }
+
+      // Reading tables
+      for (let i = -1; i <= 1; i++) {
+        props.push(box('table', i * 5, 0, 0, 2.5, 0.8, 1.2, '#7a5a2a', 'rough'));
+        props.push(box('chair', i * 5 - 1.5, 0, 0.9, 0.6, 1.0, 0.6, '#5a3a1a', 'rough'));
+        props.push(box('chair', i * 5 + 1.5, 0, 0.9, 0.6, 1.0, 0.6, '#5a3a1a', 'rough'));
+        // Candle on table
+        props.push(cyl('candle', i * 5, 0.8, 0.2, 0.05, 0.25, '#ffe8aa', 'emissive', { collidable: false, emissive_intensity: 4 }));
+      }
+
+      return props;
+    },
+  };
+}
+
+/** Urban / city street. */
+function streetTheme(): ThemePreset {
+  return {
+    name: 'The Crumbling Street',
+    time: 'dusk',
+    fog: 0.3,
+    ambient: '#6a5a4a',
+    build(size, rand) {
+      const half = FLOOR_HALF_EXTENT[size];
+      const props: GeneratedProp[] = [];
+
+      // Pavement
+      props.push(box('pavement', 0, 0, 0, half * 2 - 2, 0.15, half * 2 - 2, '#888888', 'rough', { collidable: false }));
+
+      // Buildings
+      const buildingCount = Math.floor(half / 4);
+      for (let i = 0; i < buildingCount; i++) {
+        const bx = -half + 4 + i * ((half * 1.8) / buildingCount);
+        const bh = 5 + rand() * 6;
+        const bw = 3 + rand() * 2;
+        props.push(box('building', bx, 0.15, -(half - 2), bw, bh, 2, '#888878', 'rough'));
+        props.push(box('building', bx, 0.15,  (half - 2), bw, bh, 2, '#888878', 'rough'));
+        // Windows
+        for (let j = 1; j <= Math.floor(bh / 1.5); j++) {
+          if (rand() > 0.3) props.push(box('window', bx, 0.15 + j * 1.4, -(half - 1.9), 0.7, 0.7, 0.05, rand() > 0.5 ? '#fffde0' : '#888888', rand() > 0.5 ? 'emissive' : 'glass', { collidable: false, emissive_intensity: 1.5 }));
+          if (rand() > 0.3) props.push(box('window', bx, 0.15 + j * 1.4,  (half - 1.9), 0.7, 0.7, 0.05, rand() > 0.5 ? '#fffde0' : '#888888', rand() > 0.5 ? 'emissive' : 'glass', { collidable: false, emissive_intensity: 1.5 }));
+        }
+      }
+
+      // Lamp posts
+      const lampCount = Math.floor(half / 5);
+      for (let i = 0; i < lampCount; i++) {
+        const lx = -half + 4 + i * ((half * 1.8) / lampCount);
+        props.push(cyl('lamppost', lx, 0.15, -8, 0.1, 4.5, '#666666', 'metal'));
+        props.push(box('lamp', lx, 0.15 + 4.5, -8, 0.5, 0.3, 0.3, '#fffde0', 'emissive', { collidable: false, emissive_intensity: 3 }));
+        props.push(cyl('lamppost', lx, 0.15,  8, 0.1, 4.5, '#666666', 'metal'));
+        props.push(box('lamp', lx, 0.15 + 4.5, 8, 0.5, 0.3, 0.3, '#fffde0', 'emissive', { collidable: false, emissive_intensity: 3 }));
+      }
+
+      // Fire hydrant
+      for (let i = 0; i < 2; i++) {
+        const hx = (rand() - 0.5) * half;
+        props.push(cyl('hydrant', hx, 0.15, -9, 0.2, 0.7, '#cc2222', 'rough'));
+      }
+
+      // Rubbish / crates as cover
+      for (let i = 0; i < 5; i++) {
+        const cr = 0.5 + rand() * 0.5;
+        const angle = rand() * Math.PI * 2;
+        const dist = 5 + rand() * (half - 8);
+        props.push(box('crate', Math.cos(angle) * dist, 0.15, Math.sin(angle) * dist, cr * 1.5, cr, cr * 1.5, '#6a5a4a', 'rough'));
+      }
+
+      return props;
+    },
+  };
+}
+
+type ThemeKeywords = readonly string[];
+const THEME_MAP: ReadonlyArray<[ThemeKeywords, () => ThemePreset]> = [
+  [['subway', 'metro', 'underground station', 'tube', 'station*'], subwayTheme],
+  [['neon*', 'cyberpunk*', 'cyber city', 'neon city', 'neon district'], neonCityTheme],
+  [['sci-fi', 'scifi', 'space station', 'spacecraft', 'starship', 'spaceship', 'corridor*', 'orbital*', 'galactic*'], scifiTheme],
+  [['library*', 'archive*', 'bookshelf', 'bookshelv*', 'reading room'], libraryTheme],
+  [['street*', 'city*', 'urban*', 'town square', 'alley*', 'market*', 'bazaar*', 'plaza*', 'mall', 'office*', 'modern*'], streetTheme],
+];
+
+function detectTheme(words: readonly string[]): ThemePreset | null {
+  for (const [keywords, builder] of THEME_MAP) {
+    if (hasAny(words, keywords)) return builder();
+  }
+  return null;
+}
+
 export interface FloorSignals {
   biome?: Biome;
   softBiome?: Biome;
@@ -213,12 +549,17 @@ export function floorFromWords(text: string, words: readonly string[], forcedBio
   // "cozy", "warm": a warmer ambient light.
   const ambient = hasAny(words, ['cozy', 'cosy', 'warm*', 'homely']) ? '#ffc890' : AMBIENT[biome];
 
+  const theme = detectTheme(words);
+
   return {
-    name,
+    name: theme ? theme.name : name,
     biome,
-    lighting: { time_of_day: time, fog_density: fog, ambient_color: ambient },
+    lighting: theme
+      ? { time_of_day: theme.time, fog_density: theme.fog, ambient_color: theme.ambient }
+      : { time_of_day: time, fog_density: fog, ambient_color: ambient },
     size,
-    props: layoutProps(settlement ? SETTLEMENT_PALETTE : PALETTES[biome], size, rand),
+    props: theme ? [] : layoutProps(settlement ? SETTLEMENT_PALETTE : PALETTES[biome], size, rand),
+    generated_props: theme ? theme.build(size, rand) : [],
     spawns: spawnsFromWords(words, biome),
   };
 }

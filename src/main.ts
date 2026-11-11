@@ -8,7 +8,7 @@ import { SpeechInput } from './voice/speechInput';
 import { PushToTalk } from './voice/pushToTalk';
 import { UtterancePipeline } from './voice/pipeline';
 import { isAwakeningPhrase } from './voice/utterance';
-import { StartScreen } from './ui/startScreen';
+import { StartScreen, savedAppearance } from './ui/startScreen';
 import { CommandBar } from './ui/commandBar';
 import { Transcript } from './ui/transcript';
 import { NO_VOICE_MESSAGE, voiceErrorMessage } from './ui/voiceMessages';
@@ -20,7 +20,7 @@ import { TEST_INCANTATIONS } from './combat/testIncantations';
 import { GrimoirePanel } from './ui/grimoirePanel';
 import { ReshapeTransition } from './ui/transition';
 import { GatePrompt } from './ui/gatePrompt';
-import { Narrator } from './voice/narrator';
+import { Narrator, npcVoiceId } from './voice/narrator';
 import { ARBITER_LINES } from './voice/arbiterLines';
 import { sfx } from './audio/sfx';
 import { SoundToggle } from './ui/soundToggle';
@@ -160,10 +160,10 @@ if (canvas && hud) {
   const questLog = new QuestLog();
   const questTracker = new QuestTracker(hud);
 
-  /** An NPC's line: shown under their name and spoken (same voice as the Arbiter). */
+  /** An NPC's line: shown under their name and spoken (voice varies per NPC role). */
   const npcSay = (name: string, text: string): void => {
     transcript?.add('npc', text, name);
-    narrator.speak(text);
+    narrator.speak(text, npcVoiceId(name));
   };
   /** Recent exchanges per NPC (by floor and role), so a conversation has memory. */
   const talkHistory = new Map<string, { who: 'player' | 'npc'; text: string }[]>();
@@ -220,14 +220,19 @@ if (canvas && hud) {
   shopPanel.onClose = () => sfx.play('close');
 
   /** The router needs the game; it exists before entering so the start screen can build floor 1. */
-  const makeRouter = (g: GameController): CommandRouter =>
-    new CommandRouter({
+  // Greeting state: tracks which NPCs have already greeted the player this session, so the
+  // greeting is only delivered once (on the first time the player speaks to that NPC).
+  const greetedNpcs = new Set<string>(); // key = `${floorNumber}:${role}`
+
+  const makeRouter = (g: GameController): CommandRouter => {
+    return new CommandRouter({
       grimoire,
       currentFloor: () => g.currentFloor(),
       floorNumber: () => g.floorNumber(),
       loadFloor: (spec) => {
         questLog.leftFloor(g.floorNumber()); // a floor's unfinished quest stays behind with it
         questTracker.show(questLog.active);
+        greetedNpcs.clear(); // NPCs on the new floor haven't greeted the player yet
         return g.loadFloor(spec);
       },
       cast: (spec) => g.castIncantation(spec),
@@ -255,6 +260,7 @@ if (canvas && hud) {
       },
       onMode: (r) => modeLabel.set(r.offline ? 'offline' : (r.mode ?? 'offline')),
       nearGuide: () => g.nearGuide(),
+      characterDescription: () => startScreen?.appearance || savedAppearance() || undefined,
       talk: async (text: string) => {
         const role = g.nearestNpcRole() || 'Wanderer';
         // Village business by voice: "what do you sell?", "I'd like a room".
@@ -266,16 +272,46 @@ if (canvas && hud) {
           rest();
           return;
         }
-        npcSay(role, await npcReply(text, role, g.floorNumber(), g.inVillage()));
+        const floorNumber = g.floorNumber();
+        const village = g.inVillage();
+        const greetKey = `${floorNumber}:${role}`;
+        // First time the player speaks to this NPC: deliver greeting, then answer, then offer quest.
+        const isFirstContact = !greetedNpcs.has(greetKey);
+        if (isFirstContact) {
+          greetedNpcs.add(greetKey);
+          const greeting = village ? prologueGreeting(role) : guideGreeting(floorNumber);
+          npcSay(role, greeting);
+          // Queue quest offer after the greeting finishes speaking.
+          const offer = questLog.offerFrom(role, floorNumber, g.isGuardianFloor(), village);
+          if (offer) {
+            window.setTimeout(() => {
+              if (g.floorNumber() !== floorNumber || questLog.active) return;
+              questLog.accept(offer);
+              npcSay(role, offer.offer);
+              questTracker.show(questLog.active);
+              sfx.play('forge');
+            }, Math.min(9000, 1200 + greeting.length * 60));
+          }
+          // Don't also reply to their words on first contact — the greeting is enough.
+          return;
+        }
+        npcSay(role, await npcReply(text, role, floorNumber, village));
       },
     });
+  };
 
   startScreen.onEnter = () => {
     commandBar?.show();
     if (!speech.supported) transcript?.add('spire', NO_VOICE_MESSAGE);
     game?.setPaused(false);
     // The prologue: the Arbiter's welcome, then the story of the village before the first battle.
-    arbiter(ARBITER_LINES.welcome);
+    // If the player described their appearance, the Arbiter weaves it into the greeting.
+    const appearance = startScreen?.appearance || savedAppearance();
+    if (appearance) {
+      arbiter(`${ARBITER_LINES.welcome} The Spire takes note of you: ${appearance}.`);
+    } else {
+      arbiter(ARBITER_LINES.welcome);
+    }
     window.setTimeout(() => arbiter(PROLOGUE_NARRATION), 7500);
     const g = game;
     const r = router;
@@ -323,22 +359,9 @@ if (canvas && hud) {
     };
     g.hooks.onGuideEnter = (role) => {
       if (role !== 'Merchant') shopPanel.show(false);
-      const floorNumber = g.floorNumber();
-      const village = g.inVillage();
-      const greeting = village ? prologueGreeting(role) : guideGreeting(floorNumber);
-      npcSay(role, greeting);
-      // An NPC with a task offers it once the greeting has been said.
-      const offer = questLog.offerFrom(role, floorNumber, g.isGuardianFloor(), village);
-      if (offer) {
-        window.setTimeout(() => {
-          if (g.floorNumber() !== floorNumber || questLog.active) return;
-          questLog.accept(offer);
-          npcSay(role, offer.offer);
-          questTracker.show(questLog.active);
-          sfx.play('forge');
-        }, Math.min(9000, 1200 + greeting.length * 60));
-      }
+      // No auto-greeting: the NPC waits until the player speaks (V / type). Badge shows "· V talk".
     };
+    // Unused stubs removed — greeting is now handled inside the talk callback (makeRouter).
     /** A quest event: progress the tracker, or reward a finished quest. */
     const questEvent = (done: Quest | undefined): void => {
       if (!done) {
@@ -367,6 +390,9 @@ if (canvas && hud) {
       g.setBar(grimoire.bar.map((j) => j?.incantation));
       router = makeRouter(g);
       startScreen?.setReady();
+      // Apply the player's appearance description to tint the character model.
+      const desc = startScreen?.appearance || savedAppearance();
+      if (desc) g.applyAppearance(desc);
       if (pendingWorld !== undefined) {
         const text = pendingWorld;
         pendingWorld = undefined;

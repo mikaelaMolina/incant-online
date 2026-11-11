@@ -160,6 +160,16 @@ export class Incanter {
     this.model = model;
   }
 
+  /** Apply a robe/glow color palette from the player's appearance description. */
+  applyAppearancePalette(robeColor: string, glowColor: string, glowIntensity: number): void {
+    this.model?.colorize(robeColor, glowColor, glowIntensity);
+  }
+
+  /** Whether the animated model has been attached yet. */
+  hasModel(): boolean {
+    return this.model !== undefined;
+  }
+
   /** World position of the staff tip (falls back to chest height in front of the Incanter). */
   staffTip(out = new THREE.Vector3()): THREE.Vector3 {
     if (this.model) return this.model.staffTip(out);

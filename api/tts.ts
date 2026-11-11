@@ -1,6 +1,11 @@
 import { resolveTts, synthesize } from './_lib/tts.js';
 import { serverEnv } from './_lib/env.js';
 
+import { interpret } from './_lib/interpret.js';
+import { resolveMode, serverEnv } from './_lib/env.js';
+
+export const maxDuration = 60; // Allow up to 60s on Vercel
+
 /**
  * Vercel serverless function: the Arbiter's cloud voice.
  * GET  /api/tts → { enabled }           (the client uses its browser voice when false)

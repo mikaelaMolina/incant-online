@@ -17,6 +17,7 @@ import {
   Swords,
   Tent,
   Trees,
+  User,
   UserX,
   WandSparkles,
   type IconNode,
@@ -25,6 +26,27 @@ import { icon } from './icons';
 import { MIC_ICON } from './micIcon';
 import { MAX_UTTERANCE_LENGTH } from '../voice/utterance';
 import type { VoiceMode, VoiceState } from '../voice/speechInput';
+
+const APPEARANCE_KEY = 'incant.appearance';
+
+/** Load the saved character description (from a previous session). */
+export function savedAppearance(): string {
+  try {
+    return localStorage.getItem(APPEARANCE_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/** Save the character description to localStorage. */
+export function saveAppearance(text: string): void {
+  try {
+    if (text.trim()) localStorage.setItem(APPEARANCE_KEY, text.trim());
+    else localStorage.removeItem(APPEARANCE_KEY);
+  } catch {
+    // storage blocked: description is used for this session only
+  }
+}
 
 /** One-click starting worlds: still the player's words, just pre-written. */
 const QUICK_WORLDS = ['a frozen castle', 'a misty forest at night', 'desert ruins at dusk'] as const;
@@ -98,11 +120,16 @@ export class StartScreen {
   private readonly heard: HTMLParagraphElement;
   private readonly status: HTMLParagraphElement;
   private readonly permission: HTMLSpanElement;
+  private readonly appearanceInput: HTMLInputElement;
   private entering = false;
   private busy = false;
   onEnter: (() => void) | undefined;
   /** The player described a world (typed, or a quick pick). Spoken words arrive through the voice pipeline. */
   onWorld: ((text: string) => void) | undefined;
+  /** Current character appearance description. */
+  get appearance(): string {
+    return this.appearanceInput.value.trim();
+  }
 
   constructor(parent: HTMLElement, voiceMode: VoiceMode) {
     this.el.className = 'start-screen';
@@ -153,6 +180,13 @@ export class StartScreen {
           <p class="start-status" aria-live="polite">Loading…</p>
         </section>
 
+        <details class="card start-appearance">
+          <summary class="start-appearance-toggle">${icon(User, 15)} Your Incanter's appearance <span class="start-appearance-hint">(optional)</span></summary>
+          <label class="start-appearance-label" for="start-appearance-input">Describe how your Incanter looks — the Spire and its inhabitants will remember.</label>
+          <input id="start-appearance-input" class="input start-appearance-input" type="text" spellcheck="true"
+            maxlength="200" placeholder="tall, dark robes, silver hair, glowing eyes…" />
+        </details>
+
         <div class="start-steps">
           <div class="start-step forge">${icon(Flame, 22)}<strong>Forge</strong><span>“fire spin”</span></div>
           <div class="start-step recite">${icon(WandSparkles, 22)}<strong>Recite</strong><span>say its name</span></div>
@@ -183,6 +217,17 @@ export class StartScreen {
     this.heard = this.el.querySelector('.start-heard') as HTMLParagraphElement;
     this.status = this.el.querySelector('.start-status') as HTMLParagraphElement;
     this.permission = this.el.querySelector('.start-permission') as HTMLSpanElement;
+    this.appearanceInput = this.el.querySelector('.start-appearance-input') as HTMLInputElement;
+
+    // Restore saved appearance from a previous session.
+    const saved = savedAppearance();
+    if (saved) {
+      this.appearanceInput.value = saved;
+      (this.el.querySelector('.start-appearance') as HTMLDetailsElement | null)?.setAttribute('open', '');
+    }
+    // Persist on change (not submit: so a quick-pick doesn't lose the typed appearance).
+    this.appearanceInput.addEventListener('input', () => saveAppearance(this.appearanceInput.value));
+    this.appearanceInput.addEventListener('keydown', (e) => e.stopPropagation()); // never moves the Incanter
 
     const form = this.el.querySelector('.start-world') as HTMLFormElement;
     form.addEventListener('submit', (e) => {
@@ -245,7 +290,7 @@ export class StartScreen {
   /** While a world is being built: inputs off so one description at a time goes through. */
   setBusy(busy: boolean): void {
     this.busy = busy;
-    for (const el of [this.input, this.buildButton, ...this.el.querySelectorAll<HTMLButtonElement>('.start-quick-pick, .start-build-choice, .start-pick')]) el.disabled = busy;
+    for (const el of [this.input, this.buildButton, this.appearanceInput, ...this.el.querySelectorAll<HTMLButtonElement>('.start-quick-pick, .start-build-choice, .start-pick')]) el.disabled = busy;
     // Not refocusing the text box here either: V would type instead of listening.
   }
 

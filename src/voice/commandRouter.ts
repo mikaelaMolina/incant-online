@@ -17,7 +17,7 @@ const INTERIM_DEDUPE_MS = 4000;
  * Floor build target is < 10 s end to end; the request gets most of it, the build the rest.
  * Covers the server's 8 s budget (LLM floors take 6–8 s; the server answers from its cache after that).
  */
-const GATE_REQUEST_BUDGET_MS = 8500;
+const GATE_REQUEST_BUDGET_MS = 300_000;
 /** At the gate, a second, explicit "build" request is only tried if the first came back this fast. */
 const GATE_REPHRASE_IF_UNDER_MS = 3500;
 /** Questions get an answer even at the gate ("what is this place?"). */
@@ -57,6 +57,8 @@ export interface RouterDeps {
   talk?(text: string): Promise<void>;
   /** Timing hook for the recite budget (< 500 ms from words to cast). */
   onRecite?(name: string, ms: number, fromInterim: boolean): void;
+  /** The player's character appearance description (from the start screen). */
+  characterDescription?(): string | undefined;
 }
 
 /**
@@ -175,9 +177,10 @@ export class CommandRouter {
     return this.withBusy(async () => {
       const base = refine ? this.deps.grimoire.last : undefined;
       const storyContext = storyContextForFloor(this.deps.floorNumber());
+      const characterDescription = this.deps.characterDescription?.() || undefined;
       const context: InterpretContext | undefined = refine
-        ? { ...(base ? { incantation: base } : {}), floor: this.deps.currentFloor(), storyContext }
-        : { storyContext };
+        ? { ...(base ? { incantation: base } : {}), floor: this.deps.currentFloor(), storyContext, ...(characterDescription ? { characterDescription } : {}) }
+        : { storyContext, ...(characterDescription ? { characterDescription } : {}) };
       const r = await requestInterpretation(text, context, this.avoid());
       this.deps.onMode?.(r);
       await this.apply(r, base, startedAt, text);
@@ -200,11 +203,13 @@ export class CommandRouter {
       if (!cached.ok) throw new Error('no cached floor'); // the cache is validated by tests
       return cached.value;
     };
+    const characterDescription = this.deps.characterDescription?.() || undefined;
+    const ctx = characterDescription ? { characterDescription } : undefined;
     this.prepared = (async (): Promise<FloorSpec> => {
-      let r = await requestInterpretation(text, undefined, { ...this.avoid(), want: 'floor', budgetMs: GATE_REQUEST_BUDGET_MS });
+      let r = await requestInterpretation(text, ctx, { ...this.avoid(), want: 'floor', budgetMs: GATE_REQUEST_BUDGET_MS });
       this.deps.onMode?.(r);
       if (r.intent !== 'build' || !r.floor) {
-        r = await requestInterpretation(`Build the next floor of the Spire: ${text}`, undefined, {
+        r = await requestInterpretation(`Build the next floor of the Spire: ${text}`, ctx, {
           ...this.avoid(),
           want: 'floor',
           budgetMs: GATE_REQUEST_BUDGET_MS,

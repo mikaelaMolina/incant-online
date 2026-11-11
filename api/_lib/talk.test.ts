@@ -35,9 +35,11 @@ describe('/api/talk', () => {
       { env: llmEnv, ip: '1', fetchImpl },
     );
     expect(r).toEqual({ reply: 'I keep the fire, Incanter. The gate waits for you.', mode: 'llm', source: 'llm' });
-    expect(sent.system).toContain('You are the Elder');
-    expect(sent.system).toContain(prologueGreeting('Elder'));
-    expect(sent.system).toContain('Never mention being an AI');
+    // system is now an array of content blocks for cache_control support.
+    const systemText = Array.isArray(sent.system) ? sent.system[0]?.text : sent.system;
+    expect(systemText).toContain('You are the Elder');
+    expect(systemText).toContain(prologueGreeting('Elder'));
+    expect(systemText).toContain('Never mention being an AI');
     expect(sent.messages).toEqual([
       { role: 'user', content: 'hello' },
       { role: 'assistant', content: 'Greetings.' },

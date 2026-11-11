@@ -69,15 +69,15 @@ export class Narrator {
     }
   }
 
-  /** Speak a line, replacing whatever the Arbiter was saying. */
-  speak(text: string): void {
+  /** Speak a line, replacing whatever the Arbiter was saying. `voiceId` selects a cloud voice. */
+  speak(text: string, voiceId?: string): void {
     const line = stripForSpeech(text);
     if (this.muted || !line || performance.now() < this.quietUntil) return;
     this.halt();
     const gen = ++this.generation;
     const file = this.prebaked.get(lineKey(line));
-    if (file && this.audio) void this.play(file, line, gen, () => (this.cloud ? this.speakCloud(line, gen) : this.speakBrowser(line)));
-    else if (this.cloud && this.audio) void this.speakCloud(line, gen);
+    if (file && this.audio) void this.play(file, line, gen, () => (this.cloud ? this.speakCloud(line, gen, voiceId) : this.speakBrowser(line)));
+    else if (this.cloud && this.audio) void this.speakCloud(line, gen, voiceId);
     else this.speakBrowser(line);
   }
 
@@ -107,24 +107,27 @@ export class Narrator {
     this.synth.speak(u);
   }
 
-  private async speakCloud(line: string, gen: number): Promise<void> {
+  private async speakCloud(line: string, gen: number, voiceId?: string): Promise<void> {
     const audio = this.audio;
     if (!audio) return;
-    let url = this.cache.get(line);
+    const cacheKey = voiceId ? `${voiceId}|${line}` : line;
+    let url = this.cache.get(cacheKey);
     if (!url) {
       const controller = new AbortController();
       this.pending = controller;
       const timer = setTimeout(() => controller.abort(), CLOUD_TIMEOUT_MS);
       try {
+        const body: Record<string, string> = { text: line };
+        if (voiceId) body['voiceId'] = voiceId;
         const res = await fetch(TTS_ENDPOINT, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ text: line }),
+          body: JSON.stringify(body),
           signal: controller.signal,
         });
         if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
         url = URL.createObjectURL(await res.blob());
-        this.remember(line, url);
+        this.remember(cacheKey, url);
         this.cloudFailures = 0;
       } catch {
         if (gen !== this.generation) return; // stopped or replaced: not a failure
@@ -164,8 +167,8 @@ export class Narrator {
     }
   }
 
-  private remember(line: string, url: string): void {
-    this.cache.set(line, url);
+  private remember(cacheKey: string, url: string): void {
+    this.cache.set(cacheKey, url);
     if (this.cache.size > CACHE_LINES) {
       const [oldest, oldUrl] = this.cache.entries().next().value as [string, string];
       this.cache.delete(oldest);
@@ -221,4 +224,23 @@ export function pickVoice(voices: readonly SpeechSynthesisVoice[]): SpeechSynthe
     return s;
   };
   return [...en].sort((a, b) => score(b) - score(a))[0] ?? voices[0];
+}
+
+// ---------------------------------------------------------------------------
+// NPC voice selection (ElevenLabs voice IDs, mirroring api/_lib/tts.ts pool)
+
+/** Voice IDs pinned to named NPC roles. Must match ROLE_VOICES in api/_lib/tts.ts. */
+const NPC_ROLE_VOICES: Record<string, string> = {
+  Elder:     'N2lVS1w4EtoT3dr4eOWO',
+  Knight:    'pqHfZKP75CvOlQylNhV4',
+  Villager:  'TX3LPaxmHKxFdv7VOQHJ',
+  Wanderer:  'Xb7hH8MSUJpSbSDYk0k2',
+  Merchant:  'TX3LPaxmHKxFdv7VOQHJ',
+  Innkeeper: 'pqHfZKP75CvOlQylNhV4',
+  Guide:     'Xb7hH8MSUJpSbSDYk0k2',
+};
+
+/** Returns the cloud voice ID for an NPC role, or undefined to use the default Arbiter voice. */
+export function npcVoiceId(role: string): string | undefined {
+  return NPC_ROLE_VOICES[role];
 }

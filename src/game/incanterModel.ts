@@ -6,6 +6,61 @@ import type { ManifestModel } from '../schemas/manifest';
 /** What the Incanter is doing this frame, decided by gameplay; the model picks the clip. */
 export type IncanterPose = 'idle' | 'run' | 'walk' | 'roll' | 'strike' | 'cast' | 'channel' | 'hit' | 'death';
 
+// ─── Appearance colour palette ────────────────────────────────────────────────
+
+/** Map color keywords in the appearance description to hex strings. */
+const COLOR_KEYWORDS: ReadonlyArray<[string, string]> = [
+  // Warm/dark
+  ['crimson', '#8b0000'], ['scarlet', '#8b0000'], ['red', '#8b2222'],
+  ['orange', '#8b4000'], ['amber', '#8b6200'],
+  ['gold', '#b8860b'], ['golden', '#b8860b'], ['yellow', '#b8b800'],
+  // Greens
+  ['green', '#2e6b2e'], ['emerald', '#1a6b4a'], ['jade', '#1a6b4a'], ['teal', '#1a5b6b'],
+  // Blues
+  ['blue', '#1a2e8b'], ['cobalt', '#1a2e8b'], ['sapphire', '#1a2e8b'], ['azure', '#1a4e8b'],
+  ['cyan', '#1a7a8b'], ['aqua', '#1a7a8b'],
+  // Purples
+  ['purple', '#5a1a8b'], ['violet', '#5a1a8b'], ['amethyst', '#6b2a8b'], ['lavender', '#7a4a9a'],
+  ['indigo', '#3a1a8b'], ['magenta', '#8b1a7a'], ['pink', '#8b2a6b'],
+  // Neutrals / darks
+  ['black', '#0a0a0a'], ['dark', '#1a1a2a'], ['shadow', '#1a1a2a'], ['void', '#0a0a1a'],
+  ['grey', '#4a4a5a'], ['gray', '#4a4a5a'], ['silver', '#8a8a9a'], ['ash', '#6a6a7a'],
+  // Whites / lights
+  ['white', '#e8e8f0'], ['ivory', '#e8e4d0'], ['pale', '#c8c8d8'], ['light', '#c8c8d8'],
+  // Browns / earthy
+  ['brown', '#6b3a1a'], ['bronze', '#7a4a1a'], ['copper', '#8b4a1a'], ['rust', '#7a3a1a'],
+  // Accent/magic
+  ['glow', '#6a4aff'], ['glowing', '#6a4aff'], ['arcane', '#6a4aff'], ['magic', '#6a4aff'],
+  ['ice', '#a0d0ff'], ['frost', '#a0d0ff'], ['frozen', '#a0d0ff'],
+  ['fire', '#ff4a1a'], ['flame', '#ff4a1a'], ['ember', '#ff6a1a'],
+  ['storm', '#5a7aff'], ['lightning', '#ffffaa'],
+];
+
+/** Extract a robe tint and optional emissive glow from a free-text appearance description. */
+export function appearancePalette(desc: string): { robeColor: string; glowColor: string; glowIntensity: number } {
+  const lower = desc.toLowerCase();
+  let robeColor = '#3a2a5a'; // default: dark purple robes
+  let glowColor = '#7cd6ff'; // default: blue staff glow
+  let hasGlow = false;
+
+  // The first color keyword found is the robe color; a "glow/glowing eyes/staff" one becomes the glow.
+  for (const [kw, hex] of COLOR_KEYWORDS) {
+    if (lower.includes(kw)) {
+      // If this keyword is associated with glow/magic and we don't have a glow yet, use it for glow.
+      if (!hasGlow && /glow|eye|staff|orb|arc|magic|spark|flame|frost|storm|lightning/i.test(lower.slice(lower.indexOf(kw) - 10, lower.indexOf(kw) + 20))) {
+        glowColor = hex;
+        hasGlow = true;
+      } else {
+        robeColor = hex;
+      }
+    }
+  }
+
+  // If the description mentions "glow" but no color was assigned to it yet, use robeColor as glow too.
+  const glowIntensity = hasGlow ? 2.5 : 1.2;
+  return { robeColor, glowColor, glowIntensity };
+}
+
 const CLIPS: Record<IncanterPose, string[]> = {
   idle: ['^idle_weapon$', '^idle$'],
   run: ['^run_weapon$', '^run$'],
@@ -28,6 +83,8 @@ export interface IncanterModel {
   play(pose: IncanterPose, duration?: number): void;
   /** Tint all materials (hit flash, ward, i-frames); null clears. */
   tint(color: THREE.ColorRepresentation | null, strength?: number): void;
+  /** Apply an appearance palette: sets the robe base color and staff glow. */
+  colorize(robeColor: string, glowColor: string, glowIntensity: number): void;
   /** Staff glow colour + intensity (the last Incantation's colour, pulsing on cast). */
   glow(color: THREE.ColorRepresentation, intensity: number): void;
   update(dt: number, runSpeed: number): void;
@@ -120,6 +177,18 @@ export async function loadIncanterModel(entry: ManifestModel, height: number): P
         if (color === null) m.emissive.setRGB(0, 0, 0);
         else m.emissive.set(color).multiplyScalar(strength);
       }
+    },
+    colorize(robeColor, glowColorHex, glowInt) {
+      // Tint every material's base color toward the robe color (multiply blend, 60%).
+      const robe = new THREE.Color(robeColor);
+      for (const m of materials) {
+        // Blend: lerp base white toward the robe color so light materials get a soft tint.
+        m.color.lerp(robe, 0.55);
+      }
+      // Set the initial staff glow to match the described look.
+      glowColor.set(glowColorHex);
+      glowIntensity = glowInt;
+      orbMaterial.color.copy(glowColor).multiplyScalar(1.2 + glowIntensity);
     },
     glow(color, intensity) {
       glowColor.set(color);

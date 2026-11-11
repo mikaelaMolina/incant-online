@@ -24,6 +24,8 @@ export const InterpretRequest = z.object({
       floor: z.unknown().optional(),
       /** Current chapter lore, so the LLM gives story-aware replies in llm mode. */
       storyContext: z.string().max(600).optional(),
+      /** Free-text description of the player character's appearance (from the start screen). */
+      characterDescription: z.string().max(200).optional(),
     })
     .optional()
     .catch(undefined),

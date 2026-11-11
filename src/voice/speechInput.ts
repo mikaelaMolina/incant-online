@@ -32,6 +32,12 @@ export class SpeechInput {
   private watchdog = 0;
   /** Is /api/stt (server speech to text) available? Unknown until the probe answers. */
   private stt: boolean | undefined;
+  /**
+   * Consecutive non-no-speech Web Speech failures. After 3 hard failures in the same session
+   * (network unavailable, service refused) we permanently switch to the recorder.
+   */
+  private webSpeechHardFailures = 0;
+  private static readonly WEBSPEECH_GIVE_UP = 3;
 
   constructor(private readonly events: SpeechInputEvents) {
     this.recognizer = this.create(webSpeechConstructor() ? 'webspeech' : recorderSupported() ? 'recorder' : 'none');
@@ -44,6 +50,7 @@ export class SpeechInput {
   /**
    * Ask the server whether it can transcribe recordings. Brave exposes the speech API but its
    * service never answers, so there the recorder is used straight away when the server can.
+   * Also switches if Web Speech has already hard-failed before the probe resolved.
    */
   private async probeStt(): Promise<void> {
     try {
@@ -52,9 +59,11 @@ export class SpeechInput {
     } catch {
       this.stt = false;
     }
+    if (!this.stt || !recorderSupported() || this.state !== 'idle') return;
     const brave = 'brave' in navigator;
-    if (this.stt && brave && this.recognizer?.kind === 'webspeech' && this.state === 'idle' && recorderSupported()) {
-      this.recognizer = this.create('recorder');
+    // Switch to recorder if: Brave (Web Speech is a no-op), or we already failed several times.
+    if (brave || this.webSpeechHardFailures >= SpeechInput.WEBSPEECH_GIVE_UP) {
+      if (this.recognizer?.kind === 'webspeech') this.recognizer = this.create('recorder');
     }
   }
 
@@ -110,10 +119,20 @@ export class SpeechInput {
         // capture audio): when the server can transcribe, switch to recording + /api/stt, which
         // reports its own, precise errors (a blocked or missing microphone too). Without /api/stt,
         // keep the browser's recognition and ask the player to speak again. Silence isn't a failure.
-        if (e !== 'no-speech' && this.recognizer?.kind === 'webspeech' && this.stt && recorderSupported()) {
-          this.recognizer = this.create('recorder');
-          this.events.onError('network'); // "the Spire will listen another way: speak again"
-          return;
+        if (e !== 'no-speech' && this.recognizer?.kind === 'webspeech') {
+          // Track hard failures (network / unavailable / not-allowed / audio-capture).
+          this.webSpeechHardFailures++;
+          const shouldSwitch =
+            recorderSupported() &&
+            (this.stt ||
+              // Always switch immediately on network/service errors if STT probe hasn't answered yet.
+              e === 'network' ||
+              this.webSpeechHardFailures >= SpeechInput.WEBSPEECH_GIVE_UP);
+          if (shouldSwitch) {
+            this.recognizer = this.create('recorder');
+            this.events.onError('network'); // "the Spire will listen another way: speak again"
+            return;
+          }
         }
         this.events.onError(e);
       },

@@ -65,6 +65,9 @@ export class WebSpeechRecognizer implements Recognizer {
   private finalText = '';
   private interimText = '';
   private failed = false;
+  /** Consecutive no-speech events: restart once to let the player take a breath between words. */
+  private noSpeechRetries = 0;
+  private static readonly MAX_NO_SPEECH_RETRIES = 1;
 
   constructor(
     private readonly Ctor: SpeechRecognitionCtor,
@@ -78,6 +81,7 @@ export class WebSpeechRecognizer implements Recognizer {
     this.finalText = '';
     this.interimText = '';
     this.failed = false;
+    this.noSpeechRetries = 0; // reset on every new press so a previous silence doesn't count against this one
     rec.lang = recognitionLang();
     rec.continuous = true;
     rec.interimResults = true;
@@ -97,6 +101,13 @@ export class WebSpeechRecognizer implements Recognizer {
     };
     rec.onerror = (e) => {
       if (e.error === 'aborted') return;
+      if (e.error === 'no-speech') {
+        // Brief silence between words — if the button is still held, restart once silently.
+        if (this.noSpeechRetries < WebSpeechRecognizer.MAX_NO_SPEECH_RETRIES) {
+          this.noSpeechRetries++;
+          return; // onend will fire and restart (we don't set failed, so onend re-opens)
+        }
+      }
       this.failed = true;
       this.ev.onError(mapSpeechError(e.error));
     };
@@ -104,10 +115,20 @@ export class WebSpeechRecognizer implements Recognizer {
       if (rec !== this.rec) return; // a newer press replaced this one
       this.rec = undefined;
       // Chrome sometimes leaves the last words as interim when stopped: keep them.
+      // Always deliver whatever was heard even when an error also fired — so speech captured
+      // before a no-speech timeout is not silently lost.
       const text = (this.finalText + this.interimText).trim();
-      if (text) this.ev.onFinal(text);
-      else if (!this.failed) this.ev.onError('no-speech');
-      this.ev.onIdle();
+      if (text) {
+        this.ev.onFinal(text);
+        this.ev.onIdle();
+      } else if (this.failed) {
+        // Error already fired; go idle without double-reporting.
+        this.ev.onIdle();
+      } else {
+        // No speech and no prior error.
+        this.ev.onError('no-speech');
+        this.ev.onIdle();
+      }
     };
 
     try {
@@ -120,10 +141,12 @@ export class WebSpeechRecognizer implements Recognizer {
   }
 
   stop(): void {
+    this.noSpeechRetries = 0;
     this.rec?.stop();
   }
 
   abort(): void {
+    this.noSpeechRetries = 0;
     const rec = this.rec;
     this.rec = undefined;
     rec?.abort();
@@ -150,7 +173,7 @@ function mapSpeechError(error: string): VoiceError {
 // --- MediaRecorder → /api/stt fallback -----------------------------------------------------------
 
 const MAX_RECORDING_MS = 15_000;
-const MIN_RECORDING_MS = 300;
+const MIN_RECORDING_MS = 150;
 const STT_TIMEOUT_MS = 8_000;
 const STT_ENDPOINT = '/api/stt';
 
@@ -256,11 +279,17 @@ export class RecorderRecognizer implements Recognizer {
         headers: { 'Content-Type': type },
         signal: this.request.signal,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const parsed = SttResponse.safeParse(await res.json());
-      const text = parsed.success ? parsed.data.text.trim() : '';
-      if (text) this.ev.onFinal(text);
-      else this.ev.onError(parsed.success ? 'no-speech' : 'unavailable');
+      if (res.status === 503) {
+        // STT backend not configured (no API key): fall back to no-speech so the player can type.
+        this.ev.onError('unavailable');
+      } else if (!res.ok) {
+        this.ev.onError('unavailable');
+      } else {
+        const parsed = SttResponse.safeParse(await res.json());
+        const text = parsed.success ? parsed.data.text.trim() : '';
+        if (text) this.ev.onFinal(text);
+        else this.ev.onError(parsed.success ? 'no-speech' : 'unavailable');
+      }
     } catch {
       this.ev.onError('unavailable');
     } finally {

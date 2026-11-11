@@ -8,7 +8,7 @@ const ENDPOINT = '/api/interpret';
  * if the LLM is slower); this only fires if the backend itself hangs, still in time for a floor to
  * be built in under 10 s.
  */
-const CLIENT_TIMEOUT_MS = 8_500;
+const CLIENT_TIMEOUT_MS = 300_000;
 /** Only retry if the first attempt failed fast enough that a second can still fit the budget. */
 const RETRY_IF_ELAPSED_UNDER_MS = 4_000;
 
@@ -19,6 +19,8 @@ export interface InterpretContext {
   floor?: unknown;
   /** Current chapter lore, so the LLM gives story-aware replies in llm mode. */
   storyContext?: string;
+  /** Free-text description of the player character's appearance. */
+  characterDescription?: string;
 }
 
 /** GET /api/interpret → which mode the backend runs in. "offline" if it can't be reached. */

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RAPIER } from './physics';
 import { BIOMES, TIMES, fogDensity } from './biomes';
 import { loadModel, type ModelIndex, type ModelTemplate } from './assets';
-import { FLOOR_HALF_EXTENT, type FloorSpec, type PropPlacement } from '../schemas/floorSpec';
+import { FLOOR_HALF_EXTENT, type FloorSpec, type GeneratedProp, type PropPlacement } from '../schemas/floorSpec';
 
 /** Props closer than this to the spawn point (with colliders) are pushed out, so the Incanter never spawns stuck. */
 const SPAWN_CLEAR_RADIUS = 3;
@@ -154,6 +154,17 @@ export async function buildFloor(spec: FloorSpec, ctx: FloorContext): Promise<Fl
     }
   }
 
+  // --- Generated props (procedural primitives for themes without manifest models) --------
+  if (spec.generated_props.length > 0) {
+    const { meshes, genColliders } = buildGeneratedProps(spec.generated_props, world);
+    for (const m of meshes) {
+      // Dispose the unique geometry per mesh; materials are shared and cached.
+      disposables.push(m.geometry);
+      group.add(m);
+    }
+    for (const c of genColliders) colliders.push(c);
+  }
+
   scene.add(group);
 
   return {
@@ -227,6 +238,153 @@ function createPropCollider(world: RAPIER.World, template: ModelTemplate, t: Pro
       .setTranslation(t.position.x, t.position.y, t.position.z)
       .setRotation(r),
   );
+}
+
+// ─── Generated props (procedural primitives) ────────────────────────────────
+
+/** Material cache: keyed by "material:color" so identical descriptions share one material. */
+const genMatCache = new Map<string, THREE.MeshStandardMaterial>();
+
+function genMaterial(color: string, material: GeneratedProp['material'], emissiveIntensity: number): THREE.MeshStandardMaterial {
+  const key = `${material}:${color}:${emissiveIntensity}`;
+  let mat = genMatCache.get(key);
+  if (mat) return mat;
+  const c = new THREE.Color(color);
+  switch (material) {
+    case 'metal':
+      mat = new THREE.MeshStandardMaterial({ color: c, metalness: 0.85, roughness: 0.25 });
+      break;
+    case 'glass':
+      mat = new THREE.MeshStandardMaterial({ color: c, metalness: 0.0, roughness: 0.05, transparent: true, opacity: 0.45 });
+      break;
+    case 'emissive':
+      mat = new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity, roughness: 1 });
+      break;
+    case 'rough':
+      mat = new THREE.MeshStandardMaterial({ color: c, roughness: 0.95, metalness: 0 });
+      break;
+    default: // 'solid'
+      mat = new THREE.MeshStandardMaterial({ color: c, roughness: 0.75, metalness: 0 });
+  }
+  genMatCache.set(key, mat);
+  return mat;
+}
+
+function genGeometry(g: GeneratedProp): THREE.BufferGeometry {
+  const { shape, width, height, depth } = g;
+  switch (shape) {
+    case 'cylinder':
+      return new THREE.CylinderGeometry(width, width, height, 12, 1);
+    case 'sphere':
+      return new THREE.SphereGeometry(width / 2, 10, 8);
+    case 'plane':
+      return new THREE.PlaneGeometry(width, depth);
+    case 'arch': {
+      // An arch: a torus segment standing upright (a half-torus). We approximate it with
+      // a bent tube: TorusGeometry(radius, tube, radialSeg, tubularSeg, arc).
+      const radius = width / 2;
+      const tube = Math.max(0.05, Math.min(depth / 2, radius * 0.25));
+      const geo = new THREE.TorusGeometry(radius, tube, 6, 12, Math.PI);
+      geo.rotateZ(Math.PI); // open end at the bottom
+      return geo;
+    }
+    case 'ramp': {
+      // A ramp: a right-angled triangle prism. Build via custom geometry.
+      const geo = new THREE.BufferGeometry();
+      const w = width / 2;
+      const h = height;
+      const d = depth / 2;
+      // 6 faces, 12 triangles. Vertices (position only; normals auto-computed).
+      const verts = new Float32Array([
+        // Bottom face
+        -w, 0, -d,  w, 0, -d,  w, 0,  d,
+        -w, 0, -d,  w, 0,  d, -w, 0,  d,
+        // Top-back edge → front base: slope face
+        -w, 0, -d,  w, h, -d,  w, 0, -d,
+        -w, 0, -d, -w, h, -d,  w, h, -d,
+        // Back wall
+        -w, 0, -d,  w, h, -d, -w, h, -d,
+        // Front base wall (vertical)
+        -w, 0,  d,  w, 0,  d,  w, h, -d, // degenerate but won't crash
+        // Left side
+        -w, 0, -d, -w, 0,  d, -w, h, -d,
+        // Right side
+         w, 0, -d,  w, h, -d,  w, 0,  d,
+      ]);
+      geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+      geo.computeVertexNormals();
+      return geo;
+    }
+    default: // 'box'
+      return new THREE.BoxGeometry(width, height, depth);
+  }
+}
+
+/**
+ * Build Three.js meshes and Rapier colliders for all GeneratedProps.
+ * Returns them without adding to scene (caller inserts into the floor group).
+ */
+function buildGeneratedProps(
+  props: GeneratedProp[],
+  world: RAPIER.World,
+): { meshes: THREE.Mesh[]; genColliders: RAPIER.Collider[] } {
+  const meshes: THREE.Mesh[] = [];
+  const genColliders: RAPIER.Collider[] = [];
+  const up = new THREE.Vector3(0, 1, 0);
+
+  for (const g of props) {
+    const geo = genGeometry(g);
+    const mat = genMaterial(g.color, g.material, g.emissive_intensity);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(g.x, g.y, g.z);
+    mesh.quaternion.setFromAxisAngle(up, THREE.MathUtils.degToRad(g.rotation_y));
+    mesh.castShadow = g.material !== 'glass';
+    mesh.receiveShadow = true;
+    if (g.label) mesh.name = g.label;
+    meshes.push(mesh);
+
+    if (!g.collidable) continue;
+
+    const rot = { x: mesh.quaternion.x, y: mesh.quaternion.y, z: mesh.quaternion.z, w: mesh.quaternion.w };
+    switch (g.shape) {
+      case 'cylinder':
+      case 'arch':
+        genColliders.push(
+          world.createCollider(
+            RAPIER.ColliderDesc.cylinder(g.height / 2, g.width)
+              .setTranslation(g.x, g.y, g.z)
+              .setRotation(rot),
+          ),
+        );
+        break;
+      case 'sphere':
+        genColliders.push(
+          world.createCollider(
+            RAPIER.ColliderDesc.ball(g.width / 2).setTranslation(g.x, g.y, g.z),
+          ),
+        );
+        break;
+      case 'plane':
+        // Planes are thin; use a flat cuboid (5 cm).
+        genColliders.push(
+          world.createCollider(
+            RAPIER.ColliderDesc.cuboid(g.width / 2, 0.025, g.depth / 2)
+              .setTranslation(g.x, g.y, g.z)
+              .setRotation(rot),
+          ),
+        );
+        break;
+      default: // box, ramp
+        genColliders.push(
+          world.createCollider(
+            RAPIER.ColliderDesc.cuboid(g.width / 2, g.height / 2, g.depth / 2)
+              .setTranslation(g.x, g.y, g.z)
+              .setRotation(rot),
+          ),
+        );
+    }
+  }
+  return { meshes, genColliders };
 }
 
 /** Square ground plane with subtle deterministic colour variation (one draw call). */

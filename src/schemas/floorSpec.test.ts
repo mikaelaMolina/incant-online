@@ -12,7 +12,8 @@ function parse(input: unknown) {
 
 describe('FloorSpec', () => {
   it('parses the starting arena unchanged', () => {
-    expect(parse(startingArena)).toEqual(startingArena);
+    // generated_props is added by the schema (defaults to []); everything else stays the same.
+    expect(parse(startingArena)).toEqual({ ...startingArena, generated_props: [] });
   });
 
   it('fails only for non-objects', () => {

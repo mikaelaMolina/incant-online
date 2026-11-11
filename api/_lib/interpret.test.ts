@@ -4,7 +4,6 @@ import { resolveMode } from './env';
 import { RATE_LIMIT, resetRateLimit } from './rateLimit';
 import { ANTHROPIC_URL, ANTHROPIC_VERSION } from './llm/client';
 import { SYSTEM_PROMPT } from './llm/prompt';
-import { INTERPRET_JSON_SCHEMA } from './llm/wireSchema';
 import { CACHED_FLOORS, CACHED_INCANTATIONS } from '../../src/fallback/cache';
 import { STARTING_ARENA } from '../../src/fallback/floors';
 
@@ -90,8 +89,14 @@ describe('interpret: llm mode (mocked HTTP)', () => {
     expect(headers['x-api-key']).toBe('test-key');
     expect(headers['anthropic-version']).toBe(ANTHROPIC_VERSION);
     const sent = JSON.parse(String(init.body));
-    expect(sent).toMatchObject({ model: 'claude-haiku-5-5', system: SYSTEM_PROMPT });
-    expect(sent.output_config).toEqual({ effort: 'low', format: { type: 'json_schema', schema: INTERPRET_JSON_SCHEMA } });
+    expect(sent).toMatchObject({ model: 'claude-haiku-5-5' });
+    // system is now an array of content blocks for cache_control support.
+    expect(Array.isArray(sent.system)).toBe(true);
+    expect(sent.system[0].text).toBe(SYSTEM_PROMPT);
+    expect(sent.system[0].cache_control).toEqual({ type: 'ephemeral' });
+    // json_schema is not used (grammar too large for Anthropic's compiler);
+    // we rely on the system prompt + lenient Zod validation instead.
+    expect(sent.output_config).toEqual({ effort: 'low' });
     expect(sent).not.toHaveProperty('temperature'); // rejected by current models
     expect(sent).not.toHaveProperty('thinking');
   });

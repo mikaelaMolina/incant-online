@@ -9,6 +9,10 @@ import type { Env } from './env.js';
  * If the call fails (out of credits, rejected, timeout), the client falls back to the browser
  * voice. Fixed lines are pre-recorded (npm run voices) and never reach this endpoint; generated
  * lines are cached in memory so a repeated line costs credits once.
+ *
+ * Voice pool: the Arbiter uses DEFAULT_TTS_VOICE; NPC voices are drawn from NPC_VOICE_POOL.
+ * The client passes an optional voiceId in the POST body to select a voice.
+ * All voices require the account's paid plan for API access.
  */
 export const ELEVENLABS_TTS_URL = 'https://api.elevenlabs.io/v1/text-to-speech';
 /** Real-time model (~100 ms model latency); 0.5–1 credit per character. */
@@ -19,6 +23,38 @@ export const DEFAULT_TTS_MODEL = 'eleven_flash_v2_5';
  * Library voices need a paid plan for API use; set TTS_VOICE to any voice_id the account can use.
  */
 export const DEFAULT_TTS_VOICE = '6WwXjDDEMyNmFG95zycZ';
+
+/**
+ * NPC voice pool — different from the Arbiter so NPCs sound distinct.
+ * All are ElevenLabs premade/library voices that work on paid plans.
+ * Keys are stable role labels; fallback is a round-robin of the array values.
+ *
+ * Voice IDs (ElevenLabs premade voices, available on all paid plans):
+ *   Charlotte – Seductive British female  : XB0fDUnXU5powFXDhCwa
+ *   Callum    – Intense British male      : N2lVS1w4EtoT3dr4eOWO
+ *   Alice     – Confident British female  : Xb7hH8MSUJpSbSDYk0k2
+ *   Bill      – Trustworthy American male : pqHfZKP75CvOlQylNhV4
+ *   Liam      – Casual American male      : TX3LPaxmHKxFdv7VOQHJ
+ */
+export const NPC_VOICE_POOL: readonly string[] = [
+  'XB0fDUnXU5powFXDhCwa', // Charlotte
+  'N2lVS1w4EtoT3dr4eOWO', // Callum
+  'Xb7hH8MSUJpSbSDYk0k2', // Alice
+  'pqHfZKP75CvOlQylNhV4', // Bill
+  'TX3LPaxmHKxFdv7VOQHJ', // Liam
+];
+
+/** Voice IDs pinned to named NPC roles so the same character always sounds the same. */
+export const ROLE_VOICES: Record<string, string> = {
+  Elder:     'N2lVS1w4EtoT3dr4eOWO', // Callum – older, authoritative
+  Knight:    'pqHfZKP75CvOlQylNhV4', // Bill   – steady, trustworthy
+  Villager:  'TX3LPaxmHKxFdv7VOQHJ', // Liam   – casual
+  Wanderer:  'Xb7hH8MSUJpSbSDYk0k2', // Alice  – enigmatic
+  Merchant:  'TX3LPaxmHKxFdv7VOQHJ', // Liam   – chatty trader
+  Innkeeper: 'pqHfZKP75CvOlQylNhV4', // Bill   – warm, welcoming
+  Guide:     'Xb7hH8MSUJpSbSDYk0k2', // Alice
+};
+
 /** 64 kbps MP3: small and quick to arrive, plenty for one narrator line. */
 export const TTS_OUTPUT_FORMAT = 'mp3_44100_64';
 /** Steady and unhurried: higher stability, a little slower than normal. */
@@ -100,16 +136,25 @@ export interface SynthesizeOptions {
   log?: (msg: string) => void;
 }
 
+/** All known voice IDs the client may request (Arbiter + NPC pool). */
+const KNOWN_VOICES = new Set<string>([DEFAULT_TTS_VOICE, ...NPC_VOICE_POOL]);
+
 /**
- * POST /api/tts { text } → audio/mpeg, or a status the client treats as "use the browser voice":
+ * POST /api/tts { text, voiceId? } → audio/mpeg, or a status the client treats as "use the browser voice":
  * 204 no key configured, 400 empty, 429 rate limited, 502 ElevenLabs failed or timed out.
+ * Optional voiceId: a voice from the NPC pool; unknown IDs fall back to the default.
  */
 export async function synthesize(body: unknown, opts: SynthesizeOptions): Promise<Response> {
   const cfg = resolveTts(opts.env);
   if (!cfg.enabled) return new Response(null, { status: 204 });
-  const raw = typeof body === 'object' && body !== null && typeof (body as { text?: unknown }).text === 'string' ? (body as { text: string }).text : '';
+  const b = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
+  const raw = typeof b['text'] === 'string' ? b['text'] : '';
   const input = clipForSpeech(raw);
   if (!input) return new Response(null, { status: 400 });
+
+  // Allow the client to request a specific voice from the known pool; ignore unknown IDs.
+  const requestedVoice = typeof b['voiceId'] === 'string' ? b['voiceId'] : undefined;
+  if (requestedVoice && KNOWN_VOICES.has(requestedVoice)) cfg.voice = requestedVoice;
 
   const cacheKey = `${cfg.voice}|${cfg.model}|${input}`;
   let audio = audioCache.get(cacheKey);
